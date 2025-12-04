@@ -11,6 +11,8 @@ import {
   FolderOpen, ChevronDown
 } from 'lucide-react';
 import { supabase } from './supabase';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 // --- Constants & Defaults ---
 
@@ -225,6 +227,23 @@ export default function RiskReturnOptimiser() {
     }
     setIsSaving(true);
     try {
+      // Check if scenario exists
+      const { data: existingData } = await supabase
+        .from('scenarios')
+        .select('id')
+        .eq('name', scenarioName)
+        .single();
+
+      let shouldSave = true;
+      if (existingData) {
+        shouldSave = window.confirm(`Scenario "${scenarioName}" already exists. Do you want to overwrite it?`);
+      }
+
+      if (!shouldSave) {
+        setIsSaving(false);
+        return;
+      }
+
       const payload = {
         name: scenarioName,
         assets,
@@ -237,10 +256,21 @@ export default function RiskReturnOptimiser() {
         created_at: new Date().toISOString()
       };
 
-      const { data, error } = await supabase
-        .from('scenarios')
-        .insert([payload])
-        .select();
+      let error;
+      if (existingData) {
+        // Update existing
+        const { error: updateError } = await supabase
+          .from('scenarios')
+          .update(payload)
+          .eq('id', existingData.id);
+        error = updateError;
+      } else {
+        // Insert new
+        const { error: insertError } = await supabase
+          .from('scenarios')
+          .insert([payload]);
+        error = insertError;
+      }
 
       if (error) throw error;
 
@@ -251,6 +281,98 @@ export default function RiskReturnOptimiser() {
       console.error('Error saving scenario:', error);
       alert('Failed to save scenario. Please check console for details.');
     } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    const element = document.getElementById('report-content');
+    if (!element) return;
+
+    // Temporarily show all tabs for capture (simulated by rendering a hidden report view or capturing current view)
+    // For simplicity in this single-page app, we'll capture the current view but ideally we'd construct a dedicated report layout.
+    // Given the requirement for "key inputs, charts, outputs", we will create a temporary container with all relevant data visible.
+    
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    
+    // Helper to add section to PDF
+    const addSection = async (elementId, yOffset) => {
+      const el = document.getElementById(elementId);
+      if (!el) return yOffset;
+      
+      const canvas = await html2canvas(el, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pageWidth - 20;
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      if (yOffset + pdfHeight > pageHeight - 20) {
+        pdf.addPage();
+        yOffset = 20;
+      }
+      
+      pdf.addImage(imgData, 'PNG', 10, yOffset, pdfWidth, pdfHeight);
+      return yOffset + pdfHeight + 10;
+    };
+
+    // Since tabs hide content, we can't capture everything at once easily without rendering a dedicated print view.
+    // A robust solution is to render a hidden "Print View" component that displays everything, then capture that.
+    // For now, we will alert the user that this feature requires a visible report view or implement a print-specific layout.
+    
+    // BETTER APPROACH: Switch to a "Print Mode" temporarily
+    const originalTab = activeTab;
+    
+    try {
+      setIsSaving(true); // Reuse loading state
+      
+      // 1. Title Page
+      pdf.setFontSize(24);
+      pdf.text("Wealth Strategy Report", 105, 40, { align: "center" });
+      pdf.setFontSize(16);
+      pdf.text(scenarioName, 105, 55, { align: "center" });
+      pdf.setFontSize(12);
+      pdf.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 65, { align: "center" });
+      
+      let y = 80;
+
+      // 2. Capture Data Inputs (We need to switch tabs to render them)
+      setActiveTab('data');
+      await new Promise(r => setTimeout(r, 500)); // Wait for render
+      y = await addSection('data-tab-content', y);
+
+      // 3. Capture Structure
+      setActiveTab('client');
+      await new Promise(r => setTimeout(r, 500));
+      if (y > 200) { pdf.addPage(); y = 20; }
+      y = await addSection('client-tab-content', y);
+
+      // 4. Capture Optimization
+      setActiveTab('optimization');
+      await new Promise(r => setTimeout(r, 500));
+      pdf.addPage(); y = 20;
+      y = await addSection('optimization-tab-content', y);
+
+      // 5. Capture Output
+      setActiveTab('output');
+      await new Promise(r => setTimeout(r, 500));
+      pdf.addPage(); y = 20;
+      y = await addSection('output-tab-content', y);
+
+      // 6. Capture Cashflow
+      setActiveTab('cashflow');
+      await new Promise(r => setTimeout(r, 500));
+      pdf.addPage(); y = 20;
+      y = await addSection('cashflow-tab-content', y);
+
+      pdf.save(`${scenarioName.replace(/\s+/g, '_')}_Report.pdf`);
+
+    } catch (e) {
+      console.error("PDF Generation Error", e);
+      alert("Failed to generate PDF");
+    } finally {
+      setActiveTab(originalTab);
       setIsSaving(false);
     }
   };
@@ -1172,18 +1294,21 @@ export default function RiskReturnOptimiser() {
                {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin"/> : <Cloud className="w-4 h-4 mr-2"/>}
                {isSaving ? 'Saving...' : 'Save'}
             </button>
-            <button className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium">
-               <FileText className="w-4 h-4 mr-2"/> Summary PDF
+            <button 
+              onClick={handleExportPDF}
+              className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium"
+            >
+               <FileText className="w-4 h-4 mr-2"/> Export PDF
             </button>
           </div>
         </div>
         {Navigation()}
-        <main>
-          {activeTab === 'data' && DataTab()}
-          {activeTab === 'client' && ClientTab()}
-          {activeTab === 'optimization' && OptimizationTab()}
-          {activeTab === 'output' && OutputTab()}
-          {activeTab === 'cashflow' && CashflowTab()}
+        <main id="report-content">
+          {activeTab === 'data' && <div id="data-tab-content">{DataTab()}</div>}
+          {activeTab === 'client' && <div id="client-tab-content">{ClientTab()}</div>}
+          {activeTab === 'optimization' && <div id="optimization-tab-content">{OptimizationTab()}</div>}
+          {activeTab === 'output' && <div id="output-tab-content">{OutputTab()}</div>}
+          {activeTab === 'cashflow' && <div id="cashflow-tab-content">{CashflowTab()}</div>}
         </main>
       </div>
     </div>
