@@ -381,7 +381,8 @@ export default function RiskReturnOptimiser() {
 
       // Render Output Tab to capture Pie Chart
       setActiveTab('output');
-      await new Promise(r => setTimeout(r, 800)); // Wait for render
+      // Wait longer for Recharts to animate and render completely
+      await new Promise(r => setTimeout(r, 1500)); 
       
       // Capture Pie Chart (We need to target the specific container)
       const pieChartImg = await captureChart('output-tab-content'); 
@@ -435,7 +436,8 @@ export default function RiskReturnOptimiser() {
       y += 5;
 
       setActiveTab('cashflow');
-      await new Promise(r => setTimeout(r, 800));
+      // Wait longer for Recharts to animate and render completely
+      await new Promise(r => setTimeout(r, 1500));
       
       const projectionImg = await captureChart('cashflow-tab-content');
       if (projectionImg) {
