@@ -286,85 +286,171 @@ export default function RiskReturnOptimiser() {
   };
 
   const handleExportPDF = async () => {
-    const element = document.getElementById('report-content');
-    if (!element) return;
-
-    // Temporarily show all tabs for capture (simulated by rendering a hidden report view or capturing current view)
-    // For simplicity in this single-page app, we'll capture the current view but ideally we'd construct a dedicated report layout.
-    // Given the requirement for "key inputs, charts, outputs", we will create a temporary container with all relevant data visible.
-    
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    
-    // Helper to add section to PDF
-    const addSection = async (elementId, yOffset) => {
-      const el = document.getElementById(elementId);
-      if (!el) return yOffset;
-      
-      const canvas = await html2canvas(el, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pageWidth - 20;
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      
-      if (yOffset + pdfHeight > pageHeight - 20) {
-        pdf.addPage();
-        yOffset = 20;
-      }
-      
-      pdf.addImage(imgData, 'PNG', 10, yOffset, pdfWidth, pdfHeight);
-      return yOffset + pdfHeight + 10;
-    };
-
-    // Since tabs hide content, we can't capture everything at once easily without rendering a dedicated print view.
-    // A robust solution is to render a hidden "Print View" component that displays everything, then capture that.
-    // For now, we will alert the user that this feature requires a visible report view or implement a print-specific layout.
-    
-    // BETTER APPROACH: Switch to a "Print Mode" temporarily
+    setIsSaving(true);
     const originalTab = activeTab;
     
     try {
-      setIsSaving(true); // Reuse loading state
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 15;
+      let y = margin;
+
+      // --- Helper Functions ---
+      const addText = (text, size = 10, style = 'normal', color = [0, 0, 0], align = 'left') => {
+        pdf.setFontSize(size);
+        pdf.setFont('helvetica', style);
+        pdf.setTextColor(...color);
+        if (align === 'center') {
+          pdf.text(text, pageWidth / 2, y, { align: 'center' });
+        } else if (align === 'right') {
+          pdf.text(text, pageWidth - margin, y, { align: 'right' });
+        } else {
+          pdf.text(text, margin, y);
+        }
+        y += size * 0.5; // Line height approximation
+      };
+
+      const addLine = () => {
+        pdf.setDrawColor(200, 200, 200);
+        pdf.line(margin, y, pageWidth - margin, y);
+        y += 5;
+      };
+
+      const checkPageBreak = (heightNeeded) => {
+        if (y + heightNeeded > pageHeight - margin) {
+          pdf.addPage();
+          y = margin;
+          return true;
+        }
+        return false;
+      };
+
+      const captureChart = async (elementId) => {
+        const el = document.getElementById(elementId);
+        if (!el) return null;
+        const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff' });
+        return canvas.toDataURL('image/png');
+      };
+
+      // --- 1. Header ---
+      addText("Wealth Strategy Report", 24, 'bold', [37, 99, 235], 'center');
+      y += 5;
+      addText(scenarioName, 16, 'normal', [80, 80, 80], 'center');
+      y += 5;
+      addText(`Generated: ${new Date().toLocaleDateString()}`, 10, 'italic', [150, 150, 150], 'center');
+      y += 10;
+      addLine();
+
+      // --- 2. Key Assumptions (Data & Client) ---
+      addText("Key Assumptions", 14, 'bold', [30, 30, 30]);
+      y += 5;
       
-      // 1. Title Page
-      pdf.setFontSize(24);
-      pdf.text("Wealth Strategy Report", 105, 40, { align: "center" });
-      pdf.setFontSize(16);
-      pdf.text(scenarioName, 105, 55, { align: "center" });
-      pdf.setFontSize(12);
-      pdf.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 65, { align: "center" });
-      
-      let y = 80;
+      const col1X = margin;
+      const col2X = pageWidth / 2 + 5;
+      const startY = y;
 
-      // 2. Capture Data Inputs (We need to switch tabs to render them)
-      setActiveTab('data');
-      await new Promise(r => setTimeout(r, 500)); // Wait for render
-      y = await addSection('data-tab-content', y);
+      // Column 1: Financials
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text("Financial Parameters", col1X, y);
+      y += 5;
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Projection Period: ${projectionYears} Years`, col1X, y); y += 5;
+      pdf.text(`Inflation Rate: ${(inflationRate * 100).toFixed(1)}%`, col1X, y); y += 5;
+      pdf.text(`Total Investable: ${formatCurrency(totalWealth)}`, col1X, y); y += 5;
 
-      // 3. Capture Structure
-      setActiveTab('client');
-      await new Promise(r => setTimeout(r, 500));
-      if (y > 200) { pdf.addPage(); y = 20; }
-      y = await addSection('client-tab-content', y);
+      // Column 2: Structures
+      y = startY;
+      pdf.setFont('helvetica', 'bold');
+      pdf.text("Entity Structure", col2X, y);
+      y += 5;
+      pdf.setFont('helvetica', 'normal');
+      structures.forEach(s => {
+        pdf.text(`${s.name} (${ENTITY_TYPES[s.type].label}): ${formatCurrency(s.value)}`, col2X, y);
+        y += 5;
+      });
 
-      // 4. Capture Optimization
-      setActiveTab('optimization');
-      await new Promise(r => setTimeout(r, 500));
-      pdf.addPage(); y = 20;
-      y = await addSection('optimization-tab-content', y);
+      y = Math.max(y, startY + 25) + 5;
+      addLine();
 
-      // 5. Capture Output
+      // --- 3. Asset Allocation (Pie Chart & Table) ---
+      checkPageBreak(80);
+      addText("Target Asset Allocation", 14, 'bold', [30, 30, 30]);
+      y += 5;
+
+      // Render Output Tab to capture Pie Chart
       setActiveTab('output');
-      await new Promise(r => setTimeout(r, 500));
-      pdf.addPage(); y = 20;
-      y = await addSection('output-tab-content', y);
+      await new Promise(r => setTimeout(r, 800)); // Wait for render
+      
+      // Capture Pie Chart (We need to target the specific container)
+      const pieChartImg = await captureChart('output-tab-content'); 
+      if (pieChartImg) {
+        const imgProps = pdf.getImageProperties(pieChartImg);
+        const pdfWidth = pageWidth - (margin * 2);
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        // Crop height to just show the top part (Pie Chart) if possible, or just scale it down
+        // For now, we'll fit it nicely
+        const displayHeight = Math.min(pdfHeight, 80);
+        pdf.addImage(pieChartImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
+        y += displayHeight + 5;
+      }
 
-      // 6. Capture Cashflow
+      // --- 4. Portfolio Performance ---
+      checkPageBreak(40);
+      addLine();
+      addText("Portfolio Analysis", 14, 'bold', [30, 30, 30]);
+      y += 5;
+      
+      const statsY = y;
+      // Box 1: Return
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin, y, 55, 25, 'F');
+      pdf.setFontSize(10); pdf.setTextColor(100, 100, 100);
+      pdf.text("Expected Return", margin + 27.5, y + 8, { align: 'center' });
+      pdf.setFontSize(14); pdf.setTextColor(22, 163, 74); pdf.setFont('helvetica', 'bold');
+      pdf.text(formatPercent(selectedPortfolio.return), margin + 27.5, y + 18, { align: 'center' });
+
+      // Box 2: Risk
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin + 60, y, 55, 25, 'F');
+      pdf.setFontSize(10); pdf.setTextColor(100, 100, 100); pdf.setFont('helvetica', 'normal');
+      pdf.text("Risk (StdDev)", margin + 87.5, y + 8, { align: 'center' });
+      pdf.setFontSize(14); pdf.setTextColor(220, 38, 38); pdf.setFont('helvetica', 'bold');
+      pdf.text(formatPercent(selectedPortfolio.risk), margin + 87.5, y + 18, { align: 'center' });
+
+      // Box 3: Sharpe
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin + 120, y, 55, 25, 'F');
+      pdf.setFontSize(10); pdf.setTextColor(100, 100, 100); pdf.setFont('helvetica', 'normal');
+      pdf.text("Sharpe Ratio", margin + 147.5, y + 8, { align: 'center' });
+      pdf.setFontSize(14); pdf.setTextColor(37, 99, 235); pdf.setFont('helvetica', 'bold');
+      pdf.text((selectedPortfolio.return / selectedPortfolio.risk).toFixed(2), margin + 147.5, y + 18, { align: 'center' });
+
+      y += 35;
+
+      // --- 5. Wealth Projection ---
+      checkPageBreak(90);
+      addText("Wealth Projection (Monte Carlo)", 14, 'bold', [30, 30, 30]);
+      y += 5;
+
       setActiveTab('cashflow');
-      await new Promise(r => setTimeout(r, 500));
-      pdf.addPage(); y = 20;
-      y = await addSection('cashflow-tab-content', y);
+      await new Promise(r => setTimeout(r, 800));
+      
+      const projectionImg = await captureChart('cashflow-tab-content');
+      if (projectionImg) {
+        const imgProps = pdf.getImageProperties(projectionImg);
+        const pdfWidth = pageWidth - (margin * 2);
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        const displayHeight = Math.min(pdfHeight, 90);
+        pdf.addImage(projectionImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
+        y += displayHeight + 5;
+      }
+
+      // Footer
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150);
+      pdf.text("Generated by FIRE Wealth Optimiser", pageWidth / 2, pageHeight - 10, { align: 'center' });
 
       pdf.save(`${scenarioName.replace(/\s+/g, '_')}_Report.pdf`);
 
