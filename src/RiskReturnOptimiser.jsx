@@ -399,7 +399,7 @@ export default function RiskReturnOptimiser() {
       // User requested "whole width" and "very small" previously.
       // Page width ~180mm usable. Let's go for 150mm to be safe but very large.
       const pieSize = 150; 
-      const pieX = (pageWidth - pieSize) ;
+      const pieX = (pageWidth - pieSize) / 2 ;
       
       // Inline capture logic for custom positioning
       const pieContainer = document.getElementById('pie-chart-section');
@@ -1345,14 +1345,14 @@ export default function RiskReturnOptimiser() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div id="pie-chart-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center">
             <h4 className="font-semibold text-gray-900 mb-4 w-full text-left">Overall Asset Allocation</h4>
-            <div className="h-[300px] w-full">
+            <div className="h-[500px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie 
                     data={activeAssets.map((a, i) => ({ ...a, value: selectedPortfolio.weights[assets.filter(x=>x.active).findIndex(x=>x.id===a.id)] * 100 }))} 
                     cx="50%" cy="50%" 
-                    innerRadius={60} 
-                    outerRadius={100} 
+                    innerRadius={150} 
+                    outerRadius={240} 
                     paddingAngle={2} 
                     dataKey="value"
                     isAnimationActive={!isExporting}
@@ -1537,9 +1537,9 @@ export default function RiskReturnOptimiser() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <Activity className="w-8 h-8 text-blue-600" />
-              Risk/Return Optimiser
+              FIRE Wealth Risk/Return Optimising
             </h1>
-            <p className="text-gray-500 text-sm mt-1">PRD Compliant v1.0 • Tax-Aware Optimization</p>
+            <p className="text-gray-500 text-sm mt-1">v0.1</p>
           </div>
           <div className="flex gap-2 items-center">
             <div className="relative">
