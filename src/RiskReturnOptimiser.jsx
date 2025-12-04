@@ -7,7 +7,8 @@ import {
 import { 
   Settings, User, Activity, PieChart as PieIcon, TrendingUp, 
   ChevronRight, Save, Calculator, ArrowRight, DollarSign, Plus, Trash2, Calendar,
-  AlertCircle, FileText, CheckSquare, Square, Clock, Percent, Loader, Cpu, Cloud
+  AlertCircle, FileText, CheckSquare, Square, Clock, Percent, Loader, Cpu, Cloud,
+  FolderOpen, ChevronDown
 } from 'lucide-react';
 import { supabase } from './supabase';
 
@@ -187,6 +188,22 @@ export default function RiskReturnOptimiser() {
   // Supabase State
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
+  const [scenarioName, setScenarioName] = useState('My Strategy');
+  const [savedScenarios, setSavedScenarios] = useState([]);
+  const [showLoadMenu, setShowLoadMenu] = useState(false);
+
+  useEffect(() => {
+    fetchScenarios();
+  }, []);
+
+  const fetchScenarios = async () => {
+    const { data, error } = await supabase
+      .from('scenarios')
+      .select('id, name, created_at')
+      .order('created_at', { ascending: false });
+    
+    if (data) setSavedScenarios(data);
+  };
 
   // --- Helpers ---
   const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
@@ -202,9 +219,14 @@ export default function RiskReturnOptimiser() {
   // --- Handlers ---
 
   const handleSaveScenario = async () => {
+    if (!scenarioName.trim()) {
+      alert('Please enter a scenario name');
+      return;
+    }
     setIsSaving(true);
     try {
       const payload = {
+        name: scenarioName,
         assets,
         structures,
         income_streams: incomeStreams,
@@ -223,12 +245,39 @@ export default function RiskReturnOptimiser() {
       if (error) throw error;
 
       setLastSaved(new Date());
+      fetchScenarios();
       alert('Scenario saved successfully!');
     } catch (error) {
       console.error('Error saving scenario:', error);
       alert('Failed to save scenario. Please check console for details.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleLoadScenario = async (id) => {
+    const { data, error } = await supabase
+      .from('scenarios')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (data) {
+      setScenarioName(data.name || 'Untitled');
+      if (data.assets) setAssets(data.assets);
+      if (data.structures) setStructures(data.structures);
+      if (data.income_streams) setIncomeStreams(data.income_streams);
+      if (data.expense_streams) setExpenseStreams(data.expense_streams);
+      if (data.one_off_events) setOneOffEvents(data.one_off_events);
+      if (data.projection_years) setProjectionYears(data.projection_years);
+      if (data.inflation_rate) setInflationRate(data.inflation_rate);
+      
+      // Reset simulation state
+      setSimulations([]);
+      setEfficientFrontier([]);
+      setCfSimulationResults([]);
+      setActiveTab('data');
+      setShowLoadMenu(false);
     }
   };
 
@@ -1048,14 +1097,54 @@ export default function RiskReturnOptimiser() {
             </h1>
             <p className="text-gray-500 text-sm mt-1">PRD Compliant v1.0 • Tax-Aware Optimization</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <div className="relative">
+              <input 
+                type="text" 
+                value={scenarioName}
+                onChange={(e) => setScenarioName(e.target.value)}
+                className="border border-gray-300 rounded px-3 py-2 text-sm w-48 focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="Scenario Name"
+              />
+            </div>
+
+            <div className="relative">
+              <button 
+                onClick={() => setShowLoadMenu(!showLoadMenu)}
+                className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium"
+              >
+                <FolderOpen className="w-4 h-4 mr-2"/> Load
+                <ChevronDown className="w-3 h-3 ml-1"/>
+              </button>
+              
+              {showLoadMenu && (
+                <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
+                  <div className="p-2 border-b border-gray-100 text-xs font-semibold text-gray-500">Saved Scenarios</div>
+                  {savedScenarios.length === 0 ? (
+                     <div className="p-4 text-center text-sm text-gray-400">No saved scenarios</div>
+                  ) : (
+                    savedScenarios.map(s => (
+                      <button 
+                        key={s.id}
+                        onClick={() => handleLoadScenario(s.id)}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0"
+                      >
+                        <div className="font-medium text-gray-900">{s.name || 'Untitled'}</div>
+                        <div className="text-xs text-gray-500">{new Date(s.created_at).toLocaleDateString()}</div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
             <button 
               onClick={handleSaveScenario}
               disabled={isSaving}
               className="flex items-center px-3 py-2 bg-blue-600 text-white border border-blue-700 rounded hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
             >
                {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin"/> : <Cloud className="w-4 h-4 mr-2"/>}
-               {isSaving ? 'Saving...' : 'Save Scenario'}
+               {isSaving ? 'Saving...' : 'Save'}
             </button>
             <button className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium">
                <FileText className="w-4 h-4 mr-2"/> Summary PDF
