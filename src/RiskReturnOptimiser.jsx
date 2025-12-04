@@ -944,7 +944,7 @@ export default function RiskReturnOptimiser() {
 
         <div className="space-y-4">
           {structures.map((struct, idx) => (
-            <div key={struct.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <div key={struct.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-gray-50 p-4 rounded-lg border border-gray-200 relative group">
               <div className="md:col-span-3">
                 <label className="block text-xs font-medium text-gray-500 mb-1">Entity Name</label>
                 <input type="text" value={struct.name}
@@ -971,14 +971,35 @@ export default function RiskReturnOptimiser() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-semibold"
                 />
               </div>
-              <div className="md:col-span-3">
+              <div className="md:col-span-2">
                  <div className="text-xs text-gray-500">
                    Tax: {formatPercent(ENTITY_TYPES[struct.type].incomeTax)} Inc / {formatPercent(ENTITY_TYPES[struct.type].ltCgt)} CGT
                  </div>
               </div>
+              <div className="md:col-span-1 flex justify-end">
+                <button 
+                  onClick={() => {
+                    if (structures.length > 1) {
+                      setStructures(structures.filter(s => s.id !== struct.id));
+                    } else {
+                      alert("You must have at least one entity.");
+                    }
+                  }}
+                  className="text-gray-400 hover:text-red-500 p-2"
+                  title="Delete Entity"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           ))}
-          <div className="flex justify-end pt-2">
+          <div className="flex justify-between items-center pt-2">
+            <button 
+              onClick={() => setStructures([...structures, { id: Date.now(), type: 'PERSONAL', name: 'New Entity', value: 0 }])}
+              className="flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+            >
+              <Plus className="w-4 h-4 mr-2" /> Add Entity
+            </button>
             <div className="text-right">
               <span className="text-sm text-gray-500 block">Total Investable Assets</span>
               <span className="text-xl font-bold text-gray-900">{formatCurrency(totalWealth)}</span>
@@ -1353,8 +1374,30 @@ export default function RiskReturnOptimiser() {
                 <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} />
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 {!isExporting && <Tooltip 
-                  formatter={(val) => formatCurrency(val)}
-                  labelFormatter={(val) => `Year ${val}`}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-xs z-50">
+                          <p className="font-bold mb-2 text-gray-900">Year {label}</p>
+                          <div className="space-y-1">
+                            <div className="flex justify-between gap-4">
+                              <span className="text-gray-500">Best Case (95th):</span>
+                              <span className="font-mono font-medium text-blue-400">{formatCurrency(payload.find(p => p.name === 'Best Case (95th)')?.value || 0)}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                              <span className="text-gray-500">Median (50th):</span>
+                              <span className="font-mono font-bold text-blue-700">{formatCurrency(payload.find(p => p.name === 'Median (50th)')?.value || 0)}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                              <span className="text-gray-500">Worst Case (5th):</span>
+                              <span className="font-mono font-medium text-blue-400">{formatCurrency(payload.find(p => p.name === 'Worst Case (5th)')?.value || 0)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />}
                 
                 <Area type="monotone" dataKey="p95" stroke="none" fill="url(#confidenceBand)" name="95th Percentile" isAnimationActive={!isExporting} />
