@@ -174,18 +174,6 @@ export default function RiskReturnOptimiser() {
   const [oneOffEvents, setOneOffEvents] = useState(DEFAULT_ONE_OFF_EVENTS);
   const [projectionYears, setProjectionYears] = useState(30);
   const [inflationRate, setInflationRate] = useState(0.025);
-
-  // Simulation State
-  const [simulations, setSimulations] = useState([]);
-  const [efficientFrontier, setEfficientFrontier] = useState([]);
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [progress, setProgress] = useState(0); // 0-100
-  const [simulationCount, setSimulationCount] = useState(20000); // Default number of simulations
-  const [selectedPortfolioId, setSelectedPortfolioId] = useState(5);
-  const [optimizationAssets, setOptimizationAssets] = useState([]);
-  
-  // Cashflow Result State
-  const [cfSimulationResults, setCfSimulationResults] = useState([]);
   
   // Supabase State
   const [isSaving, setIsSaving] = useState(false);
