@@ -151,12 +151,22 @@ const calculatePortfolioStats = (weights, afterTaxReturns, assets, correlations)
   };
 };
 
-const randn_bm = () => {
+const randn_bm = (rng = Math.random) => {
   let u = 0, v = 0;
-  while(u === 0) u = Math.random(); 
-  while(v === 0) v = Math.random();
+  while(u === 0) u = rng(); 
+  while(v === 0) v = rng();
   return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
 };
+
+// Simple Seeded RNG (Mulberry32)
+const createSeededRandom = (seed) => {
+    return () => {
+      let t = seed += 0x6D2B79F5;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+}
 
 // Batch Runner logic handled inside handler to access closure state properly
 
@@ -762,12 +772,15 @@ export default function RiskReturnOptimiser() {
       results.push({ year: y, p05: 0, p50: 0, p95: 0, paths: [] });
     }
 
+    const seed = 12345; // Fixed seed for deterministic results
+    const rng = createSeededRandom(seed);
+
     for (let r = 0; r < numRuns; r++) {
       let balance = totalWealth;
       results[0].paths.push(balance);
 
       for (let y = 1; y <= years; y++) {
-        const rnd = randn_bm(); 
+        const rnd = randn_bm(rng); 
         const annualReturn = portReturn + (rnd * portRisk);
         
         balance = balance * (1 + annualReturn);
