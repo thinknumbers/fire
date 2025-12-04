@@ -396,7 +396,9 @@ export default function RiskReturnOptimiser() {
       await new Promise(r => setTimeout(r, 2000)); 
 
       // 3a. Pie Chart (Full Width, Centered)
-      const pieSize = 100; // Increased size
+      // User requested "whole width" and "very small" previously.
+      // Page width ~180mm usable. Let's go for 150mm to be safe but very large.
+      const pieSize = 150; 
       const pieX = (pageWidth - pieSize) / 2;
       
       // Inline capture logic for custom positioning
@@ -413,6 +415,9 @@ export default function RiskReturnOptimiser() {
             clone.setAttribute('width', pieSize);
             clone.setAttribute('height', pieSize);
             
+            // Ensure labels are visible in the clone if they are hidden by default
+            // (The Recharts render logic below handles the label generation)
+
             const tempDiv = document.createElement('div');
             tempDiv.style.position = 'absolute';
             tempDiv.style.left = '-9999px';
@@ -428,7 +433,7 @@ export default function RiskReturnOptimiser() {
         }
       }
 
-      y += pieSize + 2; // Reduced gap
+      y += pieSize + 5;
 
       // 3b. Manual Legend (Grid Layout)
       pdf.setFontSize(8); // Smaller font
@@ -1351,6 +1356,20 @@ export default function RiskReturnOptimiser() {
                     paddingAngle={2} 
                     dataKey="value"
                     isAnimationActive={!isExporting}
+                    label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                      const RADIAN = Math.PI / 180;
+                      const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                    
+                      if (percent < 0.05) return null; // Don't show for small slices
+                      return (
+                        <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={12} fontWeight="bold">
+                          {`${(percent * 100).toFixed(0)}%`}
+                        </text>
+                      );
+                    }}
+                    labelLine={false}
                   >
                     {activeAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                   </Pie>
