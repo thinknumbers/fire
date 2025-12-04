@@ -382,23 +382,21 @@ export default function RiskReturnOptimiser() {
 
       // Render Output Tab to capture Pie Chart
       setActiveTab('output');
-      await new Promise(r => setTimeout(r, 1500)); 
+      await new Promise(r => setTimeout(r, 2500)); 
       
       // Capture Pie Chart and Table separately for better layout control
-      // We'll temporarily modify styles to remove shadows/borders for a cleaner print look
+      // Ensure borders are visible for the PDF
       const pieEl = document.getElementById('pie-chart-section');
       const tableEl = document.getElementById('allocation-table-section');
       
-      const originalPieStyle = pieEl ? pieEl.style.cssText : '';
-      const originalTableStyle = tableEl ? tableEl.style.cssText : '';
-
+      // We want borders in the PDF, so we ensure they are set
       if (pieEl) {
-        pieEl.style.boxShadow = 'none';
-        pieEl.style.border = 'none';
+        pieEl.style.border = '1px solid #e5e7eb';
+        pieEl.style.borderRadius = '0.75rem';
       }
       if (tableEl) {
-        tableEl.style.boxShadow = 'none';
-        tableEl.style.border = 'none';
+        tableEl.style.border = '1px solid #e5e7eb';
+        tableEl.style.borderRadius = '0.75rem';
         // Increase font size for table
         const tableInner = tableEl.querySelector('table');
         if (tableInner) tableInner.classList.replace('text-sm', 'text-base');
@@ -407,10 +405,8 @@ export default function RiskReturnOptimiser() {
       const pieCanvas = await captureChart('pie-chart-section');
       const tableCanvas = await captureChart('allocation-table-section');
 
-      // Restore styles
-      if (pieEl) pieEl.style.cssText = originalPieStyle;
+      // Restore styles (optional, as we switch tabs anyway, but good practice)
       if (tableEl) {
-        tableEl.style.cssText = originalTableStyle;
         const tableInner = tableEl.querySelector('table');
         if (tableInner) tableInner.classList.replace('text-base', 'text-sm');
       }
@@ -469,14 +465,40 @@ export default function RiskReturnOptimiser() {
 
       y += 35;
 
-      // --- 5. Wealth Projection ---
+      // --- 5. Efficient Frontier Chart ---
+      checkPageBreak(90);
+      addText("Efficient Frontier Analysis", 14, 'bold', [30, 30, 30]);
+      y += 5;
+
+      setActiveTab('optimization');
+      await new Promise(r => setTimeout(r, 2500));
+      
+      // We need to target the chart container specifically
+      const frontierEl = document.getElementById('optimization-tab-content')?.querySelector('.h-\\[500px\\]');
+      if (frontierEl) {
+         // Temporarily add ID to capture
+         const originalId = frontierEl.id;
+         frontierEl.id = 'temp-frontier-chart';
+         const frontierImg = await captureChart('temp-frontier-chart');
+         frontierEl.id = originalId; // Restore
+
+         if (frontierImg) {
+            const imgProps = pdf.getImageProperties(frontierImg);
+            const pdfWidth = pageWidth - (margin * 2);
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            const displayHeight = Math.min(pdfHeight, 90);
+            pdf.addImage(frontierImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
+            y += displayHeight + 10;
+         }
+      }
+
+      // --- 6. Wealth Projection ---
       checkPageBreak(90);
       addText("Wealth Projection (Monte Carlo)", 14, 'bold', [30, 30, 30]);
       y += 5;
 
       setActiveTab('cashflow');
-      // Wait longer for Recharts to animate and render completely
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise(r => setTimeout(r, 2500));
       
       const projectionImg = await captureChart('cashflow-tab-content');
       if (projectionImg) {
@@ -1238,7 +1260,10 @@ export default function RiskReturnOptimiser() {
                     {activeAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                   </Pie>
                   <Tooltip formatter={(val) => `${val.toFixed(1)}%`} />
-                  <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                  <Legend 
+                    wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} 
+                    formatter={(value) => <span style={{ color: '#374151', marginRight: '10px' }}>{value}</span>}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
