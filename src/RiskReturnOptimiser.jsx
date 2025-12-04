@@ -387,93 +387,128 @@ export default function RiskReturnOptimiser() {
       y = Math.max(y, startY + 25) + 5;
       addLine();
 
-      // --- 3. Asset Allocation (Pie Chart & Table) ---
-      checkPageBreak(80);
+      // --- 3. Asset Allocation (Stacked Vertical Layout) ---
+      checkPageBreak(120);
       addText("Target Asset Allocation", 14, 'bold', [30, 30, 30]);
       y += 5;
 
-      // Render Output Tab to capture Pie Chart
       setActiveTab('output');
-      await new Promise(r => setTimeout(r, 2500)); 
+      await new Promise(r => setTimeout(r, 500)); 
+
+      // 3a. Pie Chart (Full Width, Centered)
+      // We'll make the pie chart larger and center it
+      const pieSize = 90; 
+      const pieX = (pageWidth - pieSize) / 2;
       
-      // Capture Pie Chart and Table separately for better layout control
-      // Ensure borders are visible for the PDF
-      const pieEl = document.getElementById('pie-chart-section');
-      const tableEl = document.getElementById('allocation-table-section');
+      // Inline capture logic for custom positioning
+      const pieContainer = document.getElementById('pie-chart-section');
+      if (pieContainer) {
+        const svg = pieContainer.querySelector('svg');
+        if (svg) {
+            const clone = svg.cloneNode(true);
+            clone.setAttribute('width', pieSize);
+            clone.setAttribute('height', pieSize);
+            const tempDiv = document.createElement('div');
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            tempDiv.appendChild(clone);
+            document.body.appendChild(tempDiv);
+            try {
+                await pdf.svg(clone, { x: pieX, y: y, width: pieSize, height: pieSize });
+            } finally {
+                document.body.removeChild(tempDiv);
+            }
+        }
+      }
+
+      y += pieSize + 5;
+
+      // 3b. Manual Legend (Grid Layout)
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      const legendItemWidth = 60;
+      const legendCols = 3;
+      const activeOnly = assets.filter(a => a.active);
       
-      // We want borders in the PDF, so we ensure they are set
-      if (pieEl) {
-        pieEl.style.border = '1px solid #e5e7eb';
-        pieEl.style.borderRadius = '0.75rem';
-      }
-      if (tableEl) {
-        tableEl.style.border = '1px solid #e5e7eb';
-        tableEl.style.borderRadius = '0.75rem';
-        // Increase font size for table
-        const tableInner = tableEl.querySelector('table');
-        if (tableInner) tableInner.classList.replace('text-sm', 'text-base');
-      }
+      let lx = (pageWidth - (legendCols * legendItemWidth)) / 2;
+      let ly = y;
+      
+      activeOnly.forEach((asset, i) => {
+          const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
+          if (weight > 0.001) {
+             const col = i % legendCols;
+             const row = Math.floor(i / legendCols);
+             
+             const itemX = lx + (col * legendItemWidth);
+             const itemY = ly + (row * 8);
 
-      const pieCanvas = await captureChart('pie-chart-section');
-      const tableCanvas = await captureChart('allocation-table-section');
+             pdf.setFillColor(asset.color);
+             pdf.rect(itemX, itemY - 3, 3, 3, 'F');
+             pdf.text(`${asset.name}: ${formatPercent(weight)}`, itemX + 5, itemY);
+          }
+      });
+      
+      y = ly + (Math.ceil(activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.001).length / legendCols) * 8) + 10;
 
-      // Restore styles (optional, as we switch tabs anyway, but good practice)
-      if (tableEl) {
-        const tableInner = tableEl.querySelector('table');
-        if (tableInner) tableInner.classList.replace('text-base', 'text-sm');
-      }
+      // 3c. Detailed Allocation Table (Full Width)
+      checkPageBreak(60);
+      addText("Detailed Allocation", 12, 'bold', [50, 50, 50]);
+      y += 5;
 
-      if (pieCanvas && tableCanvas) {
-        // Pie Chart (Left)
-        const pieProps = pdf.getImageProperties(pieCanvas);
-        const pieWidth = (pageWidth - (margin * 3)) / 2; // Half width minus gap
-        const pieHeight = (pieProps.height * pieWidth) / pieProps.width;
-        
-        // Table (Right)
-        const tableProps = pdf.getImageProperties(tableCanvas);
-        const tableWidth = (pageWidth - (margin * 3)) / 2;
-        const tableHeight = (tableProps.height * tableWidth) / tableProps.width;
+      // Table Header
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin, y, pageWidth - (margin*2), 8, 'F');
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(100, 100, 100);
+      pdf.text("Asset Class", margin + 5, y + 5);
+      pdf.text("Weight", pageWidth - margin - 40, y + 5, { align: 'right' });
+      pdf.text("Value", pageWidth - margin - 5, y + 5, { align: 'right' });
+      y += 10;
 
-        const rowHeight = Math.max(pieHeight, tableHeight);
+      // Table Rows
+      pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0, 0, 0);
+      activeOnly.forEach((asset) => {
+          const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
+          if (weight > 0.001) {
+              checkPageBreak(10);
+              // Color dot
+              pdf.setFillColor(asset.color);
+              pdf.rect(margin + 2, y - 3, 3, 3, 'F');
+              
+              pdf.text(asset.name, margin + 8, y);
+              pdf.text(formatPercent(weight), pageWidth - margin - 40, y, { align: 'right' });
+              pdf.text(formatCurrency(weight * totalWealth), pageWidth - margin - 5, y, { align: 'right' });
+              
+              // Light line
+              pdf.setDrawColor(240, 240, 240);
+              pdf.line(margin, y + 2, pageWidth - margin, y + 2);
+              
+              y += 7;
+          }
+      });
+      y += 10;
 
-        checkPageBreak(rowHeight);
-
-        pdf.addImage(pieCanvas, 'PNG', margin, y, pieWidth, pieHeight, undefined, 'FAST');
-        pdf.addImage(tableCanvas, 'PNG', margin + pieWidth + margin, y, tableWidth, tableHeight, undefined, 'FAST');
-        
-        y += rowHeight + 10;
-      }
-
-      // --- 4. Portfolio Performance ---
+      // --- 4. Portfolio Analysis (Full Width Boxes) ---
       checkPageBreak(40);
-      addLine();
       addText("Portfolio Analysis", 14, 'bold', [30, 30, 30]);
       y += 5;
       
-      const statsY = y;
-      // Box 1: Return
-      pdf.setFillColor(245, 245, 245);
-      pdf.rect(margin, y, 55, 25, 'F');
-      pdf.setFontSize(10); pdf.setTextColor(100, 100, 100);
-      pdf.text("Expected Return", margin + 27.5, y + 8, { align: 'center' });
-      pdf.setFontSize(14); pdf.setTextColor(22, 163, 74); pdf.setFont('helvetica', 'bold');
-      pdf.text(formatPercent(selectedPortfolio.return), margin + 27.5, y + 18, { align: 'center' });
+      // Draw Boxes manually - centered and spread out
+      const boxWidth = 50;
+      const boxHeight = 25;
+      const gap = (pageWidth - (margin * 2) - (boxWidth * 3)) / 2;
+      
+      const drawBox = (x, title, value, color) => {
+        pdf.setFillColor(245, 245, 245);
+        pdf.rect(x, y, boxWidth, boxHeight, 'F');
+        pdf.setFontSize(10); pdf.setTextColor(100, 100, 100); pdf.setFont('helvetica', 'normal');
+        pdf.text(title, x + boxWidth/2, y + 8, { align: 'center' });
+        pdf.setFontSize(14); pdf.setTextColor(...color); pdf.setFont('helvetica', 'bold');
+        pdf.text(value, x + boxWidth/2, y + 18, { align: 'center' });
+      };
 
-      // Box 2: Risk
-      pdf.setFillColor(245, 245, 245);
-      pdf.rect(margin + 60, y, 55, 25, 'F');
-      pdf.setFontSize(10); pdf.setTextColor(100, 100, 100); pdf.setFont('helvetica', 'normal');
-      pdf.text("Risk (StdDev)", margin + 87.5, y + 8, { align: 'center' });
-      pdf.setFontSize(14); pdf.setTextColor(220, 38, 38); pdf.setFont('helvetica', 'bold');
-      pdf.text(formatPercent(selectedPortfolio.risk), margin + 87.5, y + 18, { align: 'center' });
-
-      // Box 3: Sharpe
-      pdf.setFillColor(245, 245, 245);
-      pdf.rect(margin + 120, y, 55, 25, 'F');
-      pdf.setFontSize(10); pdf.setTextColor(100, 100, 100); pdf.setFont('helvetica', 'normal');
-      pdf.text("Sharpe Ratio", margin + 147.5, y + 8, { align: 'center' });
-      pdf.setFontSize(14); pdf.setTextColor(37, 99, 235); pdf.setFont('helvetica', 'bold');
-      pdf.text((selectedPortfolio.return / selectedPortfolio.risk).toFixed(2), margin + 147.5, y + 18, { align: 'center' });
+      drawBox(margin, "Expected Return", formatPercent(selectedPortfolio.return), [22, 163, 74]);
+      drawBox(margin + boxWidth + gap, "Risk (StdDev)", formatPercent(selectedPortfolio.risk), [220, 38, 38]);
+      drawBox(margin + (boxWidth + gap) * 2, "Sharpe Ratio", (selectedPortfolio.return / selectedPortfolio.risk).toFixed(2), [37, 99, 235]);
 
       y += 35;
 
