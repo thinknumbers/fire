@@ -281,6 +281,23 @@ export default function RiskReturnOptimiser() {
     }
   };
 
+  const handleDeleteScenario = async (id, e) => {
+    e.stopPropagation();
+    if (window.confirm('Are you sure you want to delete this scenario?')) {
+      const { error } = await supabase
+        .from('scenarios')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting scenario:', error);
+        alert('Failed to delete scenario');
+      } else {
+        fetchScenarios();
+      }
+    }
+  };
+
   const handleAssetToggle = (id) => {
     setAssets(assets.map(a => a.id === id ? { ...a, active: !a.active } : a));
     setEfficientFrontier([]);
@@ -1124,14 +1141,23 @@ export default function RiskReturnOptimiser() {
                      <div className="p-4 text-center text-sm text-gray-400">No saved scenarios</div>
                   ) : (
                     savedScenarios.map(s => (
-                      <button 
+                      <div 
                         key={s.id}
                         onClick={() => handleLoadScenario(s.id)}
-                        className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0"
+                        className="w-full flex justify-between items-center px-4 py-3 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0 cursor-pointer group"
                       >
-                        <div className="font-medium text-gray-900">{s.name || 'Untitled'}</div>
-                        <div className="text-xs text-gray-500">{new Date(s.created_at).toLocaleDateString()}</div>
-                      </button>
+                        <div>
+                          <div className="font-medium text-gray-900">{s.name || 'Untitled'}</div>
+                          <div className="text-xs text-gray-500">{new Date(s.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <button 
+                          onClick={(e) => handleDeleteScenario(s.id, e)}
+                          className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                          title="Delete Scenario"
+                        >
+                          <Trash2 className="w-4 h-4"/>
+                        </button>
+                      </div>
                     ))
                   )}
                 </div>
