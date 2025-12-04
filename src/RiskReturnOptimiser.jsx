@@ -329,7 +329,8 @@ export default function RiskReturnOptimiser() {
       const captureChart = async (elementId) => {
         const el = document.getElementById(elementId);
         if (!el) return null;
-        const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff' });
+        // Increase scale for sharper text
+        const canvas = await html2canvas(el, { scale: 3, backgroundColor: '#ffffff' });
         return canvas.toDataURL('image/png');
       };
 
@@ -384,8 +385,35 @@ export default function RiskReturnOptimiser() {
       await new Promise(r => setTimeout(r, 1500)); 
       
       // Capture Pie Chart and Table separately for better layout control
+      // We'll temporarily modify styles to remove shadows/borders for a cleaner print look
+      const pieEl = document.getElementById('pie-chart-section');
+      const tableEl = document.getElementById('allocation-table-section');
+      
+      const originalPieStyle = pieEl ? pieEl.style.cssText : '';
+      const originalTableStyle = tableEl ? tableEl.style.cssText : '';
+
+      if (pieEl) {
+        pieEl.style.boxShadow = 'none';
+        pieEl.style.border = 'none';
+      }
+      if (tableEl) {
+        tableEl.style.boxShadow = 'none';
+        tableEl.style.border = 'none';
+        // Increase font size for table
+        const tableInner = tableEl.querySelector('table');
+        if (tableInner) tableInner.classList.replace('text-sm', 'text-base');
+      }
+
       const pieCanvas = await captureChart('pie-chart-section');
       const tableCanvas = await captureChart('allocation-table-section');
+
+      // Restore styles
+      if (pieEl) pieEl.style.cssText = originalPieStyle;
+      if (tableEl) {
+        tableEl.style.cssText = originalTableStyle;
+        const tableInner = tableEl.querySelector('table');
+        if (tableInner) tableInner.classList.replace('text-base', 'text-sm');
+      }
 
       if (pieCanvas && tableCanvas) {
         // Pie Chart (Left)
@@ -1210,7 +1238,7 @@ export default function RiskReturnOptimiser() {
                     {activeAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                   </Pie>
                   <Tooltip formatter={(val) => `${val.toFixed(1)}%`} />
-                  <Legend />
+                  <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
