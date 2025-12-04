@@ -732,9 +732,13 @@ export default function RiskReturnOptimiser() {
       let flow = 0;
       const inflationFactor = Math.pow(1 + inflationRate, y);
       
+      // Assume income streams are personal exertion income (Gross) and tax at top marginal rate
+      const taxRate = ENTITY_TYPES.PERSONAL.incomeTax;
+
       incomeStreams.forEach(s => { 
         if(y >= s.startYear && y <= s.endYear) {
-          flow += s.amount * inflationFactor; 
+          const netIncome = s.amount * (1 - taxRate);
+          flow += netIncome * inflationFactor; 
         }
       });
       
