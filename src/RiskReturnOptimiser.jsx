@@ -1376,11 +1376,8 @@ export default function RiskReturnOptimiser() {
                 {!isExporting && <Tooltip 
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
-                      // Helper to safely find value by dataKey
-                      const getValue = (key) => {
-                        const item = payload.find(p => p.dataKey === key);
-                        return item ? item.value : 0;
-                      };
+                      // Access the full data object for this year directly
+                      const data = payload[0].payload;
 
                       return (
                         <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-xs z-50">
@@ -1388,15 +1385,15 @@ export default function RiskReturnOptimiser() {
                           <div className="space-y-1">
                             <div className="flex justify-between gap-4">
                               <span className="text-gray-500">Best Case (95th):</span>
-                              <span className="font-mono font-medium text-blue-400">{formatCurrency(getValue('p95'))}</span>
+                              <span className="font-mono font-medium text-blue-400">{formatCurrency(data.p95)}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-gray-500">Median (50th):</span>
-                              <span className="font-mono font-bold text-blue-700">{formatCurrency(getValue('p50'))}</span>
+                              <span className="font-mono font-bold text-blue-700">{formatCurrency(data.p50)}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-gray-500">Worst Case (5th):</span>
-                              <span className="font-mono font-medium text-blue-400">{formatCurrency(getValue('p05'))}</span>
+                              <span className="font-mono font-medium text-blue-400">{formatCurrency(data.p05)}</span>
                             </div>
                           </div>
                         </div>
