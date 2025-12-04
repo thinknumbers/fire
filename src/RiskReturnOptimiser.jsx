@@ -1360,10 +1360,27 @@ export default function RiskReturnOptimiser() {
     return (
       <div className="space-y-6 animate-in fade-in">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-             <TrendingUp className="w-5 h-5 mr-2 text-blue-600" />
-             Monte Carlo Wealth Projection
-          </h3>
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+               <TrendingUp className="w-5 h-5 mr-2 text-blue-600" />
+               Monte Carlo Wealth Projection
+            </h3>
+            
+            <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-lg border border-gray-200">
+               <div className="text-xs font-medium text-gray-500">Select Model:</div>
+               <input 
+                  type="range" min="1" max="10" 
+                  value={selectedPortfolioId} 
+                  onChange={(e) => setSelectedPortfolioId(parseInt(e.target.value))}
+                  className="w-32 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+               />
+               <div className="text-sm font-bold text-blue-800 w-20 text-right">{selectedPortfolio.label}</div>
+               <div className="text-xs text-gray-500 border-l pl-3 ml-1">
+                  <div>Ret: <span className="text-green-600 font-mono">{formatPercent(selectedPortfolio.return)}</span></div>
+                  <div>Risk: <span className="text-red-600 font-mono">{formatPercent(selectedPortfolio.risk)}</span></div>
+               </div>
+            </div>
+          </div>
           
           <div className="h-[400px] w-full">
             <ResponsiveContainer width="100%" height="100%">
