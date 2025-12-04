@@ -399,7 +399,7 @@ export default function RiskReturnOptimiser() {
       // User requested "whole width" and "very small" previously.
       // Page width ~180mm usable. Let's go for 150mm to be safe but very large.
       const pieSize = 150; 
-      const pieX = (pageWidth - pieSize) / 2;
+      const pieX = (pageWidth - pieSize) ;
       
       // Inline capture logic for custom positioning
       const pieContainer = document.getElementById('pie-chart-section');
