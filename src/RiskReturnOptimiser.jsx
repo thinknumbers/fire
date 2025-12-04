@@ -1376,21 +1376,27 @@ export default function RiskReturnOptimiser() {
                 {!isExporting && <Tooltip 
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
+                      // Helper to safely find value by dataKey
+                      const getValue = (key) => {
+                        const item = payload.find(p => p.dataKey === key);
+                        return item ? item.value : 0;
+                      };
+
                       return (
                         <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-xs z-50">
                           <p className="font-bold mb-2 text-gray-900">Year {label}</p>
                           <div className="space-y-1">
                             <div className="flex justify-between gap-4">
                               <span className="text-gray-500">Best Case (95th):</span>
-                              <span className="font-mono font-medium text-blue-400">{formatCurrency(payload.find(p => p.name === 'Best Case (95th)')?.value || 0)}</span>
+                              <span className="font-mono font-medium text-blue-400">{formatCurrency(getValue('p95'))}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-gray-500">Median (50th):</span>
-                              <span className="font-mono font-bold text-blue-700">{formatCurrency(payload.find(p => p.name === 'Median (50th)')?.value || 0)}</span>
+                              <span className="font-mono font-bold text-blue-700">{formatCurrency(getValue('p50'))}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-gray-500">Worst Case (5th):</span>
-                              <span className="font-mono font-medium text-blue-400">{formatCurrency(payload.find(p => p.name === 'Worst Case (5th)')?.value || 0)}</span>
+                              <span className="font-mono font-medium text-blue-400">{formatCurrency(getValue('p05'))}</span>
                             </div>
                           </div>
                         </div>
