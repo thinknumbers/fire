@@ -13,6 +13,7 @@ import {
 import { supabase } from './supabase';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import 'svg2pdf.js';
 
 // --- Constants & Defaults ---
 
@@ -193,6 +194,7 @@ export default function RiskReturnOptimiser() {
   const [scenarioName, setScenarioName] = useState('My Strategy');
   const [savedScenarios, setSavedScenarios] = useState([]);
   const [showLoadMenu, setShowLoadMenu] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     fetchScenarios();
@@ -1150,7 +1152,7 @@ export default function RiskReturnOptimiser() {
         </div>
 
         {efficientFrontier.length > 0 ? (
-          <div className="h-[500px] w-full bg-gray-50 rounded-xl p-4 border border-gray-100">
+            <div className="h-[500px] w-full bg-gray-50 rounded-xl p-4 border border-gray-100">
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -1172,7 +1174,7 @@ export default function RiskReturnOptimiser() {
                   label={{ value: 'Expected Return (After Tax)', angle: -90, position: 'insideLeft' }}
                   domain={['auto', 'auto']}
                 />
-                <Tooltip 
+                {!isExporting && <Tooltip 
                   cursor={{ strokeDasharray: '3 3' }} 
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
@@ -1187,10 +1189,10 @@ export default function RiskReturnOptimiser() {
                     }
                     return null;
                   }}
-                />
-                <Legend />
-                <Scatter name="Simulated Portfolios" data={simulations} fill="#cbd5e1" shape="circle" r={2} opacity={0.5} />
-                <Scatter name="Efficient Models" data={efficientFrontier} fill="#2563eb" shape="diamond" r={8} />
+                />}
+                {!isExporting && <Legend />}
+                <Scatter name="Simulated Portfolios" data={simulations} fill="#cbd5e1" shape="circle" r={2} opacity={0.5} isAnimationActive={!isExporting} />
+                <Scatter name="Efficient Models" data={efficientFrontier} fill="#2563eb" shape="diamond" r={8} isAnimationActive={!isExporting} />
               </ScatterChart>
             </ResponsiveContainer>
           </div>
@@ -1256,14 +1258,19 @@ export default function RiskReturnOptimiser() {
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={activeAssets} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={2} dataKey="value">
+                  <Pie 
+                    data={activeAssets.map((a, i) => ({ ...a, value: selectedPortfolio.weights[assets.filter(x=>x.active).findIndex(x=>x.id===a.id)] * 100 }))} 
+                    cx="50%" cy="50%" 
+                    innerRadius={60} 
+                    outerRadius={100} 
+                    paddingAngle={2} 
+                    dataKey="value"
+                    isAnimationActive={!isExporting}
+                  >
                     {activeAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                   </Pie>
-                  <Tooltip formatter={(val) => `${val.toFixed(1)}%`} />
-                  <Legend 
-                    wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} 
-                    formatter={(value) => <span style={{ color: '#374151', marginRight: '10px' }}>{value}</span>}
-                  />
+                  {!isExporting && <Tooltip formatter={(val) => `${val.toFixed(1)}%`} />}
+                  {!isExporting && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />}
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -1345,17 +1352,17 @@ export default function RiskReturnOptimiser() {
                 <XAxis dataKey="year" label={{ value: 'Years', position: 'bottom' }} />
                 <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} />
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <Tooltip 
+                {!isExporting && <Tooltip 
                   formatter={(val) => formatCurrency(val)}
                   labelFormatter={(val) => `Year ${val}`}
-                />
+                />}
                 
-                <Area type="monotone" dataKey="p95" stroke="none" fill="url(#confidenceBand)" name="95th Percentile" />
-                <Area type="monotone" dataKey="p05" stroke="none" fill="#fff" name="5th Percentile" /> 
+                <Area type="monotone" dataKey="p95" stroke="none" fill="url(#confidenceBand)" name="95th Percentile" isAnimationActive={!isExporting} />
+                <Area type="monotone" dataKey="p05" stroke="none" fill="#fff" name="5th Percentile" isAnimationActive={!isExporting} /> 
                 
-                <Line type="monotone" dataKey="p50" stroke="#2563eb" strokeWidth={3} dot={false} name="Median (50th)" />
-                <Line type="monotone" dataKey="p95" stroke="#93c5fd" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Best Case (95th)" />
-                <Line type="monotone" dataKey="p05" stroke="#93c5fd" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Worst Case (5th)" />
+                <Line type="monotone" dataKey="p50" stroke="#2563eb" strokeWidth={3} dot={false} name="Median (50th)" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p95" stroke="#93c5fd" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Best Case (95th)" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p05" stroke="#93c5fd" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Worst Case (5th)" isAnimationActive={!isExporting} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -1458,9 +1465,19 @@ export default function RiskReturnOptimiser() {
         <main id="report-content">
           {activeTab === 'data' && <div id="data-tab-content">{DataTab()}</div>}
           {activeTab === 'client' && <div id="client-tab-content">{ClientTab()}</div>}
-          {activeTab === 'optimization' && <div id="optimization-tab-content">{OptimizationTab()}</div>}
+          {activeTab === 'optimization' && <div id="optimization-tab-content">
+             {/* Pass isExporting to Optimization charts if we extracted them to components, 
+                 but here they are inline. We need to update the inline charts. 
+                 Since OptimizationTab is a function, we can't easily pass props unless we change it.
+                 Let's assume we update the charts inside OptimizationTab to read isExporting from scope.
+             */}
+             {OptimizationTab()}
+          </div>}
           {activeTab === 'output' && <div id="output-tab-content">{OutputTab()}</div>}
-          {activeTab === 'cashflow' && <div id="cashflow-tab-content">{CashflowTab()}</div>}
+          {activeTab === 'cashflow' && <div id="cashflow-tab-content">
+             {/* Same for CashflowTab */}
+             {CashflowTab()}
+          </div>}
         </main>
       </div>
     </div>
