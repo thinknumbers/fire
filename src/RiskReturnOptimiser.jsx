@@ -299,6 +299,7 @@ export default function RiskReturnOptimiser() {
 
   const handleExportPDF = async () => {
     setIsSaving(true);
+    setIsExporting(true);
     const originalTab = activeTab;
     
     try {
@@ -393,11 +394,10 @@ export default function RiskReturnOptimiser() {
       y += 5;
 
       setActiveTab('output');
-      await new Promise(r => setTimeout(r, 500)); 
+      await new Promise(r => setTimeout(r, 2000)); 
 
       // 3a. Pie Chart (Full Width, Centered)
-      // We'll make the pie chart larger and center it
-      const pieSize = 80; // Reduced slightly to fit better
+      const pieSize = 80; 
       const pieX = (pageWidth - pieSize) / 2;
       
       // Inline capture logic for custom positioning
@@ -406,13 +406,11 @@ export default function RiskReturnOptimiser() {
         const svg = pieContainer.querySelector('svg');
         if (svg) {
             const clone = svg.cloneNode(true);
-            // Important: Set viewBox if missing to ensure scaling works
             if (!clone.getAttribute('viewBox')) {
                 const w = parseInt(clone.getAttribute('width')) || 300;
                 const h = parseInt(clone.getAttribute('height')) || 300;
                 clone.setAttribute('viewBox', `0 0 ${w} ${h}`);
             }
-            // Force dimensions on the clone for svg2pdf to read
             clone.setAttribute('width', pieSize);
             clone.setAttribute('height', pieSize);
             
@@ -502,7 +500,7 @@ export default function RiskReturnOptimiser() {
       addText("Portfolio Analysis", 14, 'bold', [30, 30, 30]);
       y += 5;
       
-      // Draw Boxes manually - centered and spread out
+      // Draw Boxes manually
       const boxWidth = 50;
       const boxHeight = 25;
       const gap = (pageWidth - (margin * 2) - (boxWidth * 3)) / 2;
@@ -523,49 +521,44 @@ export default function RiskReturnOptimiser() {
       y += 35;
 
       // --- 5. Efficient Frontier Chart ---
-      // Try to keep on Page 1 if possible, else Page 2
-      // Reduced height to 80 to fit better
       checkPageBreak(80); 
       addText("Efficient Frontier Analysis", 14, 'bold', [30, 30, 30]);
       y += 5;
 
       setActiveTab('optimization');
-      await new Promise(r => setTimeout(r, 1000)); // Reduced wait
+      await new Promise(r => setTimeout(r, 2000)); 
       
-      // We need to target the chart container specifically
       const frontierEl = document.getElementById('optimization-tab-content')?.querySelector('.h-\\[500px\\]');
       if (frontierEl) {
-         // Temporarily add ID to capture
          const originalId = frontierEl.id;
          frontierEl.id = 'temp-frontier-chart';
          const frontierImg = await captureChart('temp-frontier-chart');
-         frontierEl.id = originalId; // Restore
+         frontierEl.id = originalId; 
 
          if (frontierImg) {
             const imgProps = pdf.getImageProperties(frontierImg);
             const pdfWidth = pageWidth - (margin * 2);
             const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-            const displayHeight = Math.min(pdfHeight, 80); // Cap height
+            const displayHeight = Math.min(pdfHeight, 80); 
             pdf.addImage(frontierImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
             y += displayHeight + 10;
          }
       }
 
       // --- 6. Wealth Projection ---
-      // This will likely go to Page 2
       checkPageBreak(80);
       addText("Wealth Projection (Monte Carlo)", 14, 'bold', [30, 30, 30]);
       y += 5;
 
       setActiveTab('cashflow');
-      await new Promise(r => setTimeout(r, 1000)); // Reduced wait
+      await new Promise(r => setTimeout(r, 2000)); 
       
       const projectionImg = await captureChart('cashflow-tab-content');
       if (projectionImg) {
         const imgProps = pdf.getImageProperties(projectionImg);
         const pdfWidth = pageWidth - (margin * 2);
         const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        const displayHeight = Math.min(pdfHeight, 80); // Cap height
+        const displayHeight = Math.min(pdfHeight, 80); 
         pdf.addImage(projectionImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
         y += displayHeight + 5;
       }
@@ -583,6 +576,7 @@ export default function RiskReturnOptimiser() {
     } finally {
       setActiveTab(originalTab);
       setIsSaving(false);
+      setIsExporting(false);
     }
   };
 
