@@ -307,7 +307,7 @@ export default function RiskReturnOptimiser() {
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 15;
-      let y = margin;
+      let y = margin; // Start higher
 
       // --- Helper Functions ---
       const addText = (text, size = 10, style = 'normal', color = [0, 0, 0], align = 'left') => {
@@ -321,7 +321,7 @@ export default function RiskReturnOptimiser() {
         } else {
           pdf.text(text, margin, y);
         }
-        y += size * 0.5; // Line height approximation
+        y += size * 0.4; // Tighter line height
       };
 
       const addLine = () => {
@@ -342,62 +342,61 @@ export default function RiskReturnOptimiser() {
       const captureChart = async (elementId) => {
         const el = document.getElementById(elementId);
         if (!el) return null;
-        // Increase scale for sharper text
         const canvas = await html2canvas(el, { scale: 3, backgroundColor: '#ffffff' });
         return canvas.toDataURL('image/png');
       };
 
       // --- 1. Header ---
-      addText("Wealth Strategy Report", 24, 'bold', [37, 99, 235], 'center');
-      y += 5;
-      addText(scenarioName, 16, 'normal', [80, 80, 80], 'center');
-      y += 5;
-      addText(`Generated: ${new Date().toLocaleDateString()}`, 10, 'italic', [150, 150, 150], 'center');
-      y += 10;
+      addText("Wealth Strategy Report", 22, 'bold', [37, 99, 235], 'center'); // Slightly smaller title
+      y += 4;
+      addText(scenarioName, 14, 'normal', [80, 80, 80], 'center');
+      y += 4;
+      addText(`Generated: ${new Date().toLocaleDateString()}`, 9, 'italic', [150, 150, 150], 'center');
+      y += 6;
       addLine();
 
       // --- 2. Key Assumptions (Data & Client) ---
-      addText("Key Assumptions", 14, 'bold', [30, 30, 30]);
-      y += 5;
+      addText("Key Assumptions", 12, 'bold', [30, 30, 30]);
+      y += 4;
       
       const col1X = margin;
       const col2X = pageWidth / 2 + 5;
       const startY = y;
 
       // Column 1: Financials
-      pdf.setFontSize(10);
+      pdf.setFontSize(9); // Smaller font for assumptions
       pdf.setFont('helvetica', 'bold');
       pdf.text("Financial Parameters", col1X, y);
-      y += 5;
+      y += 4;
       pdf.setFont('helvetica', 'normal');
-      pdf.text(`Projection Period: ${projectionYears} Years`, col1X, y); y += 5;
-      pdf.text(`Inflation Rate: ${(inflationRate * 100).toFixed(1)}%`, col1X, y); y += 5;
-      pdf.text(`Total Investable: ${formatCurrency(totalWealth)}`, col1X, y); y += 5;
+      pdf.text(`Projection Period: ${projectionYears} Years`, col1X, y); y += 4;
+      pdf.text(`Inflation Rate: ${(inflationRate * 100).toFixed(1)}%`, col1X, y); y += 4;
+      pdf.text(`Total Investable: ${formatCurrency(totalWealth)}`, col1X, y); y += 4;
 
       // Column 2: Structures
       y = startY;
       pdf.setFont('helvetica', 'bold');
       pdf.text("Entity Structure", col2X, y);
-      y += 5;
+      y += 4;
       pdf.setFont('helvetica', 'normal');
       structures.forEach(s => {
         pdf.text(`${s.name} (${ENTITY_TYPES[s.type].label}): ${formatCurrency(s.value)}`, col2X, y);
-        y += 5;
+        y += 4;
       });
 
-      y = Math.max(y, startY + 25) + 5;
+      y = Math.max(y, startY + 20) + 5;
       addLine();
 
       // --- 3. Asset Allocation (Stacked Vertical Layout) ---
-      checkPageBreak(120);
-      addText("Target Asset Allocation", 14, 'bold', [30, 30, 30]);
-      y += 5;
+      // checkPageBreak(120); // Removed aggressive check
+      addText("Target Asset Allocation", 12, 'bold', [30, 30, 30]);
+      y += 4;
 
       setActiveTab('output');
       await new Promise(r => setTimeout(r, 2000)); 
 
       // 3a. Pie Chart (Full Width, Centered)
-      const pieSize = 80; 
+      const pieSize = 100; // Increased size
       const pieX = (pageWidth - pieSize) / 2;
       
       // Inline capture logic for custom positioning
@@ -429,12 +428,12 @@ export default function RiskReturnOptimiser() {
         }
       }
 
-      y += pieSize + 5;
+      y += pieSize + 2; // Reduced gap
 
       // 3b. Manual Legend (Grid Layout)
-      pdf.setFontSize(9);
+      pdf.setFontSize(8); // Smaller font
       pdf.setFont('helvetica', 'normal');
-      const legendItemWidth = 60;
+      const legendItemWidth = 50; // Tighter columns
       const legendCols = 3;
       const activeOnly = assets.filter(a => a.active);
       
@@ -448,39 +447,45 @@ export default function RiskReturnOptimiser() {
              const row = Math.floor(i / legendCols);
              
              const itemX = lx + (col * legendItemWidth);
-             const itemY = ly + (row * 8);
+             const itemY = ly + (row * 6); // Tighter rows
 
              pdf.setFillColor(asset.color);
-             pdf.rect(itemX, itemY - 3, 3, 3, 'F');
-             pdf.text(`${asset.name}: ${formatPercent(weight)}`, itemX + 5, itemY);
+             pdf.rect(itemX, itemY - 2.5, 2.5, 2.5, 'F'); // Smaller box
+             pdf.text(`${asset.name}: ${formatPercent(weight)}`, itemX + 4, itemY);
           }
       });
       
-      y = ly + (Math.ceil(activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.001).length / legendCols) * 8) + 10;
+      y = ly + (Math.ceil(activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.001).length / legendCols) * 6) + 8;
 
       // 3c. Detailed Allocation Table (Full Width)
-      checkPageBreak(60);
+      // Calculate actual height needed
+      const tableHeaderHeight = 8;
+      const tableRowHeight = 6;
+      const activeCount = activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.001).length;
+      const tableHeight = tableHeaderHeight + (activeCount * tableRowHeight) + 10;
+      
+      checkPageBreak(tableHeight); // Only break if strictly needed
       addText("Detailed Allocation", 12, 'bold', [50, 50, 50]);
-      y += 5;
+      y += 4;
 
       // Table Header
       pdf.setFillColor(245, 245, 245);
-      pdf.rect(margin, y, pageWidth - (margin*2), 8, 'F');
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(100, 100, 100);
-      pdf.text("Asset Class", margin + 5, y + 5);
-      pdf.text("Weight", pageWidth - margin - 40, y + 5, { align: 'right' });
-      pdf.text("Value", pageWidth - margin - 5, y + 5, { align: 'right' });
-      y += 10;
+      pdf.rect(margin, y, pageWidth - (margin*2), 6, 'F');
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(100, 100, 100);
+      pdf.text("Asset Class", margin + 5, y + 4);
+      pdf.text("Weight", pageWidth - margin - 40, y + 4, { align: 'right' });
+      pdf.text("Value", pageWidth - margin - 5, y + 4, { align: 'right' });
+      y += 8;
 
       // Table Rows
       pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0, 0, 0);
       activeOnly.forEach((asset) => {
           const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
           if (weight > 0.001) {
-              checkPageBreak(10);
+              checkPageBreak(8);
               // Color dot
               pdf.setFillColor(asset.color);
-              pdf.rect(margin + 2, y - 3, 3, 3, 'F');
+              pdf.rect(margin + 2, y - 2.5, 2.5, 2.5, 'F');
               
               pdf.text(asset.name, margin + 8, y);
               pdf.text(formatPercent(weight), pageWidth - margin - 40, y, { align: 'right' });
@@ -490,10 +495,10 @@ export default function RiskReturnOptimiser() {
               pdf.setDrawColor(240, 240, 240);
               pdf.line(margin, y + 2, pageWidth - margin, y + 2);
               
-              y += 7;
+              y += 6;
           }
       });
-      y += 10;
+      y += 8;
 
       // --- 4. Portfolio Analysis (Full Width Boxes) ---
       checkPageBreak(40);
