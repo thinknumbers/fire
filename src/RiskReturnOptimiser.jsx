@@ -397,7 +397,7 @@ export default function RiskReturnOptimiser() {
 
       // 3a. Pie Chart (Full Width, Centered)
       // We'll make the pie chart larger and center it
-      const pieSize = 90; 
+      const pieSize = 80; // Reduced slightly to fit better
       const pieX = (pageWidth - pieSize) / 2;
       
       // Inline capture logic for custom positioning
@@ -406,8 +406,16 @@ export default function RiskReturnOptimiser() {
         const svg = pieContainer.querySelector('svg');
         if (svg) {
             const clone = svg.cloneNode(true);
+            // Important: Set viewBox if missing to ensure scaling works
+            if (!clone.getAttribute('viewBox')) {
+                const w = parseInt(clone.getAttribute('width')) || 300;
+                const h = parseInt(clone.getAttribute('height')) || 300;
+                clone.setAttribute('viewBox', `0 0 ${w} ${h}`);
+            }
+            // Force dimensions on the clone for svg2pdf to read
             clone.setAttribute('width', pieSize);
             clone.setAttribute('height', pieSize);
+            
             const tempDiv = document.createElement('div');
             tempDiv.style.position = 'absolute';
             tempDiv.style.left = '-9999px';
@@ -415,6 +423,8 @@ export default function RiskReturnOptimiser() {
             document.body.appendChild(tempDiv);
             try {
                 await pdf.svg(clone, { x: pieX, y: y, width: pieSize, height: pieSize });
+            } catch (err) {
+                console.error("SVG Pie Error", err);
             } finally {
                 document.body.removeChild(tempDiv);
             }
@@ -513,12 +523,14 @@ export default function RiskReturnOptimiser() {
       y += 35;
 
       // --- 5. Efficient Frontier Chart ---
-      checkPageBreak(90);
+      // Try to keep on Page 1 if possible, else Page 2
+      // Reduced height to 80 to fit better
+      checkPageBreak(80); 
       addText("Efficient Frontier Analysis", 14, 'bold', [30, 30, 30]);
       y += 5;
 
       setActiveTab('optimization');
-      await new Promise(r => setTimeout(r, 2500));
+      await new Promise(r => setTimeout(r, 1000)); // Reduced wait
       
       // We need to target the chart container specifically
       const frontierEl = document.getElementById('optimization-tab-content')?.querySelector('.h-\\[500px\\]');
@@ -533,26 +545,27 @@ export default function RiskReturnOptimiser() {
             const imgProps = pdf.getImageProperties(frontierImg);
             const pdfWidth = pageWidth - (margin * 2);
             const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-            const displayHeight = Math.min(pdfHeight, 90);
+            const displayHeight = Math.min(pdfHeight, 80); // Cap height
             pdf.addImage(frontierImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
             y += displayHeight + 10;
          }
       }
 
       // --- 6. Wealth Projection ---
-      checkPageBreak(90);
+      // This will likely go to Page 2
+      checkPageBreak(80);
       addText("Wealth Projection (Monte Carlo)", 14, 'bold', [30, 30, 30]);
       y += 5;
 
       setActiveTab('cashflow');
-      await new Promise(r => setTimeout(r, 2500));
+      await new Promise(r => setTimeout(r, 1000)); // Reduced wait
       
       const projectionImg = await captureChart('cashflow-tab-content');
       if (projectionImg) {
         const imgProps = pdf.getImageProperties(projectionImg);
         const pdfWidth = pageWidth - (margin * 2);
         const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        const displayHeight = Math.min(pdfHeight, 90);
+        const displayHeight = Math.min(pdfHeight, 80); // Cap height
         pdf.addImage(projectionImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
         y += displayHeight + 5;
       }
