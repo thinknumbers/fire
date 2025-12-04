@@ -381,20 +381,31 @@ export default function RiskReturnOptimiser() {
 
       // Render Output Tab to capture Pie Chart
       setActiveTab('output');
-      // Wait longer for Recharts to animate and render completely
       await new Promise(r => setTimeout(r, 1500)); 
       
-      // Capture Pie Chart (We need to target the specific container)
-      const pieChartImg = await captureChart('output-tab-content'); 
-      if (pieChartImg) {
-        const imgProps = pdf.getImageProperties(pieChartImg);
-        const pdfWidth = pageWidth - (margin * 2);
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        // Crop height to just show the top part (Pie Chart) if possible, or just scale it down
-        // For now, we'll fit it nicely
-        const displayHeight = Math.min(pdfHeight, 80);
-        pdf.addImage(pieChartImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
-        y += displayHeight + 5;
+      // Capture Pie Chart and Table separately for better layout control
+      const pieCanvas = await captureChart('pie-chart-section');
+      const tableCanvas = await captureChart('allocation-table-section');
+
+      if (pieCanvas && tableCanvas) {
+        // Pie Chart (Left)
+        const pieProps = pdf.getImageProperties(pieCanvas);
+        const pieWidth = (pageWidth - (margin * 3)) / 2; // Half width minus gap
+        const pieHeight = (pieProps.height * pieWidth) / pieProps.width;
+        
+        // Table (Right)
+        const tableProps = pdf.getImageProperties(tableCanvas);
+        const tableWidth = (pageWidth - (margin * 3)) / 2;
+        const tableHeight = (tableProps.height * tableWidth) / tableProps.width;
+
+        const rowHeight = Math.max(pieHeight, tableHeight);
+
+        checkPageBreak(rowHeight);
+
+        pdf.addImage(pieCanvas, 'PNG', margin, y, pieWidth, pieHeight, undefined, 'FAST');
+        pdf.addImage(tableCanvas, 'PNG', margin + pieWidth + margin, y, tableWidth, tableHeight, undefined, 'FAST');
+        
+        y += rowHeight + 10;
       }
 
       // --- 4. Portfolio Performance ---
@@ -1190,7 +1201,7 @@ export default function RiskReturnOptimiser() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center">
+          <div id="pie-chart-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center">
             <h4 className="font-semibold text-gray-900 mb-4 w-full text-left">Overall Asset Allocation</h4>
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -1205,7 +1216,7 @@ export default function RiskReturnOptimiser() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div id="allocation-table-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
              <h4 className="font-semibold text-gray-900 mb-4">Detailed Allocation</h4>
              <div className="overflow-y-auto max-h-[300px]">
                <table className="min-w-full text-sm">
