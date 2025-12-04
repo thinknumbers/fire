@@ -1345,14 +1345,14 @@ export default function RiskReturnOptimiser() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div id="pie-chart-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center">
             <h4 className="font-semibold text-gray-900 mb-4 w-full text-left">Overall Asset Allocation</h4>
-            <div className="h-[500px] w-full">
+            <div className="h-[450px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie 
                     data={activeAssets.map((a, i) => ({ ...a, value: selectedPortfolio.weights[assets.filter(x=>x.active).findIndex(x=>x.id===a.id)] * 100 }))} 
                     cx="50%" cy="50%" 
-                    innerRadius={150} 
-                    outerRadius={240} 
+                    innerRadius={130} 
+                    outerRadius={210} 
                     paddingAngle={2} 
                     dataKey="value"
                     isAnimationActive={!isExporting}
