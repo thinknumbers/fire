@@ -352,6 +352,9 @@ export default function RiskReturnOptimiser() {
       y += 4;
       addText(scenarioName, 14, 'normal', [80, 80, 80], 'center');
       y += 4;
+      y += 6;
+      addText(`Selected Model: ${selectedPortfolio.label}`, 12, 'bold', [224, 58, 62], 'center'); 
+      y += 6;
       addText(`Generated: ${new Date().toLocaleDateString()}`, 9, 'italic', [150, 150, 150], 'center');
       y += 6;
       addLine();
@@ -1392,18 +1395,23 @@ export default function RiskReturnOptimiser() {
                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Value</th>
                    </tr>
                  </thead>
-                 <tbody className="divide-y divide-gray-100">
-                   {activeAssets.map((asset) => (
-                       <tr key={asset.id}>
-                         <td className="px-3 py-2 font-medium flex items-center">
-                           <div className="w-2 h-2 rounded-full mr-2" style={{backgroundColor:asset.color}}/>
-                           {asset.name}
-                         </td>
-                         <td className="px-3 py-2 text-right text-gray-600">{formatPercent(asset.weight)}</td>
-                         <td className="px-3 py-2 text-right text-gray-900 font-mono">{formatCurrency(asset.weight * totalWealth)}</td>
-                       </tr>
-                   ))}
-                 </tbody>
+                  <tbody className="divide-y divide-gray-100">
+                    {activeAssets.map((asset) => (
+                        <tr key={asset.id}>
+                          <td className="px-3 py-2 font-medium flex items-center">
+                            <div className="w-2 h-2 rounded-full mr-2" style={{backgroundColor:asset.color}}/>
+                            {asset.name}
+                          </td>
+                          <td className="px-3 py-2 text-right text-gray-600">{formatPercent(asset.weight)}</td>
+                          <td className="px-3 py-2 text-right text-gray-900 font-mono">{formatCurrency(asset.weight * totalWealth)}</td>
+                        </tr>
+                    ))}
+                    <tr className="bg-gray-50 border-t-2 border-gray-200">
+                      <td className="px-3 py-2 text-left text-xs font-bold text-gray-900 uppercase">Total</td>
+                      <td className="px-3 py-2 text-right text-xs font-bold text-gray-900 uppercase">100.0%</td>
+                      <td className="px-3 py-2 text-right text-xs font-bold text-gray-900 uppercase font-mono">{formatCurrency(totalWealth)}</td>
+                    </tr>
+                  </tbody>
                </table>
              </div>
           </div>
