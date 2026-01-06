@@ -75,7 +75,7 @@ const generateFullCorrelationMatrix = (assets) => {
   return map;
 };
 
-const ENTITY_TYPES = {
+const DEFAULT_ENTITY_TYPES = {
   PERSONAL: { label: 'Personal Name', incomeTax: 0.47, ltCgt: 0.235 },
   COMPANY: { label: 'Company', incomeTax: 0.25, ltCgt: 0.25 },
   TRUST: { label: 'Discretionary Trust', incomeTax: 0.30, ltCgt: 0.15 }, // Avg dist rate
@@ -128,7 +128,7 @@ const calculatePercentile = (arr, p) => {
   return sorted[lower] * (1 - weight) + sorted[upper] * weight;
 };
 
-const calculateClientTaxAdjustedReturns = (assets, structures) => {
+const calculateClientTaxAdjustedReturns = (assets, structures, entityTypes) => {
   const totalValue = structures.reduce((sum, s) => sum + s.value, 0);
   if (totalValue === 0) return assets.map(a => a.return);
   
@@ -137,7 +137,7 @@ const calculateClientTaxAdjustedReturns = (assets, structures) => {
 
     structures.forEach(struct => {
       const entityProp = struct.value / totalValue;
-      const rates = ENTITY_TYPES[struct.type] || ENTITY_TYPES.PERSONAL || { incomeTax: 0.47, ltCgt: 0.235 };
+      const rates = entityTypes[struct.type] || entityTypes.PERSONAL || { incomeTax: 0.47, ltCgt: 0.235 };
       
       // Safety checks for NaN
       const ret = isNaN(asset.return) ? 0 : asset.return;
@@ -206,6 +206,7 @@ export default function RiskReturnOptimiser() {
   // Data State
   const [assets, setAssets] = useState(DEFAULT_ASSETS);
   const [structures, setStructures] = useState(DEFAULT_STRUCTURES);
+  const [entityTypes, setEntityTypes] = useState(DEFAULT_ENTITY_TYPES);
   const [correlations, setCorrelations] = useState(() => generateFullCorrelationMatrix(DEFAULT_ASSETS));
   
   // Cashflow Inputs
@@ -897,7 +898,7 @@ export default function RiskReturnOptimiser() {
       })
     );
 
-    const afterTaxReturns = calculateClientTaxAdjustedReturns(activeAssets, structures);
+    const afterTaxReturns = calculateClientTaxAdjustedReturns(activeAssets, structures, entityTypes);
     
     // Simulation Configuration from User Input
     const TOTAL_SIMS = simulationCount;
@@ -991,8 +992,8 @@ export default function RiskReturnOptimiser() {
        const totalVal = structures.reduce((s, st) => s + st.value, 0);
        if (totalVal > 0) {
            wTaxRate = structures.reduce((s, st) => {
-               // Use ENTITY_TYPES if available, otherwise default to a conservative assumption like Company (30%)
-               const entityDef = ENTITY_TYPES[st.type] || ENTITY_TYPES.COMPANY; 
+               // Use entityTypes if available, otherwise default to a conservative assumption like Company
+               const entityDef = entityTypes[st.type] || entityTypes.COMPANY; 
                const rate = entityDef ? entityDef.incomeTax : 0.30;
                return s + (rate * (st.value / totalVal));
            }, 0);
@@ -1004,9 +1005,10 @@ export default function RiskReturnOptimiser() {
       const inflationFactor = Math.pow(1 + inflationRate, y);
       
       // Assume income streams are personal exertion income (Gross) and tax at top marginal rate
-      const taxRate = ENTITY_TYPES.PERSONAL.incomeTax;
+      // Use the current Personal rate from settings
+      const taxRate = entityTypes.PERSONAL ? entityTypes.PERSONAL.incomeTax : 0.47;
 
-      incomeStreams.forEach(s => { 
+      incomeStreams.forEach(s => {  
         if(y >= s.startYear && y <= s.endYear) {
           const netIncome = s.amount * (1 - taxRate);
           flow += netIncome * inflationFactor; 
@@ -1070,7 +1072,7 @@ export default function RiskReturnOptimiser() {
     }));
 
     setCfSimulationResults(finalData);
-  }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, oneOffEvents, projectionYears, inflationRate, adviceFee, structures]);
+  }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, oneOffEvents, projectionYears, inflationRate, adviceFee, structures, entityTypes]);
 
   useEffect(() => {
     if (activeTab === 'cashflow' && selectedPortfolio) {
@@ -1278,7 +1280,7 @@ export default function RiskReturnOptimiser() {
                           ) : (
                             <input 
                               type="number"
-                              step="0.01"
+                              step="0.0001"
                               min="-1"
                               max="1"
                               className={`w-16 border rounded px-1 py-1 text-center text-xs focus:ring-1 focus:ring-fire-accent focus:border-fire-accent ${
@@ -1298,6 +1300,66 @@ export default function RiskReturnOptimiser() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Tax Rates Section */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mt-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <FileText className="w-5 h-5 mr-2 text-fire-accent" />
+          Entity Tax Rates
+        </h3>
+        <div className="overflow-x-auto">
+           <table className="min-w-full divide-y divide-gray-200 text-sm">
+             <thead>
+               <tr className="bg-gray-50">
+                 <th className="px-4 py-3 text-left font-medium text-gray-500">Entity Type</th>
+                 <th className="px-4 py-3 text-left font-medium text-gray-500">Income Tax Rate</th>
+                 <th className="px-4 py-3 text-left font-medium text-gray-500">Long Term CGT Rate</th>
+               </tr>
+             </thead>
+             <tbody className="divide-y divide-gray-200">
+               {Object.entries(entityTypes).map(([key, data]) => (
+                 <tr key={key}>
+                   <td className="px-4 py-2 font-medium text-gray-900">{data.label}</td>
+                   <td className="px-4 py-2">
+                     <div className="relative w-32">
+                       <input 
+                         type="number" step="0.5" 
+                         value={Math.round(data.incomeTax * 1000) / 10}
+                         onChange={(e) => {
+                            const val = parseFloat(e.target.value)/100 || 0;
+                            setEntityTypes(prev => ({
+                                ...prev,
+                                [key]: { ...prev[key], incomeTax: val }
+                            }));
+                         }}
+                         className="w-full border border-gray-300 rounded px-2 py-1 pr-6"
+                       />
+                       <span className="absolute right-2 top-1 text-gray-400">%</span>
+                     </div>
+                   </td>
+                   <td className="px-4 py-2">
+                     <div className="relative w-32">
+                       <input 
+                         type="number" step="0.5" 
+                         value={Math.round(data.ltCgt * 1000) / 10}
+                         onChange={(e) => {
+                            const val = parseFloat(e.target.value)/100 || 0;
+                            setEntityTypes(prev => ({
+                                ...prev,
+                                [key]: { ...prev[key], ltCgt: val }
+                            }));
+                         }}
+                         className="w-full border border-gray-300 rounded px-2 py-1 pr-6"
+                       />
+                       <span className="absolute right-2 top-1 text-gray-400">%</span>
+                     </div>
+                   </td>
+                 </tr>
+               ))}
+             </tbody>
+           </table>
         </div>
       </div>
     </div>
@@ -1331,8 +1393,8 @@ export default function RiskReturnOptimiser() {
                   onChange={(e) => setStructures(structures.map(s => s.id === struct.id ? {...s, type: e.target.value} : s))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
                 >
-                  {Object.keys(ENTITY_TYPES).map(k => (
-                    <option key={k} value={k}>{ENTITY_TYPES[k].label}</option>
+                  {Object.keys(entityTypes).map(k => (
+                    <option key={k} value={k}>{entityTypes[k].label}</option>
                   ))}
                 </select>
               </div>
@@ -1345,7 +1407,7 @@ export default function RiskReturnOptimiser() {
               </div>
               <div className="md:col-span-2">
                  <div className="text-xs text-gray-500">
-                   Tax: {formatPercent(ENTITY_TYPES[struct.type].incomeTax)} Inc / {formatPercent(ENTITY_TYPES[struct.type].ltCgt)} CGT
+                   Tax: {entityTypes[struct.type] ? formatPercent(entityTypes[struct.type].incomeTax) : '0%'} Inc / {entityTypes[struct.type] ? formatPercent(entityTypes[struct.type].ltCgt) : '0%'} CGT
                  </div>
               </div>
               <div className="md:col-span-1 flex justify-end">
@@ -1832,7 +1894,7 @@ export default function RiskReturnOptimiser() {
                 <Area type="monotone" dataKey="p95" stroke="none" fill="url(#confidenceBand)" name="95th Percentile" isAnimationActive={!isExporting} />
                 <Area type="monotone" dataKey="p05" stroke="none" fill="#fff" name="5th Percentile" isAnimationActive={!isExporting} /> 
                 
-                <Line type="monotone" dataKey="p50" stroke="#E03A3E" strokeWidth={3} dot={false} name="Median (50th)" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p50" stroke="#E03A3E" strokeWidth={3} dot={false} strokeDasharray="5 5" name="Median (50th)" isAnimationActive={!isExporting} />
                 <Line type="monotone" dataKey="p95" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Best Case (95th)" isAnimationActive={!isExporting} />
                 <Line type="monotone" dataKey="p05" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Worst Case (5th)" isAnimationActive={!isExporting} />
               </AreaChart>
