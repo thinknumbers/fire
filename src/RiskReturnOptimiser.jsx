@@ -61,12 +61,24 @@ const generateDefaultCorrelations = () => {
 const DEFAULT_CORRELATIONS = generateDefaultCorrelations();
 
 const ENTITY_TYPES = {
-  PERSONAL: { label: 'Personal (Top Rate)', incomeTax: 0.47, stCgt: 0.47, ltCgt: 0.235 },
-  TRUST: { label: 'Family Trust', incomeTax: 0.30, stCgt: 0.30, ltCgt: 0.15 }, 
-  COMPANY: { label: 'Company', incomeTax: 0.30, stCgt: 0.30, ltCgt: 0.30 },
-  SUPER_ACCUM: { label: 'Super (Accumulation)', incomeTax: 0.15, stCgt: 0.15, ltCgt: 0.10 },
-  SUPER_PENSION: { label: 'Super (Pension)', incomeTax: 0.00, stCgt: 0.00, ltCgt: 0.00 },
-  // Additional entities can be added here
+  PERSONAL: { label: 'Personal Name', incomeTax: 0.47, ltCgt: 0.235 },
+  COMPANY: { label: 'Company', incomeTax: 0.25, ltCgt: 0.25 },
+  TRUST: { label: 'Discretionary Trust', incomeTax: 0.30, ltCgt: 0.15 }, // Avg dist rate
+  SUPER: { label: 'Super Fund (Accum)', incomeTax: 0.15, ltCgt: 0.10 },
+  PENSION: { label: 'Pension Phase', incomeTax: 0.00, ltCgt: 0.00 },
+};
+
+const MODEL_NAMES = {
+  1: "Defensive",
+  2: "Conservative",
+  3: "Moderate Conservative",
+  4: "Moderate",
+  5: "Balanced",
+  6: "Balanced Growth",
+  7: "Growth",
+  8: "High Growth",
+  9: "Aggressive",
+  10: "High Aggressive"
 };
 
 const DEFAULT_STRUCTURES = [
@@ -357,8 +369,8 @@ export default function RiskReturnOptimiser() {
         const headerCanvas = await html2canvas(headerEl, { scale: 2, backgroundColor: '#E03A3E' });
         const headerImg = headerCanvas.toDataURL('image/png');
         const imgProps = pdf.getImageProperties(headerImg);
-        // Double the height for visual impact as requested
-        headerHeightPdf = ((imgProps.height * pageWidth) / imgProps.width) * 2; 
+        // Maintain aspect ratio to prevent skewing/stretching
+        headerHeightPdf = (imgProps.height * pageWidth) / imgProps.width;
         pdf.addImage(headerImg, 'PNG', 0, 0, pageWidth, headerHeightPdf);
       }
 
@@ -368,7 +380,8 @@ export default function RiskReturnOptimiser() {
       y += 6;
       addText(scenarioName, 14, 'normal', [80, 80, 80], 'center');
       y += 6;
-      addText(`Selected Model: ${selectedPortfolio.label}`, 12, 'bold', [224, 58, 62], 'center'); 
+      const modelName = MODEL_NAMES[selectedPortfolio.id] || "Custom";
+      addText(`Selected Model: ${selectedPortfolio.label} ${modelName}`, 12, 'bold', [224, 58, 62], 'center'); 
       y += 6;
       addText(`Generated: ${new Date().toLocaleDateString()}`, 9, 'italic', [150, 150, 150], 'center');
       y += 6;
