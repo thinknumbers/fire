@@ -186,6 +186,7 @@ export default function RiskReturnOptimiser() {
   const [oneOffEvents, setOneOffEvents] = useState(DEFAULT_ONE_OFF_EVENTS);
   const [projectionYears, setProjectionYears] = useState(30);
   const [inflationRate, setInflationRate] = useState(0.025);
+  const [adviceFee, setAdviceFee] = useState(0.011); // 1.1% Default incl GST maybe? Let's say 1.1% or just 0.0. User implies they want to add it. Let's default 0.0 to be safe or 0.01. Let's do 0.8% + GST = ~0.88%. Let's default to 0.0 for now so it doesn't surprise, or 0.01. Let's stick to 0.008 (0.8%).
   
   // Simulation State
   const [simulations, setSimulations] = useState([]);
@@ -266,6 +267,7 @@ export default function RiskReturnOptimiser() {
         one_off_events: oneOffEvents,
         projection_years: projectionYears,
         inflation_rate: inflationRate,
+        advice_fee: adviceFee,
         created_at: new Date().toISOString()
       };
 
@@ -396,6 +398,7 @@ export default function RiskReturnOptimiser() {
       pdf.setFont('helvetica', 'normal');
       pdf.text(`Projection Period: ${projectionYears} Years`, col1X, y); y += 4;
       pdf.text(`Inflation Rate: ${(inflationRate * 100).toFixed(1)}%`, col1X, y); y += 4;
+      pdf.text(`Advice Fee: ${(adviceFee * 100).toFixed(2)}%`, col1X, y); y += 4;
       pdf.text(`Total Investable: ${formatCurrency(totalWealth)}`, col1X, y); y += 4;
 
       // Column 2: Structures
@@ -422,8 +425,8 @@ export default function RiskReturnOptimiser() {
 
       // 3a. Pie Chart (Full Width, Centered)
       // User requested "whole width" and "very small" previously.
-      // Page width ~180mm usable. Let's go for 150mm to be safe but very large.
-      const pieSize = 150; 
+      // Page width ~180mm usable. 
+      const pieSize = 100; // Reduced from 150 to fit better
       const pieX = (pageWidth - pieSize) / 2 ;
       
       // Inline capture logic for custom positioning
@@ -449,6 +452,8 @@ export default function RiskReturnOptimiser() {
             tempDiv.appendChild(clone);
             document.body.appendChild(tempDiv);
             try {
+                // Ensure we fit on page
+                checkPageBreak(pieSize + 40); // Check if pie + legend fits
                 await pdf.svg(clone, { x: pieX, y: y, width: pieSize, height: pieSize });
             } catch (err) {
                 console.error("SVG Pie Error", err);
@@ -461,6 +466,7 @@ export default function RiskReturnOptimiser() {
       y += pieSize + 5;
 
       // 3b. Manual Legend (Grid Layout)
+      checkPageBreak(30); // Ensure legend fits
       pdf.setFontSize(8); // Smaller font
       pdf.setFont('helvetica', 'normal');
       const legendItemWidth = 50; // Tighter columns
@@ -641,6 +647,7 @@ export default function RiskReturnOptimiser() {
       if (data.one_off_events) setOneOffEvents(data.one_off_events);
       if (data.projection_years) setProjectionYears(data.projection_years);
       if (data.inflation_rate) setInflationRate(data.inflation_rate);
+      if (data.advice_fee !== undefined) setAdviceFee(data.advice_fee);
       
       // Reset simulation state
       setSimulations([]);
@@ -832,6 +839,18 @@ export default function RiskReturnOptimiser() {
       // Assume income streams are personal exertion income (Gross) and tax at top marginal rate
       const taxRate = ENTITY_TYPES.PERSONAL.incomeTax;
 
+      // Calculate Weighted Average Tax Rate for Fee Deduction Tax Shield
+      let wTaxRate = 0; 
+      if (structures.length > 0) {
+         const totalVal = structures.reduce((s, st) => s + st.value, 0);
+         if (totalVal > 0) {
+             wTaxRate = structures.reduce((s, st) => {
+                 const rate = ENTITY_TYPES[st.type] ? ENTITY_TYPES[st.type].incomeTax : 0.30;
+                 return s + (rate * (st.value / totalVal));
+             }, 0);
+         }
+      }
+
       incomeStreams.forEach(s => { 
         if(y >= s.startYear && y <= s.endYear) {
           const netIncome = s.amount * (1 - taxRate);
@@ -871,6 +890,15 @@ export default function RiskReturnOptimiser() {
         const annualReturn = portReturn + (rnd * portRisk);
         
         balance = balance * (1 + annualReturn);
+        
+        // Fee Deduction with Tax Shield
+        if (adviceFee > 0) {
+            const grossFee = balance * adviceFee;
+            const taxShield = grossFee * wTaxRate;
+            const netFee = grossFee - taxShield;
+            balance -= netFee;
+        }
+
         balance += annualNetFlows[y];
         
         if (balance < 0) balance = 0;
@@ -887,7 +915,7 @@ export default function RiskReturnOptimiser() {
     }));
 
     setCfSimulationResults(finalData);
-  }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, oneOffEvents, projectionYears, inflationRate]);
+  }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, oneOffEvents, projectionYears, inflationRate, adviceFee, structures]);
 
   useEffect(() => {
     if (activeTab === 'cashflow' && selectedPortfolio) {
@@ -1143,9 +1171,27 @@ export default function RiskReturnOptimiser() {
                   onChange={(e) => setInflationRate(parseFloat(e.target.value)/100 || 0)}
                   className="w-full border border-red-200 rounded px-2 py-1 text-sm text-red-900 pr-6"
                />
-               <span className="absolute right-2 top-1 text-xs text-red-400">%</span>
+               <span className="absolute right-2 top-1 text-xs text-blue-400">%</span>
              </div>
              <div className="text-xs text-fire-accent mt-1">Applied to recurring Income & Expenses</div>
+           </div>
+           <div className="md:col-span-2">
+             <label className="flex items-center text-xs font-bold text-red-800 mb-1">
+               <DollarSign className="w-3 h-3 mr-1"/> Advice Fee (% p.a.)
+             </label>
+             <div className="relative">
+               <input 
+                  type="number" 
+                  step="0.01"
+                  value={Math.round(adviceFee * 10000) / 100} 
+                  onChange={(e) => setAdviceFee(parseFloat(e.target.value)/100 || 0)}
+                  className="w-full border border-red-200 rounded px-2 py-1 text-sm text-red-900 pr-6"
+               />
+               <span className="absolute right-2 top-1 text-xs text-red-400">%</span>
+             </div>
+             <div className="text-xs text-fire-accent mt-1">
+               Deducted annually from portfolio balance. Adjusted for tax benefits (based on weighted avg entity tax rate).
+             </div>
            </div>
         </div>
         
