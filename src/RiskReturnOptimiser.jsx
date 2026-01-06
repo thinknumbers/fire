@@ -250,7 +250,14 @@ const OutcomeCandlestick = (props) => {
   // Bottom of bar (y + height) corresponds to min value (p05).
   
   const range = p95 - p05;
-  if(range === 0) return null;
+  
+  if (range <= 0 || height <= 0) {
+      return (
+        <g>
+           <line x1={x} y1={y} x2={x+width} y2={y} stroke={color50} strokeWidth={3} />
+        </g>
+      );
+  }
   
   const medianRatio = (p95 - p50) / range; // Distance from top
   const medianY = y + (height * medianRatio);
@@ -274,6 +281,13 @@ const OutcomeCandlestick = (props) => {
 
 export default function RiskReturnOptimiser() {
   const [activeTab, setActiveTab] = useState('data');
+  const [expandedSections, setExpandedSections] = useState({
+      cma: true,
+      correlations: true,
+      taxRates: true
+  });
+  
+  const toggleSection = (key) => setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
   
   // Data State
   const [assets, setAssets] = useState(DEFAULT_ASSETS);
@@ -402,21 +416,23 @@ export default function RiskReturnOptimiser() {
   };
 
   const handleExportPDF = async () => {
-    setIsSaving(true);
+    if (isExporting) return;
     setIsExporting(true);
-    const originalTab = activeTab;
+    setIsSaving(true);
     
+    // Store original tab to restore later
+    const originalTab = activeTab;
+
     try {
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 15;
-      let y = margin; // Start higher
+      let y = margin;
 
-      // --- Helper Functions ---
-      const addText = (text, size = 10, style = 'normal', color = [0, 0, 0], align = 'left') => {
+      const addText = (text, size = 10, weight = 'normal', color = [0, 0, 0], align = 'left') => {
         pdf.setFontSize(size);
-        pdf.setFont('helvetica', style);
+        pdf.setFont('helvetica', weight);
         pdf.setTextColor(...color);
         if (align === 'center') {
           pdf.text(text, pageWidth / 2, y, { align: 'center' });
@@ -425,7 +441,6 @@ export default function RiskReturnOptimiser() {
         } else {
           pdf.text(text, margin, y);
         }
-        y += size * 0.4; // Tighter line height
       };
 
       const addLine = () => {
@@ -434,23 +449,29 @@ export default function RiskReturnOptimiser() {
         y += 5;
       };
 
-      const checkPageBreak = (heightNeeded) => {
-        if (y + heightNeeded > pageHeight - margin) {
+      const checkPageBreak = (neededHeight) => {
+        if (y + neededHeight > pageHeight - margin) {
           pdf.addPage();
           addPageBorder();
-          y = margin;
-          return true;
+          y = margin + 10;
         }
-        return false;
       };
 
+      // Helper function to capture DOM elements as images
       const captureChart = async (elementId) => {
         const el = document.getElementById(elementId);
         if (!el) return null;
         const canvas = await html2canvas(el, { scale: 3, backgroundColor: '#ffffff' });
         return canvas.toDataURL('image/png');
       };
-
+      
+      // --- Helper: Add Border ---
+      const addPageBorder = () => {
+         pdf.setDrawColor(224, 58, 62); // Fire Red
+         pdf.setLineWidth(0.5);
+         pdf.rect(3, 3, pageWidth - 6, pageHeight - 6, 'S');
+      };
+      
       // --- 1. Header (App Header Image) ---
       const headerEl = document.getElementById('app-header');
       let headerHeightPdf = 0;
@@ -458,14 +479,15 @@ export default function RiskReturnOptimiser() {
         const headerCanvas = await html2canvas(headerEl, { scale: 2, backgroundColor: '#E03A3E' });
         const headerImg = headerCanvas.toDataURL('image/png');
         const imgProps = pdf.getImageProperties(headerImg);
-        // Maintain aspect ratio to prevent skewing/stretching
         headerHeightPdf = (imgProps.height * pageWidth) / imgProps.width;
         pdf.addImage(headerImg, 'PNG', 0, 0, pageWidth, headerHeightPdf);
       }
 
       y = headerHeightPdf + 10;
-      
-      addText("Wealth Strategy Report", 22, 'bold', [224, 58, 62], 'center'); // Slightly smaller title
+      addPageBorder(); // Border for first page explicitly
+
+      // Title Section
+      addText("Wealth Strategy Report", 22, 'bold', [224, 58, 62], 'center'); 
       y += 6;
       addText(scenarioName, 14, 'normal', [80, 80, 80], 'center');
       y += 6;
@@ -474,18 +496,8 @@ export default function RiskReturnOptimiser() {
       y += 6;
       addText(`Generated: ${new Date().toLocaleDateString()}`, 9, 'italic', [150, 150, 150], 'center');
       y += 6;
-      // addLine(); // Removed line as we have a distinct header now
 
-      // --- Helper: Add Border ---
-      const addPageBorder = () => {
-         pdf.setDrawColor(224, 58, 62); // Fire Red
-         pdf.setLineWidth(0.5);
-         pdf.rect(3, 3, pageWidth - 6, pageHeight - 6, 'S');
-      };
-      
-      addPageBorder();
-
-      // --- 2. Key Assumptions (Data & Client) ---
+      // --- 2. Key Assumptions (Data & Client & Structure) ---
       addText("Key Assumptions", 12, 'bold', [30, 30, 30]);
       y += 4;
       
@@ -494,47 +506,57 @@ export default function RiskReturnOptimiser() {
       const startY = y;
 
       // Column 1: Financials
-      pdf.setFontSize(9); // Smaller font for assumptions
-      pdf.setFont('helvetica', 'bold');
-      pdf.text("Financial Parameters", col1X, y);
-      y += 4;
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold');
+      pdf.text("Financial Parameters", col1X, y); y += 4;
       pdf.setFont('helvetica', 'normal');
       pdf.text(`Projection Period: ${projectionYears} Years`, col1X, y); y += 4;
       pdf.text(`Inflation Rate: ${(inflationRate * 100).toFixed(1)}%`, col1X, y); y += 4;
       pdf.text(`Advice Fee: ${(adviceFee * 100).toFixed(2)}%`, col1X, y); y += 4;
       pdf.text(`Total Investable: ${formatCurrency(totalWealth)}`, col1X, y); y += 4;
 
-      // Column 2: Structures
+      // Column 2: Structures (With Splits)
       y = startY;
       pdf.setFont('helvetica', 'bold');
-      pdf.text("Entity Structure", col2X, y);
-      y += 4;
+      pdf.text("Entity Structure", col2X, y); y += 4;
       pdf.setFont('helvetica', 'normal');
+      
       structures.forEach(s => {
-        const entityLabel = ENTITY_TYPES[s.type] ? ENTITY_TYPES[s.type].label : s.type;
-        pdf.text(`${s.name} (${entityLabel}): ${formatCurrency(s.value)}`, col2X, y);
-        y += 4;
+        const entityLabel = entityTypes[s.type] ? entityTypes[s.type].label : s.type;
+        
+        // Handle Super Split
+        if (s.type === 'SUPER_ACCUM' && s.pensionPercentage > 0 && s.pensionPercentage < 100) {
+            const pensionVal = s.value * (s.pensionPercentage / 100);
+            const accumVal = s.value - pensionVal;
+            
+            pdf.text(`${s.name} (Total): ${formatCurrency(s.value)}`, col2X, y); y += 4;
+            pdf.setTextColor(100, 100, 100); pdf.setFontSize(8);
+            pdf.text(` - Accumulation: ${formatCurrency(accumVal)}`, col2X + 2, y); y += 3;
+            pdf.text(` - Pension Phase: ${formatCurrency(pensionVal)}`, col2X + 2, y); y += 4;
+            pdf.setTextColor(0, 0, 0); pdf.setFontSize(9);
+        } else {
+             // Handle Full Pension or Standard
+             let customLabel = entityLabel;
+             if (s.type === 'SUPER_ACCUM' && s.pensionPercentage === 100) customLabel = "Super Fund (Pension Phase)";
+             
+             pdf.text(`${s.name} (${customLabel}): ${formatCurrency(s.value)}`, col2X, y); y += 4;
+        }
       });
 
-      y = Math.max(y, startY + 20) + 5;
+      y = Math.max(y, startY + 25) + 5;
       addLine();
 
-      // --- 3. Asset Allocation (Stacked Vertical Layout) ---
-      // checkPageBreak(120); // Removed aggressive check
+      // --- 3. Asset Allocation ---
       addText("Target Asset Allocation", 12, 'bold', [30, 30, 30]);
       y += 4;
 
       setActiveTab('output');
       await new Promise(r => setTimeout(r, 2000)); 
 
-      // 3a. Pie Chart (Full Width, Centered)
-      // User requested "whole width" and "very small" previously.
-      // Page width ~180mm usable. 
-      const pieSize = 100; // Reduced from 150 to fit better
+      // 3a. Pie Chart
+      const pieSize = 90;
       const pieX = (pageWidth - pieSize) / 2 ;
-      
-      // Inline capture logic for custom positioning
       const pieContainer = document.getElementById('pie-chart-section');
+      
       if (pieContainer) {
         const svg = pieContainer.querySelector('svg');
         if (svg) {
@@ -547,17 +569,11 @@ export default function RiskReturnOptimiser() {
             clone.setAttribute('width', pieSize);
             clone.setAttribute('height', pieSize);
             
-            // Ensure labels are visible in the clone if they are hidden by default
-            // (The Recharts render logic below handles the label generation)
-
             const tempDiv = document.createElement('div');
-            tempDiv.style.position = 'absolute';
-            tempDiv.style.left = '-9999px';
+            tempDiv.style.position = 'absolute'; tempDiv.style.left = '-9999px';
             tempDiv.appendChild(clone);
             document.body.appendChild(tempDiv);
             try {
-                // Ensure we fit on page
-                checkPageBreak(pieSize + 40); // Check if pie + legend fits
                 await pdf.svg(clone, { x: pieX, y: y, width: pieSize, height: pieSize });
             } catch (err) {
                 console.error("SVG Pie Error", err);
@@ -566,49 +582,37 @@ export default function RiskReturnOptimiser() {
             }
         }
       }
-
       y += pieSize + 5;
 
-      // 3b. Manual Legend (Grid Layout)
-      checkPageBreak(30); // Ensure legend fits
-      pdf.setFontSize(8); // Smaller font
-      pdf.setFont('helvetica', 'normal');
-      const legendItemWidth = 50; // Tighter columns
-      const legendCols = 3;
+      // 3b. Legend Grid
+      checkPageBreak(30);
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
       const activeOnly = assets.filter(a => a.active);
-      
+      const legendCols = 3; 
+      const legendItemWidth = 50;
       let lx = (pageWidth - (legendCols * legendItemWidth)) / 2;
-      let ly = y;
       
       activeOnly.forEach((asset, i) => {
           const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
           if (weight > 0.001) {
              const col = i % legendCols;
              const row = Math.floor(i / legendCols);
-             
              const itemX = lx + (col * legendItemWidth);
-             const itemY = ly + (row * 6); // Tighter rows
-
+             const itemY = y + (row * 6);
+             
              pdf.setFillColor(asset.color);
-             pdf.rect(itemX, itemY - 2.5, 2.5, 2.5, 'F'); // Smaller box
+             pdf.rect(itemX, itemY - 2.5, 2.5, 2.5, 'F');
              pdf.text(`${asset.name}: ${formatPercent(weight)}`, itemX + 4, itemY);
           }
       });
-      
-      y = ly + (Math.ceil(activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.001).length / legendCols) * 6) + 8;
+      // Advance Y based on rows
+      y += (Math.ceil(activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.001).length / legendCols) * 6) + 8;
 
-      // 3c. Detailed Allocation Table (Full Width)
-      // Calculate actual height needed
-      const tableHeaderHeight = 8;
-      const tableRowHeight = 6;
-      const activeCount = activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.001).length;
-      const tableHeight = tableHeaderHeight + (activeCount * tableRowHeight) + 10;
-      
-      checkPageBreak(tableHeight); // Only break if strictly needed
-      addText("Detailed Allocation", 12, 'bold', [50, 50, 50]);
-      y += 4;
+      // 3c. Detailed Allocation Table
+      const tableHeight = 20 + (activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.001).length * 6);
+      checkPageBreak(tableHeight);
 
-      // Table Header
+      // Header
       pdf.setFillColor(245, 245, 245);
       pdf.rect(margin, y, pageWidth - (margin*2), 6, 'F');
       pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(100, 100, 100);
@@ -617,117 +621,232 @@ export default function RiskReturnOptimiser() {
       pdf.text("Value", pageWidth - margin - 5, y + 4, { align: 'right' });
       y += 8;
 
-      // Table Rows
+      // Rows
       pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0, 0, 0);
       activeOnly.forEach((asset) => {
           const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
           if (weight > 0.001) {
-              checkPageBreak(8);
-              // Color dot
+              checkPageBreak(6);
               pdf.setFillColor(asset.color);
               pdf.rect(margin + 2, y - 2.5, 2.5, 2.5, 'F');
-              
               pdf.text(asset.name, margin + 8, y);
               pdf.text(formatPercent(weight), pageWidth - margin - 40, y, { align: 'right' });
               pdf.text(formatCurrency(weight * totalWealth), pageWidth - margin - 5, y, { align: 'right' });
-              
-              // Light line
               pdf.setDrawColor(240, 240, 240);
               pdf.line(margin, y + 2, pageWidth - margin, y + 2);
-              
               y += 6;
           }
       });
       
-      // Total Row
+      // Total
       checkPageBreak(8);
       pdf.setFont('helvetica', 'bold');
       pdf.text("Total", margin + 8, y);
       pdf.text("100.0%", pageWidth - margin - 40, y, { align: 'right' });
       pdf.text(formatCurrency(totalWealth), pageWidth - margin - 5, y, { align: 'right' });
-      pdf.setDrawColor(200, 200, 200); // Darker line for total
-      pdf.line(margin, y - 4, pageWidth - margin, y - 4); // Line above total
-      
-      y += 8;
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(margin, y - 4, pageWidth - margin, y - 4);
+      y += 10;
 
-      // --- 4. Portfolio Analysis (Full Width Boxes) ---
-      checkPageBreak(40);
+      // --- 4. Portfolio Analysis (Metrics) ---
+      checkPageBreak(35);
       addText("Portfolio Analysis", 14, 'bold', [30, 30, 30]);
-      y += 5;
+      y += 6;
       
-      // Draw Boxes manually
-      const boxWidth = 50;
-      const boxHeight = 25;
-      const gap = (pageWidth - (margin * 2) - (boxWidth * 3)) / 2;
+      const boxWidth = 50; const boxHeight = 20; const gap = 10;
+      const startBoxX = (pageWidth - (boxWidth*3) - (gap*2)) / 2;
       
-      const drawBox = (x, title, value, color) => {
-        pdf.setFillColor(245, 245, 245);
-        pdf.rect(x, y, boxWidth, boxHeight, 'F');
-        pdf.setFontSize(10); pdf.setTextColor(100, 100, 100); pdf.setFont('helvetica', 'normal');
-        pdf.text(title, x + boxWidth/2, y + 8, { align: 'center' });
-        pdf.setFontSize(14); pdf.setTextColor(...color); pdf.setFont('helvetica', 'bold');
-        pdf.text(value, x + boxWidth/2, y + 18, { align: 'center' });
+      const drawMetricBox = (x, title, value, color) => {
+        pdf.setFillColor(248, 250, 252); pdf.setDrawColor(226, 232, 240);
+        pdf.roundedRect(x, y, boxWidth, boxHeight, 2, 2, 'FD');
+        pdf.setFontSize(9); pdf.setTextColor(100, 100, 100); pdf.setFont('helvetica', 'normal');
+        pdf.text(title, x + boxWidth/2, y + 7, { align: 'center' });
+        pdf.setFontSize(12); pdf.setTextColor(...color); pdf.setFont('helvetica', 'bold');
+        pdf.text(value, x + boxWidth/2, y + 16, { align: 'center' });
       };
 
-      drawBox(margin, "Expected Return", formatPercent(selectedPortfolio.return), [22, 163, 74]);
-      drawBox(margin + boxWidth + gap, "Risk (StdDev)", formatPercent(selectedPortfolio.risk), [220, 38, 38]);
-      drawBox(margin + (boxWidth + gap) * 2, "Sharpe Ratio", (selectedPortfolio.return / selectedPortfolio.risk).toFixed(2), [224, 58, 62]);
+      drawMetricBox(startBoxX, "Expected Return", formatPercent(selectedPortfolio.return), [22, 163, 74]);
+      drawMetricBox(startBoxX + boxWidth + gap, "Risk (StdDev)", formatPercent(selectedPortfolio.risk), [220, 38, 38]);
+      drawMetricBox(startBoxX + (boxWidth + gap)*2, "Sharpe Ratio", (selectedPortfolio.return / selectedPortfolio.risk).toFixed(2), [224, 58, 62]);
+      y += boxHeight + 8;
 
-      y += 35;
-
-      // --- 5. Efficient Frontier Chart ---
-      checkPageBreak(80); 
-      addText("Efficient Frontier Analysis", 14, 'bold', [30, 30, 30]);
-      y += 5;
-
-      setActiveTab('optimization');
-      await new Promise(r => setTimeout(r, 2000)); 
-      
+      // --- 5. Frontier Chart ---
       const frontierEl = document.getElementById('optimization-tab-content')?.querySelector('.h-\\[500px\\]');
       if (frontierEl) {
-         const originalId = frontierEl.id;
-         frontierEl.id = 'temp-frontier-chart';
-         const frontierImg = await captureChart('temp-frontier-chart');
-         frontierEl.id = originalId; 
-
-         if (frontierImg) {
-            const imgProps = pdf.getImageProperties(frontierImg);
-            const pdfWidth = pageWidth - (margin * 2);
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-            const displayHeight = Math.min(pdfHeight, 80); 
-            pdf.addImage(frontierImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
-            y += displayHeight + 10;
-         }
+         // Create a stable ID for capture locally if needed, but existing is fine if we use the element directly
+         // Actually better to use the pattern from before but simpler
+      }
+      // Note: We are already in output tab, so frontier is visible.
+      // But we prefer explicit capture from 'optimization' tab content if we want that.
+      // Actually, 'output-tab-content' contains the efficient frontier in our code logic? 
+      // Checking code: OutputTab renders <ResponsiveContainer>... for Frontier.
+      // Let's capture the big chart from OutputTab.
+      
+      const outputContainers = document.getElementById('output-tab-content')?.querySelectorAll('.bg-white');
+      let frontierContainer = null;
+      if(outputContainers) {
+          // It's likely the first large container after metrics?
+          // Actually, let's look for text content "Efficient Frontier" in headings.
+          outputContainers.forEach(div => {
+              if (div.textContent.includes("Efficient Frontier")) frontierContainer = div;
+          });
       }
 
-      // --- 6. Wealth Projection ---
-      checkPageBreak(80);
-      addText("Wealth Projection (Monte Carlo)", 14, 'bold', [30, 30, 30]);
+      if (frontierContainer) {
+         checkPageBreak(80);
+         addText("Efficient Frontier", 12, 'bold', [50, 50, 50]); y += 5;
+         const fCanvas = await html2canvas(frontierContainer, { scale: 2 });
+         const fImg = fCanvas.toDataURL('image/png');
+         const fProps = pdf.getImageProperties(fImg);
+         const pdfW = pageWidth - (margin * 2);
+         const pdfH = (fProps.height * pdfW) / fProps.width;
+         const displayH = Math.min(pdfH, 80);
+         pdf.addImage(fImg, 'PNG', margin, y, pdfW, displayH);
+         y += displayH + 10;
+      }
+      
+      // --- 6. Summary Tables (Manual Render) ---
+      checkPageBreak(60);
+      addText("Model Portfolios Summary", 12, 'bold', [30, 30, 30]); y += 5;
+      
+      // Table 1 Header
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin, y, pageWidth/2 - margin - 5, 6, 'F');
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(100, 100, 100);
+      pdf.text("Portfolio", margin + 2, y + 4);
+      pdf.text("Model Name", margin + 15, y + 4);
+      pdf.text("Return", margin + 65, y + 4, { align: 'right' });
+      pdf.text("Risk", margin + 85, y + 4, { align: 'right' });
+      y += 6;
+      
+      // Table 1 Body
+      pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0,0,0);
+      efficientFrontier.forEach((p, i) => {
+          checkPageBreak(6);
+          // Highlight selected
+          if (i + 1 === selectedPortfolioId) {
+             pdf.setFillColor(239, 246, 255); // Blue 50
+             pdf.rect(margin, y-4, pageWidth/2 - margin - 5, 6, 'F'); // Backfill
+             // pdf.text(" (Sel)", margin + 15, y); // Removed marker as we verify visually
+          }
+          pdf.text(`${i + 1}`, margin + 2, y);
+          pdf.text(MODEL_NAMES[i + 1] || 'Custom', margin + 15, y);
+          pdf.text(formatPercent(p.return), margin + 65, y, { align: 'right' });
+          pdf.text(formatPercent(p.risk), margin + 85, y, { align: 'right' });
+          y += 5;
+      });
       y += 5;
 
+      // Table 2: Estimated Outcomes
+      // Reset Y to align if space allows, or stack. Let's stack for simplicity on A4.
+      // Actually, side-by-side looks good in web, but in PDF portrait, stacking is safer.
+      
+      checkPageBreak(50);
+      addText("Estimating Outcomes (Wealth Projection)", 12, 'bold', [30, 30, 30]); y += 5;
+      
+      // Table 2 Header
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin, y, pageWidth - (margin*2), 6, 'F');
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(100, 100, 100);
+      pdf.text("Time Horizon", margin + 5, y + 4);
+      pdf.text("95th Percentile (Best)", margin + 60, y + 4, { align: 'right' });
+      pdf.text("50th Percentile (Median)", margin + 100, y + 4, { align: 'right' });
+      pdf.text("5th Percentile (Worst)", margin + 140, y + 4, { align: 'right' });
+      y += 6;
+
+      // Table 2 Body
+      pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0,0,0);
+      const outcomeYears = [1, 3, 5, 10, 20];
+      outcomeYears.forEach(year => {
+         const idx = year - 1;
+         const res = cfSimulationResults[idx];
+         if (res) {
+             checkPageBreak(6);
+             pdf.text(`${year} Years`, margin + 5, y);
+             pdf.text(formatCurrency(res.p95), margin + 60, y, { align: 'right' });
+             pdf.setFont('helvetica', 'bold');
+             pdf.text(formatCurrency(res.p50), margin + 100, y, { align: 'right' });
+             pdf.setFont('helvetica', 'normal');
+             pdf.text(formatCurrency(res.p05), margin + 140, y, { align: 'right' });
+             
+             pdf.setDrawColor(240, 240, 240);
+             pdf.line(margin, y+2, pageWidth - margin, y+2);
+             y += 6;
+         }
+      });
+      y += 10;
+
+      // --- 7. Wealth Projection Charts (Cashflow Tab) ---
       setActiveTab('cashflow');
       await new Promise(r => setTimeout(r, 2000)); 
-      
-      const projectionImg = await captureChart('cashflow-tab-content');
-      if (projectionImg) {
-        const imgProps = pdf.getImageProperties(projectionImg);
-        const pdfWidth = pageWidth - (margin * 2);
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        const displayHeight = Math.min(pdfHeight, 80); 
-        pdf.addImage(projectionImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
-        y += displayHeight + 5;
+
+      // 7a. Main Projections Chart
+      const projContainer = document.getElementById('projections-chart-container');
+      if (projContainer) {
+          checkPageBreak(90);
+          addText("Wealth Projection - Monte Carlo Simulation", 14, 'bold', [30, 30, 30]); y += 6;
+          
+          const pCanvas = await html2canvas(projContainer, { scale: 2 });
+          const pImg = pCanvas.toDataURL('image/png');
+          const pProps = pdf.getImageProperties(pImg);
+          const pdfW = pageWidth - (margin * 2);
+          const pdfH = (pProps.height * pdfW) / pProps.width;
+          const displayH = Math.min(pdfH, 90);
+          pdf.addImage(pImg, 'PNG', margin, y, pdfW, displayH);
+          y += displayH + 5;
+          
+          // Add some context text?
+          pdf.setFontSize(8); pdf.setTextColor(100, 100, 100);
+          pdf.text(`Simulated 1,000 runs. Shaded area is 90% confidence interval.`, margin, y);
+          y += 10;
+      }
+
+      // 7b. Whisker Chart
+      const whiskerContainer = document.getElementById('whisker-chart-container');
+      if (whiskerContainer) {
+          checkPageBreak(90);
+          addText("Estimated Outcomes - Range Analysis", 14, 'bold', [30, 30, 30]); y += 6;
+          
+          const wCanvas = await html2canvas(whiskerContainer, { scale: 2 });
+          const wImg = wCanvas.toDataURL('image/png');
+          const wProps = pdf.getImageProperties(wImg);
+          const pdfW = pageWidth - (margin * 2);
+          const pdfH = (wProps.height * pdfW) / wProps.width;
+          const displayH = Math.min(pdfH, 90);
+          pdf.addImage(wImg, 'PNG', margin, y, pdfW, displayH);
+          y += displayH + 5;
+      }
+
+      // 7c. Entity Breakdown Chart
+      const entityContainer = document.getElementById('entity-chart-container');
+      if (entityContainer) {
+          checkPageBreak(90);
+          addText("Projected Wealth by Entity (Median Case)", 14, 'bold', [30, 30, 30]); y += 6;
+          
+          const eCanvas = await html2canvas(entityContainer, { scale: 2 });
+          const eImg = eCanvas.toDataURL('image/png');
+          const eProps = pdf.getImageProperties(eImg);
+          const pdfW = pageWidth - (margin * 2);
+          const pdfH = (eProps.height * pdfW) / eProps.width;
+          const displayH = Math.min(pdfH, 90);
+          pdf.addImage(eImg, 'PNG', margin, y, pdfW, displayH);
+          y += displayH + 5;
       }
 
       // Footer
-      pdf.setFontSize(8);
-      pdf.setTextColor(150, 150, 150);
-      pdf.text("Generated by FIRE Wealth Optimiser", pageWidth / 2, pageHeight - 10, { align: 'center' });
+      const totalPages = pdf.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+         pdf.setPage(i);
+         pdf.setFontSize(8); pdf.setTextColor(150, 150, 150);
+         pdf.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+         pdf.text("Generated by FIRE Wealth Optimiser", pageWidth / 2, pageHeight - 10, { align: 'center' });
+      }
 
       pdf.save(`${scenarioName.replace(/\s+/g, '_')}_Report.pdf`);
 
     } catch (e) {
       console.error("PDF Generation Error", e);
-      alert("Failed to generate PDF");
+      alert("Failed to generate PDF. Check console for details.");
     } finally {
       setActiveTab(originalTab);
       setIsSaving(false);
@@ -1201,152 +1320,178 @@ export default function RiskReturnOptimiser() {
   const DataTab = () => (
     <div className="space-y-6 animate-in fade-in">
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <Activity className="w-5 h-5 mr-2 text-fire-accent" />
-          Capital Market Assumptions
-        </h3>
-        <p className="text-sm text-gray-500 mb-4">
-          Select applicable asset classes and define their expected returns, risk, and yield. Unchecked assets will be excluded from optimization.
-        </p>
-        
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-3 text-left font-medium text-gray-500 w-12 text-center">Include</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Asset Class</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Total Return (%)</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Risk (StdDev %)</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Income Yield %</th>
-                <th className="px-2 py-3 text-left font-medium text-gray-500 text-center">Min %</th>
-                <th className="px-2 py-3 text-left font-medium text-gray-500 text-center">Max %</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {assets.map((asset) => (
-                <tr key={asset.id} className={!asset.active ? 'opacity-50 bg-gray-50' : ''}>
-                  <td className="px-4 py-3 text-center">
-                    <button 
-                      onClick={() => handleAssetToggle(asset.id)}
-                      className={`p-1 rounded transition-colors ${asset.active ? 'text-fire-accent hover:bg-blue-50' : 'text-gray-400 hover:bg-gray-200'}`}
-                    >
-                      {asset.active ? <CheckSquare className="w-5 h-5"/> : <Square className="w-5 h-5"/>}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 font-medium text-gray-900">
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: asset.color }}></div>
-                      {asset.isDefault ? (
-                        asset.name
-                      ) : (
-                        <input 
-                          type="text" 
-                          value={asset.name}
-                          onChange={(e) => setAssets(assets.map(a => a.id === asset.id ? {...a, name: e.target.value} : a))}
-                          className="border border-gray-300 rounded px-2 py-1 w-full"
-                        />
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <input type="number" step="0.1" className="w-20 border rounded px-2 py-1"
-                      disabled={!asset.active}
-                      value={Math.round(asset.return * 1000) / 10}
-                      onChange={(e) => setAssets(assets.map(a => a.id === asset.id ? {...a, return: parseFloat(e.target.value)/100} : a))}
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input type="number" step="0.1" className="w-20 border rounded px-2 py-1"
-                      disabled={!asset.active}
-                      value={Math.round(asset.stdev * 1000) / 10}
-                      onChange={(e) => setAssets(assets.map(a => a.id === asset.id ? {...a, stdev: parseFloat(e.target.value)/100} : a))}
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="number" 
-                        step="1" 
-                        min="0"
-                        max="100"
-                        disabled={!asset.active}
-                        className="w-16 border rounded px-2 py-1"
-                        value={Math.round(asset.incomeRatio * 100)}
-                        onChange={(e) => {
-                          let val = parseInt(e.target.value);
-                          if (val > 100) val = 100;
-                          if (val < 0) val = 0;
-                          if (isNaN(val)) val = 0;
-                          setAssets(assets.map(a => a.id === asset.id ? {...a, incomeRatio: val/100} : a))
-                        }}
-                      />
-                      <span className="text-xs text-gray-400">Yield</span>
-                    </div>
-                  </td>
-                  <td className="px-2 py-3 text-center">
-                    <input 
-                      type="number" step="1" min="0" max="100"
-                      value={asset.minWeight !== undefined ? asset.minWeight : 0} 
-                      onChange={(e) => {
-                         const val = parseFloat(e.target.value) || 0;
-                         setAssets(assets.map(a => a.id === asset.id ? { ...a, minWeight: val } : a));
-                      }}
-                      className="w-14 border border-gray-300 rounded px-1 py-1 text-sm text-center"
-                    />
-                  </td>
-                  <td className="px-2 py-3 text-center">
-                    <input 
-                      type="number" step="1" min="0" max="100"
-                      value={asset.maxWeight !== undefined ? asset.maxWeight : 100} 
-                      onChange={(e) => {
-                         const val = parseFloat(e.target.value) || 100;
-                         setAssets(assets.map(a => a.id === asset.id ? { ...a, maxWeight: val } : a));
-                      }}
-                      className="w-14 border border-gray-300 rounded px-1 py-1 text-sm text-center"
-                    />
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {!asset.isDefault && (
-                      <button onClick={() => handleDeleteAsset(asset.id)} className="text-red-400 hover:text-red-600">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="p-4 border-t border-gray-200">
-            <button 
-              onClick={handleAddAsset}
-              className="flex items-center text-sm font-medium text-fire-accent hover:text-blue-800"
-            >
-              <Plus className="w-4 h-4 mr-2" /> Add Custom Asset Class
-            </button>
-          </div>
+        <div 
+          className="flex items-center justify-between mb-4 cursor-pointer"
+          onClick={() => toggleSection('cma')}
+        >
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <Activity className="w-5 h-5 mr-2 text-fire-accent" />
+            Capital Market Assumptions
+          </h3>
+          {expandedSections.cma ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
         </div>
+        
+        {expandedSections.cma && (
+          <div className="animate-in slide-in-from-top-2 duration-200">
+            <p className="text-sm text-gray-500 mb-4">
+              Select applicable asset classes and define their expected returns, risk, and yield. Unchecked assets will be excluded from optimization.
+            </p>
+            
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="px-4 py-3 text-left font-medium text-gray-500 w-12 text-center">Include</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500">Asset Class</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500">Total Return (%)</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500">Risk (StdDev %)</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500">Income Yield %</th>
+                    <th className="px-2 py-3 text-left font-medium text-gray-500 text-center">Min %</th>
+                    <th className="px-2 py-3 text-left font-medium text-gray-500 text-center">Max %</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {assets.map((asset) => (
+                    <tr key={asset.id} className={!asset.active ? 'opacity-50 bg-gray-50' : ''}>
+                      <td className="px-4 py-3 text-center">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleAssetToggle(asset.id); }}
+                          className={`p-1 rounded transition-colors ${asset.active ? 'text-fire-accent hover:bg-blue-50' : 'text-gray-400 hover:bg-gray-200'}`}
+                        >
+                          {asset.active ? <CheckSquare className="w-5 h-5"/> : <Square className="w-5 h-5"/>}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-gray-900">
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: asset.color }}></div>
+                          {asset.isDefault ? (
+                            asset.name
+                          ) : (
+                            <input 
+                              type="text" 
+                              value={asset.name}
+                              onChange={(e) => setAssets(assets.map(a => a.id === asset.id ? {...a, name: e.target.value} : a))}
+                              className="border border-gray-300 rounded px-2 py-1 w-full"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <input type="number" step="0.01" className="w-20 border rounded px-2 py-1"
+                          disabled={!asset.active}
+                          value={(asset.return * 100).toFixed(2)}
+                          onChange={(e) => setAssets(assets.map(a => a.id === asset.id ? {...a, return: parseFloat(e.target.value)/100} : a))}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <input type="number" step="0.01" className="w-20 border rounded px-2 py-1"
+                          disabled={!asset.active}
+                          value={(asset.stdev * 100).toFixed(2)}
+                          onChange={(e) => setAssets(assets.map(a => a.id === asset.id ? {...a, stdev: parseFloat(e.target.value)/100} : a))}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="number" 
+                            step="1" 
+                            min="0"
+                            max="100"
+                            disabled={!asset.active}
+                            className="w-16 border rounded px-2 py-1"
+                            value={Math.round(asset.incomeRatio * 100)}
+                            onChange={(e) => {
+                              let val = parseInt(e.target.value);
+                              if (val > 100) val = 100;
+                              if (val < 0) val = 0;
+                              if (isNaN(val)) val = 0;
+                              setAssets(assets.map(a => a.id === asset.id ? {...a, incomeRatio: val/100} : a))
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <span className="text-xs text-gray-400">Yield</span>
+                        </div>
+                      </td>
+                      <td className="px-2 py-3 text-center">
+                        <input 
+                          type="number" step="1" min="0" max="100"
+                          value={asset.minWeight !== undefined ? asset.minWeight : 0} 
+                          onChange={(e) => {
+                             const val = parseFloat(e.target.value) || 0;
+                             setAssets(assets.map(a => a.id === asset.id ? { ...a, minWeight: val } : a));
+                          }}
+                          className="w-14 border border-gray-300 rounded px-1 py-1 text-sm text-center"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                      <td className="px-2 py-3 text-center">
+                        <input 
+                          type="number" step="1" min="0" max="100"
+                          value={asset.maxWeight !== undefined ? asset.maxWeight : 100} 
+                          onChange={(e) => {
+                             const val = parseFloat(e.target.value) || 100;
+                             setAssets(assets.map(a => a.id === asset.id ? { ...a, maxWeight: val } : a));
+                          }}
+                          className="w-14 border border-gray-300 rounded px-1 py-1 text-sm text-center"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {!asset.isDefault && (
+                          <button onClick={(e) => { e.stopPropagation(); handleDeleteAsset(asset.id); }} className="text-red-400 hover:text-red-600">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="p-4 border-t border-gray-200">
+                <button 
+                  onClick={handleAddAsset}
+                  className="flex items-center text-sm font-medium text-fire-accent hover:text-blue-800"
+                >
+                  <Plus className="w-4 h-4 mr-2" /> Add Custom Asset Class
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       
       {/* Correlation Matrix Section */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
-          Correlation Matrix
-        </h3>
-        <p className="text-sm text-gray-500 mb-4">
-          Manage correlation factors between asset classes. Values range from -1.0 to 1.0. 
-        </p>
+        <div 
+          className="flex items-center justify-between mb-4 cursor-pointer"
+          onClick={() => toggleSection('correlations')}
+        >
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
+            Correlation Matrix
+          </h3>
+          {expandedSections.correlations ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+        </div>
         
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-xs table-fixed">
-            <thead>
-              <tr>
-                <th className="px-2 py-2 bg-gray-50 w-24 sticky left-0 z-20 border-r border-gray-200"></th>
-                {assets.map(a => (
-                  <th key={a.id} className="px-1 py-2 bg-gray-50 font-medium text-gray-500 text-center w-20 whitespace-nowrap overflow-hidden text-ellipsis" title={a.name}>
-                    {a.name}
+        {expandedSections.correlations && (
+          <div className="animate-in slide-in-from-top-2 duration-200">
+            <p className="text-sm text-gray-500 mb-4">
+              Manage correlation factors between asset classes. Values range from -1.0 to 1.0. 
+            </p>
+            
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 text-xs table-fixed">
+                <thead>
+                  <tr>
+                    <th className="px-2 py-2 bg-gray-50 w-24 sticky left-0 z-20 border-r border-gray-200"></th>
+                    {assets.map(a => (
+                      <th key={a.id} className="px-1 py-2 bg-gray-50 font-medium text-gray-500 text-center w-20 whitespace-nowrap overflow-hidden text-ellipsis" title={a.name}>
+                        {a.name}
                   </th>
                 ))}
               </tr>
@@ -1390,17 +1535,27 @@ export default function RiskReturnOptimiser() {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Tax Rates Section */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mt-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <FileText className="w-5 h-5 mr-2 text-fire-accent" />
-          Entity Tax Rates
-        </h3>
-        <div className="overflow-x-auto">
-           <table className="min-w-full divide-y divide-gray-200 text-sm">
+        <div 
+          className="flex items-center justify-between mb-4 cursor-pointer"
+          onClick={() => toggleSection('taxRates')}
+        >
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <FileText className="w-5 h-5 mr-2 text-fire-accent" />
+            Entity Tax Rates
+          </h3>
+          {expandedSections.taxRates ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+        </div>
+
+        {expandedSections.taxRates && (
+          <div className="animate-in slide-in-from-top-2 duration-200">
+             <div className="overflow-x-auto">
+               <table className="min-w-full divide-y divide-gray-200 text-sm">
              <thead>
                <tr className="bg-gray-50">
                  <th className="px-4 py-3 text-left font-medium text-gray-500">Entity Type</th>
@@ -1450,8 +1605,10 @@ export default function RiskReturnOptimiser() {
                ))}
              </tbody>
            </table>
-        </div>
-      </div>
+             </div>
+           </div>
+         )}
+       </div>
     </div>
   );
 
@@ -1735,7 +1892,7 @@ export default function RiskReturnOptimiser() {
         {efficientFrontier.length > 0 ? (
             <div className="h-[500px] w-full bg-gray-50 rounded-xl p-4 border border-gray-100">
             <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+              <ScatterChart margin={{ top: 20, right: 20, bottom: 60, left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   type="number" 
@@ -1743,7 +1900,7 @@ export default function RiskReturnOptimiser() {
                   name="Risk" 
                   unit="" 
                   tickFormatter={(val) => formatPercent(val)}
-                  label={{ value: 'Risk (Standard Deviation)', position: 'bottom', offset: 0 }}
+                  label={{ value: 'Risk (Standard Deviation)', position: 'insideBottom', offset: -10 }}
                   domain={['auto', 'auto']}
                 />
                 <YAxis 
@@ -1771,7 +1928,7 @@ export default function RiskReturnOptimiser() {
                     return null;
                   }}
                 />}
-                {!isExporting && <Legend />}
+                {!isExporting && <Legend wrapperStyle={{ bottom: 0 }} />}
                 <Scatter name="Simulated Portfolios" data={simulations} fill="#cbd5e1" shape="circle" r={2} opacity={0.5} isAnimationActive={!isExporting} />
                 <Scatter name="Efficient Models" data={efficientFrontier} fill="#2563eb" shape="diamond" r={8} isAnimationActive={!isExporting} />
               </ScatterChart>
@@ -1939,6 +2096,7 @@ export default function RiskReturnOptimiser() {
                  <thead>
                    <tr className="bg-gray-50 border-b border-gray-200">
                      <th className="px-3 py-2 text-left font-medium text-gray-500">Portfolio</th>
+                     <th className="px-3 py-2 text-left font-medium text-gray-500">Model Name</th>
                      <th className="px-3 py-2 text-right font-medium text-gray-500">Expected Return</th>
                      <th className="px-3 py-2 text-right font-medium text-gray-500">Standard Deviation</th>
                    </tr>
@@ -1947,6 +2105,7 @@ export default function RiskReturnOptimiser() {
                    {efficientFrontier.map((p, i) => (
                      <tr key={i} className={selectedPortfolioId === i+1 ? 'bg-blue-50' : ''}>
                        <td className="px-3 py-2 font-medium text-gray-900">{i + 1}</td>
+                       <td className="px-3 py-2 text-gray-600">{MODEL_NAMES[i + 1] || 'Custom'}</td>
                        <td className="px-3 py-2 text-right text-gray-600">{formatPercent(p.return)}</td>
                        <td className="px-3 py-2 text-right text-gray-600">{formatPercent(p.risk)}</td>
                      </tr>
@@ -2019,7 +2178,7 @@ export default function RiskReturnOptimiser() {
             </div>
           </div>
           
-          <div className="h-[400px] w-full">
+          <div id="projections-chart-container" className="h-[400px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={cfSimulationResults} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                 <defs>
@@ -2029,7 +2188,7 @@ export default function RiskReturnOptimiser() {
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="year" label={{ value: 'Years', position: 'bottom' }} />
-                <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} />
+                <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} tickCount={10} />
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 {!isExporting && <Tooltip 
                   content={({ active, payload, label }) => {
@@ -2088,7 +2247,7 @@ export default function RiskReturnOptimiser() {
         {/* Outcome Whisker Chart */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
            <h4 className="font-semibold text-gray-900 mb-6">Estimating Outcomes</h4>
-           <div className="h-[400px] w-full">
+           <div id="whisker-chart-container" className="h-[400px] w-full">
              <ResponsiveContainer width="100%" height="100%">
                <ComposedChart 
                  data={[1, 3, 5, 10, 20].map(yr => {
@@ -2145,6 +2304,106 @@ export default function RiskReturnOptimiser() {
                     ]}
                  />
                </ComposedChart>
+             </ResponsiveContainer>
+           </div>
+        </div>
+
+
+        {/* Entity Structure Breakdown Chart */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mt-6">
+           <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+             <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
+             Projected Wealth by Entity (Median)
+           </h3>
+           <div id="entity-chart-container" className="h-[400px] w-full">
+             <ResponsiveContainer width="100%" height="100%">
+               <LineChart 
+                 data={(() => {
+                    const results = [];
+                    // Initial values
+                    let currentValues = structures.reduce((acc, s) => {
+                        if (s.type === 'SUPER_ACCUM' && s.pensionPercentage > 0 && s.pensionPercentage < 100) {
+                            acc[`${s.id}_accum`] = s.value * (1 - s.pensionPercentage/100);
+                            acc[`${s.id}_pension`] = s.value * (s.pensionPercentage/100);
+                        } else if (s.type === 'SUPER_ACCUM' && s.pensionPercentage === 100) {
+                             acc[`${s.id}_pension`] = s.value;
+                        } else {
+                            acc[s.id] = s.value;
+                        }
+                        return acc;
+                    }, {});
+                    
+                     // Add Year 0
+                     const startRow = { year: 0, ...currentValues };
+                     results.push(startRow);
+
+                    for(let year = 1; year <= projectionYears; year++) {
+                        const yearRow = { year };
+                        
+                        structures.forEach(s => {
+                            const getNetReturn = (type) => {
+                                const rates = entityTypes[type] || entityTypes.PERSONAL || { incomeTax: 0.47, ltCgt: 0.235 };
+                                let entityNetRet = 0;
+                                optimizationAssets.forEach((asset, idx) => {
+                                    const w = selectedPortfolio.weights[idx];
+                                    if(w > 0) {
+                                         const incomeComponent = asset.return * asset.incomeRatio;
+                                         const capitalComponent = asset.return * (1 - asset.incomeRatio);
+                                         const afterTax = (incomeComponent * (1 - rates.incomeTax)) + (capitalComponent * (1 - rates.ltCgt));
+                                         entityNetRet += w * afterTax;
+                                    }
+                                });
+                                return entityNetRet;
+                            };
+
+                            if (s.type === 'SUPER_ACCUM' && s.pensionPercentage > 0 && s.pensionPercentage < 100) {
+                                const rAccum = getNetReturn('SUPER_ACCUM');
+                                const rPension = getNetReturn('PENSION');
+                                const valAccum = currentValues[`${s.id}_accum`] * (1 + rAccum);
+                                const valPension = currentValues[`${s.id}_pension`] * (1 + rPension);
+                                currentValues[`${s.id}_accum`] = valAccum;
+                                currentValues[`${s.id}_pension`] = valPension;
+                                yearRow[`${s.id}_accum`] = valAccum;
+                                yearRow[`${s.id}_pension`] = valPension;
+                            } else if (s.type === 'SUPER_ACCUM' && s.pensionPercentage === 100) {
+                                 const rPension = getNetReturn('PENSION');
+                                 const val = currentValues[`${s.id}_pension`] * (1 + rPension);
+                                 currentValues[`${s.id}_pension`] = val;
+                                 yearRow[`${s.id}_pension`] = val;
+                            } else {
+                                const r = getNetReturn(s.type);
+                                const val = currentValues[s.id] * (1 + r);
+                                currentValues[s.id] = val;
+                                yearRow[s.id] = val;
+                            }
+                        });
+                        results.push(yearRow);
+                    }
+                    return results;
+                 })()}
+                 margin={{ top: 20, right: 30, left: 10, bottom: 20 }}
+               >
+                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                 <XAxis dataKey="year" label={{ value: 'Years', position: 'bottom' }} />
+                 <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} tickCount={10} />
+                 {!isExporting && <Tooltip formatter={(val) => formatCurrency(val)} />}
+                 <Legend />
+                 {structures.map((s, i) => {
+                     const colors = ['#2563eb', '#ea580c', '#16a34a', '#dc2626', '#9333ea', '#0891b2', '#db2777'];
+                     if (s.type === 'SUPER_ACCUM' && s.pensionPercentage > 0 && s.pensionPercentage < 100) {
+                         return (
+                             <React.Fragment key={s.id}>
+                                <Line type="monotone" dataKey={`${s.id}_pension`} name={`${s.name} (Pension)`} stroke="#2563eb" strokeWidth={2} dot={false} />
+                                <Line type="monotone" dataKey={`${s.id}_accum`} name={`${s.name} (Accum)`} stroke="#ea580c" strokeWidth={2} dot={false} />
+                             </React.Fragment>
+                         )
+                     }
+                      if (s.type === 'SUPER_ACCUM' && s.pensionPercentage === 100) {
+                           return <Line key={s.id} type="monotone" dataKey={`${s.id}_pension`} name={`${s.name} (Pension)`} stroke="#2563eb" strokeWidth={2} dot={false} />
+                      }
+                     return <Line key={s.id} type="monotone" dataKey={s.id} name={s.name} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} />
+                 })}
+               </LineChart>
              </ResponsiveContainer>
            </div>
         </div>
