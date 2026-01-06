@@ -1705,7 +1705,7 @@ export default function RiskReturnOptimiser() {
             </div>
           </div>
         </div>
-      </div>
+
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
