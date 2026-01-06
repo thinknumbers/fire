@@ -79,8 +79,8 @@ const DEFAULT_ENTITY_TYPES = {
   PERSONAL: { label: 'Personal Name', incomeTax: 0.47, ltCgt: 0.235 },
   COMPANY: { label: 'Company', incomeTax: 0.25, ltCgt: 0.25 },
   TRUST: { label: 'Discretionary Trust', incomeTax: 0.30, ltCgt: 0.15 }, // Avg dist rate
-  SUPER_ACCUM: { label: 'Super Fund (Accum)', incomeTax: 0.15, ltCgt: 0.10 },
-  PENSION: { label: 'Pension Phase', incomeTax: 0.00, ltCgt: 0.00 },
+  SUPER_ACCUM: { label: 'Super Fund (Accumulation)', incomeTax: 0.15, ltCgt: 0.10 },
+  PENSION: { label: 'Super Fund (Pension Phase)', incomeTax: 0.00, ltCgt: 0.00 },
 };
 
 const MODEL_NAMES = {
@@ -136,22 +136,45 @@ const calculateClientTaxAdjustedReturns = (assets, structures, entityTypes) => {
     let weightedReturn = 0;
 
     structures.forEach(struct => {
-      const entityProp = struct.value / totalValue;
-      const rates = entityTypes[struct.type] || entityTypes.PERSONAL || { incomeTax: 0.47, ltCgt: 0.235 };
-      
-      // Safety checks for NaN
-      const ret = isNaN(asset.return) ? 0 : asset.return;
-      const incRatio = isNaN(asset.incomeRatio) ? 0 : asset.incomeRatio;
+      let accumValue = 0;
+      let pensionValue = 0;
 
-      const incomeComponent = ret * incRatio;
-      const capitalComponent = ret * (1 - incRatio);
-      
-      const afterTaxIncome = incomeComponent * (1 - rates.incomeTax);
-      const afterTaxCapital = capitalComponent * (1 - rates.ltCgt);
-      
-      const entityAfterTaxReturn = afterTaxIncome + afterTaxCapital;
-      
-      weightedReturn += entityProp * entityAfterTaxReturn;
+      // Check if it's a Super Accumulation fund with a Pension Split
+      if (struct.type === 'SUPER_ACCUM') {
+         const pensionPct = struct.pensionPercentage || 0;
+         pensionValue = struct.value * (pensionPct / 100);
+         accumValue = struct.value - pensionValue;
+      } else {
+         // Default treatment
+         accumValue = struct.value;
+      }
+
+      // 1. Process Accumulation Portion (or standard entity)
+      if (accumValue > 0) {
+          const entityProp = accumValue / totalValue;
+          const rates = entityTypes[struct.type] || entityTypes.PERSONAL || { incomeTax: 0.47, ltCgt: 0.235 };
+          
+          const incomeComponent = asset.return * asset.incomeRatio;
+          const capitalComponent = asset.return * (1 - asset.incomeRatio);
+          const afterTaxIncome = incomeComponent * (1 - rates.incomeTax);
+          const afterTaxCapital = capitalComponent * (1 - rates.ltCgt);
+          
+          weightedReturn += entityProp * (afterTaxIncome + afterTaxCapital);
+      }
+
+      // 2. Process Pension Portion (if any)
+      if (pensionValue > 0) {
+          const entityProp = pensionValue / totalValue;
+          // Look up PENSION type rates, fallback to 0 if missing
+          const rates = entityTypes.PENSION || { incomeTax: 0.0, ltCgt: 0.0 };
+          
+          const incomeComponent = asset.return * asset.incomeRatio;
+          const capitalComponent = asset.return * (1 - asset.incomeRatio);
+          const afterTaxIncome = incomeComponent * (1 - rates.incomeTax);
+          const afterTaxCapital = capitalComponent * (1 - rates.ltCgt);
+          
+          weightedReturn += entityProp * (afterTaxIncome + afterTaxCapital);
+      }
     });
 
     return weightedReturn;
@@ -992,9 +1015,27 @@ export default function RiskReturnOptimiser() {
        const totalVal = structures.reduce((s, st) => s + st.value, 0);
        if (totalVal > 0) {
            wTaxRate = structures.reduce((s, st) => {
-               // Use entityTypes if available, otherwise default to a conservative assumption like Company
                const entityDef = entityTypes[st.type] || entityTypes.COMPANY; 
-               const rate = entityDef ? entityDef.incomeTax : 0.30;
+               let rate = entityDef ? entityDef.incomeTax : 0.30;
+               
+               if (st.type === 'SUPER_ACCUM') {
+                   // Split logic for tax rate
+                   const pensionPct = st.pensionPercentage || 0;
+                   const pensionVal = st.value * (pensionPct / 100);
+                   const accumVal = st.value - pensionVal;
+                   
+                   const pensRate = entityTypes.PENSION ? entityTypes.PENSION.incomeTax : 0.0;
+                   const accumRate = rate; // 15% usually
+                   
+                   // Weighted rate for this structure relative to its own value
+                   // (accumVal * accumRate + pensionVal * pensRate) / st.value
+                   if (st.value > 0) {
+                       rate = ((accumVal * accumRate) + (pensionVal * pensRate)) / st.value;
+                   } else {
+                       rate = 0;
+                   }
+               }
+
                return s + (rate * (st.value / totalVal));
            }, 0);
        }
@@ -1405,11 +1446,29 @@ export default function RiskReturnOptimiser() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-semibold"
                 />
               </div>
-              <div className="md:col-span-2">
-                 <div className="text-xs text-gray-500">
-                   Tax: {entityTypes[struct.type] ? formatPercent(entityTypes[struct.type].incomeTax) : '0%'} Inc / {entityTypes[struct.type] ? formatPercent(entityTypes[struct.type].ltCgt) : '0%'} CGT
-                 </div>
-              </div>
+                <div className="md:col-span-2">
+                   <div className="text-xs text-gray-500">
+                     Tax: {entityTypes[struct.type] ? formatPercent(entityTypes[struct.type].incomeTax) : '0%'} Inc / {entityTypes[struct.type] ? formatPercent(entityTypes[struct.type].ltCgt) : '0%'} CGT
+                   </div>
+                   {struct.type === 'SUPER_ACCUM' && (
+                       <div className="mt-2 bg-blue-50 p-2 rounded border border-blue-100">
+                           <label className="flex justify-between text-xs font-semibold text-blue-800 mb-1">
+                               <span>Pension Phase %</span>
+                               <span>{struct.pensionPercentage || 0}%</span>
+                           </label>
+                           <input 
+                              type="range" min="0" max="100" step="5"
+                              value={struct.pensionPercentage || 0}
+                              onChange={(e) => setStructures(structures.map(s => s.id === struct.id ? {...s, pensionPercentage: parseInt(e.target.value)} : s))}
+                              className="w-full h-1.5 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                           />
+                           <div className="flex justify-between text-[10px] text-blue-600 mt-1">
+                               <span>Accumulation: {formatCurrency(struct.value * (1 - (struct.pensionPercentage||0)/100))}</span>
+                               <span>Pension: {formatCurrency(struct.value * ((struct.pensionPercentage||0)/100))}</span>
+                           </div>
+                       </div>
+                   )}
+                </div>
               <div className="md:col-span-1 flex justify-end">
                 <button 
                   onClick={() => {
