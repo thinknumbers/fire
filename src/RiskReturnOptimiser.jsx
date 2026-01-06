@@ -223,6 +223,55 @@ const createSeededRandom = (seed) => {
 
 // --- Main Application ---
 
+const OutcomeCandlestick = (props) => {
+  const { x, y, width, height, payload, index } = props;
+  const { p05, p50, p95 } = payload;
+  
+  // Recharts Bar passed us the box for the range (p05 to p95).
+  // y is the top (p95), height is the distance to bottom (p05).
+  // We can draw the box and the specific lines within it.
+  
+  // Using specific colors from request
+  const color95 = "#fbbf24"; // Amber 400 (Top)
+  const color50 = "#ea580c"; // Orange 600 (Median)
+  const color05 = "#ce2029"; // Red 700 (Bottom)
+  const boxFill = "#ffedd5"; // Orange 100
+
+  // Calculate pixel position for median
+  // We need the scale. Recharts passes xAxis and yAxis in the props if we look for them,
+  // but for CustomShape in Bar, it might be easier to rely on the fact that
+  // the Bar 'dataKey={[p05, p95]}' already sets the box from p05 to p95.
+  // BUT: The 'median' (p50) position isn't passed as a pixel value automatically.
+  // We need to calculate its relative position within the bar.
+  
+  // Ratio of median within range: (p50 - p05) / (p95 - p05)
+  // Recharts Y-axis goes UP, but SVG coord Y goes DOWN.
+  // Top of bar (y) corresponds to max value (p95).
+  // Bottom of bar (y + height) corresponds to min value (p05).
+  
+  const range = p95 - p05;
+  if(range === 0) return null;
+  
+  const medianRatio = (p95 - p50) / range; // Distance from top
+  const medianY = y + (height * medianRatio);
+
+  return (
+    <g>
+      {/* Box */}
+      <rect x={x} y={y} width={width} height={height} fill={boxFill} stroke="none" />
+      
+      {/* 95th Line (Top) */}
+      <line x1={x} y1={y} x2={x+width} y2={y} stroke={color95} strokeWidth={3} />
+      
+      {/* Median Line */}
+      <line x1={x} y1={medianY} x2={x+width} y2={medianY} stroke={color50} strokeWidth={3} />
+      
+      {/* 5th Line (Bottom) */}
+      <line x1={x} y1={y+height} x2={x+width} y2={y+height} stroke={color05} strokeWidth={3} />
+    </g>
+  );
+};
+
 export default function RiskReturnOptimiser() {
   const [activeTab, setActiveTab] = useState('data');
   
@@ -2021,7 +2070,7 @@ export default function RiskReturnOptimiser() {
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-          
+
           <div className="mt-4 p-4 bg-red-50 rounded-lg text-sm text-red-800 border border-red-100 flex items-start gap-2">
             <AlertCircle className="w-5 h-5 shrink-0" />
             <div>
@@ -2034,6 +2083,70 @@ export default function RiskReturnOptimiser() {
               </ul>
             </div>
           </div>
+        </div>
+
+        {/* Outcome Whisker Chart */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+           <h4 className="font-semibold text-gray-900 mb-6">Estimating Outcomes</h4>
+           <div className="h-[400px] w-full">
+             <ResponsiveContainer width="100%" height="100%">
+               <ComposedChart 
+                 data={[1, 3, 5, 10, 20].map(yr => {
+                   const idx = yr - 1;
+                   if (!cfSimulationResults[idx]) return null;
+                   const res = cfSimulationResults[idx];
+                   return {
+                     year: `${yr} year`,
+                     p05: res.p05,
+                     p50: res.p50,
+                     p95: res.p95,
+                     range: [res.p05, res.p95]
+                   };
+                 }).filter(Boolean)}
+                 margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+               >
+                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                 <XAxis dataKey="year" axisLine={false} tickLine={false} />
+                 <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} />
+                 {!isExporting && <Tooltip 
+                    cursor={{fill: 'transparent'}}
+                    content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                             const data = payload[0].payload;
+                             return (
+                               <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-xs z-50">
+                                 <p className="font-bold mb-2 text-gray-900">{label}</p>
+                                 <div className="space-y-1">
+                                   <div className="flex justify-between gap-4">
+                                     <span className="text-gray-500">95th Percentile:</span>
+                                     <span className="font-mono font-bold text-amber-400">{formatCurrency(data.p95)}</span>
+                                   </div>
+                                   <div className="flex justify-between gap-4">
+                                     <span className="text-gray-500">Median (50th):</span>
+                                     <span className="font-mono font-bold text-orange-600">{formatCurrency(data.p50)}</span>
+                                   </div>
+                                   <div className="flex justify-between gap-4">
+                                     <span className="text-gray-500">5th Percentile:</span>
+                                     <span className="font-mono font-bold text-red-700">{formatCurrency(data.p05)}</span>
+                                   </div>
+                                 </div>
+                               </div>
+                             );
+                        }
+                        return null;
+                    }}
+                 />}
+                 <Bar dataKey="range" barSize={60} shape={<OutcomeCandlestick />} isAnimationActive={!isExporting} />
+                 <Legend 
+                    payload={[
+                      { value: '95th Percentile (Best)', type: 'line', color: '#fbbf24' },
+                      { value: 'Median (50th)', type: 'line', color: '#ea580c' },
+                      { value: '5th Percentile (Worst)', type: 'line', color: '#ce2029' },
+                    ]}
+                 />
+               </ComposedChart>
+             </ResponsiveContainer>
+           </div>
         </div>
       </div>
     );
