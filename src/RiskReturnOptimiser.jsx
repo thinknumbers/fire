@@ -1583,7 +1583,7 @@ export default function RiskReturnOptimiser() {
 
           <div id="allocation-table-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
              <h4 className="font-semibold text-gray-900 mb-4">Detailed Allocation</h4>
-             <div className="overflow-y-auto max-h-[300px]">
+             <div className="overflow-y-auto h-[450px]">
                <table className="min-w-full text-sm">
                  <thead>
                    <tr className="bg-gray-50 sticky top-0">
