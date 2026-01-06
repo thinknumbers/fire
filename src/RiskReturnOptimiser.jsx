@@ -357,7 +357,8 @@ export default function RiskReturnOptimiser() {
         const headerCanvas = await html2canvas(headerEl, { scale: 2, backgroundColor: '#E03A3E' });
         const headerImg = headerCanvas.toDataURL('image/png');
         const imgProps = pdf.getImageProperties(headerImg);
-        headerHeightPdf = (imgProps.height * pageWidth) / imgProps.width;
+        // Double the height for visual impact as requested
+        headerHeightPdf = ((imgProps.height * pageWidth) / imgProps.width) * 2; 
         pdf.addImage(headerImg, 'PNG', 0, 0, pageWidth, headerHeightPdf);
       }
 
@@ -832,24 +833,24 @@ export default function RiskReturnOptimiser() {
     
     const annualNetFlows = new Array(years + 1).fill(0);
     
+    // Calculate Weighted Average Tax Rate for Fee Deduction Tax Shield
+    let wTaxRate = 0; 
+    if (structures.length > 0) {
+       const totalVal = structures.reduce((s, st) => s + st.value, 0);
+       if (totalVal > 0) {
+           wTaxRate = structures.reduce((s, st) => {
+               const rate = ENTITY_TYPES[st.type] ? ENTITY_TYPES[st.type].incomeTax : 0.30;
+               return s + (rate * (st.value / totalVal));
+           }, 0);
+       }
+    }
+
     for (let y = 1; y <= years; y++) {
       let flow = 0;
       const inflationFactor = Math.pow(1 + inflationRate, y);
       
       // Assume income streams are personal exertion income (Gross) and tax at top marginal rate
       const taxRate = ENTITY_TYPES.PERSONAL.incomeTax;
-
-      // Calculate Weighted Average Tax Rate for Fee Deduction Tax Shield
-      let wTaxRate = 0; 
-      if (structures.length > 0) {
-         const totalVal = structures.reduce((s, st) => s + st.value, 0);
-         if (totalVal > 0) {
-             wTaxRate = structures.reduce((s, st) => {
-                 const rate = ENTITY_TYPES[st.type] ? ENTITY_TYPES[st.type].incomeTax : 0.30;
-                 return s + (rate * (st.value / totalVal));
-             }, 0);
-         }
-      }
 
       incomeStreams.forEach(s => { 
         if(y >= s.startYear && y <= s.endYear) {
