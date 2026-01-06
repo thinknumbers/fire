@@ -1880,6 +1880,64 @@ export default function RiskReturnOptimiser() {
              ))}
           </div>
         </div>
+
+        {/* New Summary Tables */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+             <h4 className="font-semibold text-gray-900 mb-4">Model Portfolios Summary</h4>
+             <div className="overflow-x-auto">
+               <table className="min-w-full text-sm">
+                 <thead>
+                   <tr className="bg-gray-50 border-b border-gray-200">
+                     <th className="px-3 py-2 text-left font-medium text-gray-500">Portfolio</th>
+                     <th className="px-3 py-2 text-right font-medium text-gray-500">Expected Return</th>
+                     <th className="px-3 py-2 text-right font-medium text-gray-500">Standard Deviation</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-gray-100">
+                   {efficientFrontier.map((p, i) => (
+                     <tr key={i} className={selectedPortfolioId === i+1 ? 'bg-blue-50' : ''}>
+                       <td className="px-3 py-2 font-medium text-gray-900">{i + 1}</td>
+                       <td className="px-3 py-2 text-right text-gray-600">{formatPercent(p.return)}</td>
+                       <td className="px-3 py-2 text-right text-gray-600">{formatPercent(p.risk)}</td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
+             </div>
+           </div>
+
+           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+             <h4 className="font-semibold text-gray-900 mb-4">Estimating Outcomes</h4>
+             <div className="overflow-x-auto">
+               <table className="min-w-full text-sm">
+                 <thead>
+                   <tr className="bg-gray-50 border-b border-gray-200">
+                     <th className="px-3 py-2 text-left font-medium text-gray-500">Outcome</th>
+                     <th className="px-3 py-2 text-right font-medium text-gray-500">95th (Best)</th>
+                     <th className="px-3 py-2 text-right font-medium text-gray-500">50th (Median)</th>
+                     <th className="px-3 py-2 text-right font-medium text-gray-500">5th (Worst)</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-gray-100">
+                   {[1, 3, 5, 10, 20].map(year => {
+                      const idx = year - 1; // 0-indexed
+                      const res = cfSimulationResults[idx];
+                      if (!res) return null;
+                      return (
+                        <tr key={year}>
+                          <td className="px-3 py-2 font-medium text-gray-900">{year} year</td>
+                          <td className="px-3 py-2 text-right text-gray-600 font-mono">{formatCurrency(res.p95)}</td>
+                          <td className="px-3 py-2 text-right font-bold text-gray-900 font-mono">{formatCurrency(res.p50)}</td>
+                          <td className="px-3 py-2 text-right text-gray-600 font-mono">{formatCurrency(res.p05)}</td>
+                        </tr>
+                      );
+                   })}
+                 </tbody>
+               </table>
+             </div>
+           </div>
+        </div>
       </div>
     );
   };
@@ -1914,7 +1972,7 @@ export default function RiskReturnOptimiser() {
           
           <div className="h-[400px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={cfSimulationResults} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+              <ComposedChart data={cfSimulationResults} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="confidenceBand" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#E03A3E" stopOpacity={0.3}/>
@@ -1960,7 +2018,7 @@ export default function RiskReturnOptimiser() {
                 <Line type="monotone" dataKey="p50" stroke="#E03A3E" strokeWidth={3} dot={false} strokeDasharray="5 5" name="Median (50th)" isAnimationActive={!isExporting} />
                 <Line type="monotone" dataKey="p95" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Best Case (95th)" isAnimationActive={!isExporting} />
                 <Line type="monotone" dataKey="p05" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Worst Case (5th)" isAnimationActive={!isExporting} />
-              </AreaChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
           
