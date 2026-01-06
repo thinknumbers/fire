@@ -368,7 +368,6 @@ export default function RiskReturnOptimiser() {
         one_off_events: oneOffEvents,
         projection_years: projectionYears,
         inflation_rate: inflationRate,
-        advice_fee: adviceFee,
         created_at: new Date().toISOString()
       };
 
