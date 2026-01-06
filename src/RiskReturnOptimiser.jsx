@@ -511,7 +511,7 @@ export default function RiskReturnOptimiser() {
       y += 4;
       pdf.setFont('helvetica', 'normal');
       structures.forEach(s => {
-        const entityLabel = ENTITY_TYPES[s.type] ? ENTITY_TYPES[s.type].label : s.type;
+        const entityLabel = entityTypes[s.type] ? entityTypes[s.type].label : s.type;
         pdf.text(`${s.name} (${entityLabel}): ${formatCurrency(s.value)}`, col2X, y);
         y += 4;
       });
