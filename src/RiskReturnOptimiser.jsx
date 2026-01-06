@@ -1536,6 +1536,7 @@ export default function RiskReturnOptimiser() {
             </tbody>
           </table>
           </div>
+            </div>
         )}
       </div>
 
