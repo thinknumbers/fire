@@ -64,7 +64,7 @@ const ENTITY_TYPES = {
   PERSONAL: { label: 'Personal Name', incomeTax: 0.47, ltCgt: 0.235 },
   COMPANY: { label: 'Company', incomeTax: 0.25, ltCgt: 0.25 },
   TRUST: { label: 'Discretionary Trust', incomeTax: 0.30, ltCgt: 0.15 }, // Avg dist rate
-  SUPER: { label: 'Super Fund (Accum)', incomeTax: 0.15, ltCgt: 0.10 },
+  SUPER_ACCUM: { label: 'Super Fund (Accum)', incomeTax: 0.15, ltCgt: 0.10 },
   PENSION: { label: 'Pension Phase', incomeTax: 0.00, ltCgt: 0.00 },
 };
 
@@ -122,7 +122,7 @@ const calculateClientTaxAdjustedReturns = (assets, structures) => {
 
     structures.forEach(struct => {
       const entityProp = struct.value / totalValue;
-      const rates = ENTITY_TYPES[struct.type] || ENTITY_TYPES.PERSONAL;
+      const rates = ENTITY_TYPES[struct.type] || ENTITY_TYPES.PERSONAL || { incomeTax: 0.47, ltCgt: 0.235 };
       
       // Safety checks for NaN
       const ret = isNaN(asset.return) ? 0 : asset.return;
