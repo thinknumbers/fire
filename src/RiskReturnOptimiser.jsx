@@ -1872,6 +1872,10 @@ export default function RiskReturnOptimiser() {
                      )
                    })}
                  </div>
+                 <div className="mt-3 pt-2 border-t-2 border-gray-200 flex justify-between items-center bg-gray-50 -mx-3 -mb-3 p-3 rounded-b-lg">
+                    <span className="text-xs font-bold text-gray-900 uppercase">Total</span>
+                    <span className="text-xs font-bold text-gray-900 uppercase font-mono">{formatCurrency(struct.value)}</span>
+                 </div>
                </div>
              ))}
           </div>
