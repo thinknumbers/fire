@@ -14,6 +14,7 @@ import { supabase } from './supabase';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import 'svg2pdf.js';
+import fireLogo from '../FIRE_Logo_White.webp';
 
 // --- Constants & Defaults ---
 
@@ -347,7 +348,7 @@ export default function RiskReturnOptimiser() {
       };
 
       // --- 1. Header ---
-      addText("Wealth Strategy Report", 22, 'bold', [37, 99, 235], 'center'); // Slightly smaller title
+      addText("Wealth Strategy Report", 22, 'bold', [224, 58, 62], 'center'); // Slightly smaller title
       y += 4;
       addText(scenarioName, 14, 'normal', [80, 80, 80], 'center');
       y += 4;
@@ -526,7 +527,7 @@ export default function RiskReturnOptimiser() {
 
       drawBox(margin, "Expected Return", formatPercent(selectedPortfolio.return), [22, 163, 74]);
       drawBox(margin + boxWidth + gap, "Risk (StdDev)", formatPercent(selectedPortfolio.risk), [220, 38, 38]);
-      drawBox(margin + (boxWidth + gap) * 2, "Sharpe Ratio", (selectedPortfolio.return / selectedPortfolio.risk).toFixed(2), [37, 99, 235]);
+      drawBox(margin + (boxWidth + gap) * 2, "Sharpe Ratio", (selectedPortfolio.return / selectedPortfolio.risk).toFixed(2), [224, 58, 62]);
 
       y += 35;
 
@@ -877,7 +878,7 @@ export default function RiskReturnOptimiser() {
           onClick={() => setActiveTab(tab.id)}
           className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
             activeTab === tab.id 
-              ? 'bg-blue-600 text-white shadow-sm' 
+              ? 'bg-fire-accent text-white shadow-sm' 
               : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
           }`}
         >
@@ -892,7 +893,7 @@ export default function RiskReturnOptimiser() {
     <div className="space-y-6 animate-in fade-in">
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <Activity className="w-5 h-5 mr-2 text-blue-600" />
+          <Activity className="w-5 h-5 mr-2 text-fire-accent" />
           Capital Market Assumptions
         </h3>
         <p className="text-sm text-gray-500 mb-4">
@@ -918,7 +919,7 @@ export default function RiskReturnOptimiser() {
                   <td className="px-4 py-3 text-center">
                     <button 
                       onClick={() => handleAssetToggle(asset.id)}
-                      className={`p-1 rounded transition-colors ${asset.active ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-400 hover:bg-gray-200'}`}
+                      className={`p-1 rounded transition-colors ${asset.active ? 'text-fire-accent hover:bg-blue-50' : 'text-gray-400 hover:bg-gray-200'}`}
                     >
                       {asset.active ? <CheckSquare className="w-5 h-5"/> : <Square className="w-5 h-5"/>}
                     </button>
@@ -990,7 +991,7 @@ export default function RiskReturnOptimiser() {
           <div className="p-4 border-t border-gray-200">
             <button 
               onClick={handleAddAsset}
-              className="flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+              className="flex items-center text-sm font-medium text-fire-accent hover:text-blue-800"
             >
               <Plus className="w-4 h-4 mr-2" /> Add Custom Asset Class
             </button>
@@ -1004,7 +1005,7 @@ export default function RiskReturnOptimiser() {
     <div className="space-y-6 animate-in fade-in">
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <User className="w-5 h-5 mr-2 text-blue-600" />
+          <User className="w-5 h-5 mr-2 text-fire-accent" />
           Entity Structure
         </h3>
         <p className="text-sm text-gray-500 mb-6">
@@ -1065,7 +1066,7 @@ export default function RiskReturnOptimiser() {
           <div className="flex justify-between items-center pt-2">
             <button 
               onClick={() => setStructures([...structures, { id: Date.now(), type: 'PERSONAL', name: 'New Entity', value: 0 }])}
-              className="flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+              className="flex items-center text-sm font-medium text-fire-accent hover:text-blue-800"
             >
               <Plus className="w-4 h-4 mr-2" /> Add Entity
             </button>
@@ -1079,22 +1080,22 @@ export default function RiskReturnOptimiser() {
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <Calendar className="w-5 h-5 mr-2 text-blue-600" />
+          <Calendar className="w-5 h-5 mr-2 text-fire-accent" />
           Cashflow Projection Inputs
         </h3>
 
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6 grid md:grid-cols-2 gap-4">
+        <div className="bg-red-50 p-4 rounded-lg border border-red-100 mb-6 grid md:grid-cols-2 gap-4">
            <div>
-             <label className="flex items-center text-xs font-bold text-blue-800 mb-1">
+             <label className="flex items-center text-xs font-bold text-red-800 mb-1">
                <Clock className="w-3 h-3 mr-1"/> Projection Period (Years)
              </label>
              <input 
                 type="number" 
                 value={projectionYears} 
                 onChange={(e) => setProjectionYears(parseInt(e.target.value) || 1)}
-                className="w-full border border-blue-200 rounded px-2 py-1 text-sm text-blue-900"
+                className="w-full border border-red-200 rounded px-2 py-1 text-sm text-red-900"
              />
-             <div className="text-xs text-blue-600 mt-1">E.g. 30 years (Age 60 to 90)</div>
+             <div className="text-xs text-fire-accent mt-1">E.g. 30 years (Age 60 to 90)</div>
            </div>
            <div>
              <label className="flex items-center text-xs font-bold text-blue-800 mb-1">
@@ -1106,11 +1107,11 @@ export default function RiskReturnOptimiser() {
                   step="0.1"
                   value={Math.round(inflationRate * 1000) / 10} 
                   onChange={(e) => setInflationRate(parseFloat(e.target.value)/100 || 0)}
-                  className="w-full border border-blue-200 rounded px-2 py-1 text-sm text-blue-900 pr-6"
+                  className="w-full border border-red-200 rounded px-2 py-1 text-sm text-red-900 pr-6"
                />
-               <span className="absolute right-2 top-1 text-xs text-blue-400">%</span>
+               <span className="absolute right-2 top-1 text-xs text-red-400">%</span>
              </div>
-             <div className="text-xs text-blue-600 mt-1">Applied to recurring Income & Expenses</div>
+             <div className="text-xs text-fire-accent mt-1">Applied to recurring Income & Expenses</div>
            </div>
         </div>
         
@@ -1135,7 +1136,7 @@ export default function RiskReturnOptimiser() {
                 </div>
               </div>
             ))}
-            <button className="text-xs text-blue-600 flex items-center mt-2" onClick={() => setIncomeStreams([...incomeStreams, { id: Date.now(), name: 'New Income', amount: 0, startYear: 1, endYear: 10 }])}>
+            <button className="text-xs text-fire-accent flex items-center mt-2" onClick={() => setIncomeStreams([...incomeStreams, { id: Date.now(), name: 'New Income', amount: 0, startYear: 1, endYear: 10 }])}>
               <Plus className="w-3 h-3 mr-1"/> Add Income
             </button>
           </div>
@@ -1160,7 +1161,7 @@ export default function RiskReturnOptimiser() {
                 </div>
               </div>
             ))}
-            <button className="text-xs text-blue-600 flex items-center mt-2" onClick={() => setExpenseStreams([...expenseStreams, { id: Date.now(), name: 'New Expense', amount: 0, startYear: 1, endYear: 30 }])}>
+            <button className="text-xs text-fire-accent flex items-center mt-2" onClick={() => setExpenseStreams([...expenseStreams, { id: Date.now(), name: 'New Expense', amount: 0, startYear: 1, endYear: 30 }])}>
               <Plus className="w-3 h-3 mr-1"/> Add Expense
             </button>
           </div>
@@ -1184,7 +1185,7 @@ export default function RiskReturnOptimiser() {
                 <button onClick={() => setOneOffEvents(oneOffEvents.filter(e => e.id !== item.id))} className="text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4"/></button>
              </div>
            ))}
-           <button className="text-xs text-blue-600 flex items-center mt-2" onClick={() => setOneOffEvents([...oneOffEvents, { id: Date.now(), name: 'New Event', amount: -100000, year: 5 }])}>
+           <button className="text-xs text-fire-accent flex items-center mt-2" onClick={() => setOneOffEvents([...oneOffEvents, { id: Date.now(), name: 'New Event', amount: -100000, year: 5 }])}>
               <Plus className="w-3 h-3 mr-1"/> Add Event
             </button>
         </div>
@@ -1198,7 +1199,7 @@ export default function RiskReturnOptimiser() {
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
           <div>
             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Calculator className="w-5 h-5 mr-2 text-blue-600" />
+              <Calculator className="w-5 h-5 mr-2 text-fire-accent" />
               Optimization Engine
             </h3>
             <p className="text-sm text-gray-500">Run Monte Carlo simulations to generate tax-optimized Efficient Frontier.</p>
@@ -1224,7 +1225,7 @@ export default function RiskReturnOptimiser() {
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
                     <div 
-                      className="bg-blue-600 h-2.5 rounded-full transition-all duration-75 ease-linear" 
+                      className="bg-fire-accent h-2.5 rounded-full transition-all duration-75 ease-linear" 
                       style={{ width: `${progress}%` }}
                     ></div>
                   </div>
@@ -1233,7 +1234,7 @@ export default function RiskReturnOptimiser() {
                 <button
                   onClick={handleRunOptimization}
                   disabled={isSimulating}
-                  className="flex items-center justify-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 shadow-sm"
+                  className="flex items-center justify-center px-6 py-3 bg-fire-accent hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 shadow-sm"
                 >
                   <Cpu className="w-4 h-4 mr-2" /> Run Analysis
                 </button>
@@ -1311,14 +1312,14 @@ export default function RiskReturnOptimiser() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 sticky top-0 z-10">
            <div className="flex justify-between items-end mb-4">
              <h3 className="text-lg font-semibold text-gray-900">Select Model Portfolio</h3>
-             <span className="text-sm font-medium px-3 py-1 bg-blue-100 text-blue-800 rounded-full">{selectedPortfolio.label}</span>
+             <span className="text-sm font-medium px-3 py-1 bg-red-100 text-red-800 rounded-full">{selectedPortfolio.label}</span>
            </div>
            
            <input 
               type="range" min="1" max="10" 
               value={selectedPortfolioId} 
               onChange={(e) => setSelectedPortfolioId(parseInt(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-fire-accent"
             />
             <div className="flex justify-between mt-2 text-xs text-gray-500">
               <span>Conservative</span>
@@ -1337,7 +1338,7 @@ export default function RiskReturnOptimiser() {
                </div>
                <div className="text-center p-3 bg-gray-50 rounded border border-gray-200">
                  <div className="text-xs text-gray-500 uppercase">Sharpe Ratio</div>
-                 <div className="text-xl font-bold text-blue-600">{(selectedPortfolio.return / selectedPortfolio.risk).toFixed(2)}</div>
+                 <div className="text-xl font-bold text-fire-accent">{(selectedPortfolio.return / selectedPortfolio.risk).toFixed(2)}</div>
                </div>
             </div>
         </div>
@@ -1441,7 +1442,7 @@ export default function RiskReturnOptimiser() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-               <TrendingUp className="w-5 h-5 mr-2 text-blue-600" />
+               <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
                Monte Carlo Wealth Projection
             </h3>
             
@@ -1451,9 +1452,9 @@ export default function RiskReturnOptimiser() {
                   type="range" min="1" max="10" 
                   value={selectedPortfolioId} 
                   onChange={(e) => setSelectedPortfolioId(parseInt(e.target.value))}
-                  className="w-32 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  className="w-32 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-fire-accent"
                />
-               <div className="text-sm font-bold text-blue-800 w-20 text-right">{selectedPortfolio.label}</div>
+               <div className="text-sm font-bold text-red-800 w-20 text-right">{selectedPortfolio.label}</div>
                <div className="text-xs text-gray-500 border-l pl-3 ml-1">
                   <div>Ret: <span className="text-green-600 font-mono">{formatPercent(selectedPortfolio.return)}</span></div>
                   <div>Risk: <span className="text-red-600 font-mono">{formatPercent(selectedPortfolio.risk)}</span></div>
@@ -1466,8 +1467,8 @@ export default function RiskReturnOptimiser() {
               <AreaChart data={cfSimulationResults} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="confidenceBand" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor="#E03A3E" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#E03A3E" stopOpacity={0.1}/>
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="year" label={{ value: 'Years', position: 'bottom' }} />
@@ -1485,15 +1486,15 @@ export default function RiskReturnOptimiser() {
                           <div className="space-y-1">
                             <div className="flex justify-between gap-4">
                               <span className="text-gray-500">Best Case (95th):</span>
-                              <span className="font-mono font-medium text-blue-400">{formatCurrency(data.p95)}</span>
+                              <span className="font-mono font-medium text-red-400">{formatCurrency(data.p95)}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-gray-500">Median (50th):</span>
-                              <span className="font-mono font-bold text-blue-700">{formatCurrency(data.p50)}</span>
+                              <span className="font-mono font-bold text-fire-accent">{formatCurrency(data.p50)}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-gray-500">Worst Case (5th):</span>
-                              <span className="font-mono font-medium text-blue-400">{formatCurrency(data.p05)}</span>
+                              <span className="font-mono font-medium text-red-400">{formatCurrency(data.p05)}</span>
                             </div>
                           </div>
                         </div>
@@ -1506,14 +1507,14 @@ export default function RiskReturnOptimiser() {
                 <Area type="monotone" dataKey="p95" stroke="none" fill="url(#confidenceBand)" name="95th Percentile" isAnimationActive={!isExporting} />
                 <Area type="monotone" dataKey="p05" stroke="none" fill="#fff" name="5th Percentile" isAnimationActive={!isExporting} /> 
                 
-                <Line type="monotone" dataKey="p50" stroke="#2563eb" strokeWidth={3} dot={false} name="Median (50th)" isAnimationActive={!isExporting} />
-                <Line type="monotone" dataKey="p95" stroke="#93c5fd" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Best Case (95th)" isAnimationActive={!isExporting} />
-                <Line type="monotone" dataKey="p05" stroke="#93c5fd" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Worst Case (5th)" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p50" stroke="#E03A3E" strokeWidth={3} dot={false} name="Median (50th)" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p95" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Best Case (95th)" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p05" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Worst Case (5th)" isAnimationActive={!isExporting} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
           
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg text-sm text-blue-800 border border-blue-100 flex items-start gap-2">
+          <div className="mt-4 p-4 bg-red-50 rounded-lg text-sm text-red-800 border border-red-100 flex items-start gap-2">
             <AlertCircle className="w-5 h-5 shrink-0" />
             <div>
               <strong>Analysis:</strong> Based on 1,000 simulations using the <strong>{selectedPortfolio.label}</strong> over <strong>{projectionYears} years</strong>.
@@ -1533,21 +1534,30 @@ export default function RiskReturnOptimiser() {
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans text-slate-800">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Activity className="w-8 h-8 text-blue-600" />
-              FIRE Wealth Risk/Return Optimising
-            </h1>
-            <p className="text-gray-500 text-sm mt-1">v0.1</p>
+        <div className="bg-fire-accent -mx-4 -mt-4 mb-8 md:-mx-8 md:-mt-8 p-6 shadow-md text-white">
+          <div className="flex justify-between items-center max-w-7xl mx-auto">
+             <div className="flex items-center gap-4">
+               <img src={fireLogo} alt="FIRE Wealth" className="h-12 w-auto object-contain" />
+               <div className="hidden md:block border-l border-red-400 pl-4 ml-2">
+                  <h1 className="text-xl font-bold tracking-tight">Risk/Return Optimiser</h1>
+                  <p className="text-red-100 text-xs">Strategic Wealth Analysis</p>
+               </div>
+             </div>
+             <div className="text-right">
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.2</span>
+             </div>
           </div>
+        </div>
+        
+        <div className="flex justify-between items-center mb-8">
+          <div></div>
           <div className="flex gap-2 items-center">
             <div className="relative">
               <input 
                 type="text" 
                 value={scenarioName}
                 onChange={(e) => setScenarioName(e.target.value)}
-                className="border border-gray-300 rounded px-3 py-2 text-sm w-48 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="border border-gray-300 rounded px-3 py-2 text-sm w-48 focus:ring-2 focus:ring-fire-accent outline-none"
                 placeholder="Scenario Name"
               />
             </div>
@@ -1594,7 +1604,7 @@ export default function RiskReturnOptimiser() {
             <button 
               onClick={handleSaveScenario}
               disabled={isSaving}
-              className="flex items-center px-3 py-2 bg-blue-600 text-white border border-blue-700 rounded hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
+              className="flex items-center px-3 py-2 bg-fire-accent text-white border border-red-700 rounded hover:bg-red-700 text-sm font-medium disabled:opacity-50"
             >
                {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin"/> : <Cloud className="w-4 h-4 mr-2"/>}
                {isSaving ? 'Saving...' : 'Save'}
