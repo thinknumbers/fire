@@ -713,7 +713,7 @@ export default function RiskReturnOptimiser() {
         const imgProps = pdf.getImageProperties(projectionImg);
         const pdfWidth = pageWidth - (margin * 2);
         const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        const displayHeight = Math.min(pdfHeight, 80); 
+        const displayHeight = Math.min(pdfHeight, 150); 
         pdf.addImage(projectionImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
         y += displayHeight + 5;
       }
