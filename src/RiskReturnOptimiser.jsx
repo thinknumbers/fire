@@ -724,25 +724,88 @@ export default function RiskReturnOptimiser() {
     const mins = activeAssets.map(a => (a.minWeight || 0) / 100);
     const maxs = activeAssets.map(a => (a.maxWeight || 100) / 100);
 
+    const minSum = mins.reduce((a, b) => a + b, 0);
+    
+    // Safety check: if minimums exceed 100%, we strictly normalize min weights to fit 100%
+    if (minSum > 1.0) {
+        // Just return one portfolio: the normalized mins
+        const weights = mins.map(w => w / minSum);
+        const stats = calculatePortfolioStats(weights, afterTaxReturns, activeAssets, activeCorrelations);
+        results.push(stats);
+        return results;
+    }
+
     for (let k = 0; k < batchSize; k++) {
-      // Constrained Random Generation (Iterative Projection)
-      let weights = activeAssets.map((_, i) => mins[i] + Math.random() * (maxs[i] - mins[i]));
+      // 1. Start with Minimums
+      let weights = [...mins];
+      let remainingBudget = 1.0 - minSum;
+
+      // 2. Distribute remaining budget randomly respecting Max constraints
+      // Strategy: Randomly assign portions of remaining budget to eligible assets
+      // until budget is exhausted or all maxed out.
       
-      for(let iter=0; iter<10; iter++) {
-         const currentSum = weights.reduce((a,b)=>a+b, 0);
-         const diff = 1 - currentSum;
-         weights = weights.map(w => w + diff/n);
-         weights = weights.map((w, i) => Math.max(mins[i], Math.min(maxs[i], w)));
+      // Create a random order to fill assets
+      const indices = Array.from({length: n}, (_, i) => i);
+      // Shuffle indices (Fisher-Yates)
+      for (let i = n - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
       }
-      
-      // Final normalization just in case, though projection should handle it if feasible
-      // If result is far off 1, it implies infeasibility, but we'll normalize to allow drawing something.
-      let sum = weights.reduce((a, b) => a + b, 0);
-      if (Math.abs(sum - 1) > 0.01) {
-         // If constraints are impossible (e.g. min sum > 1), this will happen. 
-         // Just normalize to 1 and violate constraints slightly to prevent crash
-         weights = weights.map(w => w / sum);
+
+      // First pass: try to fill randomly
+      // Generate random stick breaks for better distribution
+      let randomShares = indices.map(() => Math.random());
+      const shareSum = randomShares.reduce((a,b)=>a+b, 0);
+      randomShares = randomShares.map(s => s / shareSum); // Sum to 1
+
+      // Tentatively add budget based on random shares
+      for(let i=0; i<n; i++) {
+         const idx = i; // simple index
+         const add = randomShares[i] * remainingBudget;
+         weights[i] += add;
       }
+
+      // 3. Correction Loop for Max Constraints
+      // If any weight exceeds max, trim it and redistribute excess to others that have room
+      let violations = true;
+      let iter = 0;
+      while(violations && iter < 20) {
+         violations = false;
+         let excess = 0;
+         
+         // Trim to Max
+         for(let i=0; i<n; i++) {
+            if (weights[i] > maxs[i]) {
+                excess += weights[i] - maxs[i];
+                weights[i] = maxs[i];
+                violations = true;
+            }
+         }
+
+         if (excess > 0.000001) {
+             // Redistribute excess to those below max
+             // Count how many have room
+             const availableIndices = weights.map((w, i) => (w < maxs[i] - 0.000001) ? i : -1).filter(i => i !== -1);
+             
+             if (availableIndices.length === 0) {
+                 // No room left, we are stuck (constraints likely impossible to sum to 1)
+                 // Just break and accept (will normalize later)
+                 break; 
+             }
+             
+             // Distribute proportionally or equally? Equally is safer for convergence
+             const chunk = excess / availableIndices.length;
+             availableIndices.forEach(idx => {
+                 weights[idx] += chunk;
+                 if (weights[idx] > maxs[idx]) violations = true; // Flag to check again
+             });
+         }
+         iter++;
+      }
+
+      // Final normalization to ensure exact sum 1.0 (float errors)
+      const total = weights.reduce((a, b) => a + b, 0);
+      if (total > 0) weights = weights.map(w => w / total);
 
       const stats = calculatePortfolioStats(weights, afterTaxReturns, activeAssets, activeCorrelations);
       results.push(stats);
