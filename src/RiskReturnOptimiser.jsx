@@ -34,31 +34,46 @@ const DEFAULT_ASSETS = [
   { id: 'cash', name: 'Cash', return: 0.03, stdev: 0.01, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#8884d8', active: true, isDefault: true },
 ];
 
-const generateDefaultCorrelations = () => {
-  const size = DEFAULT_ASSETS.length;
-  const matrix = Array(size).fill(0).map(() => Array(size).fill(0));
-  for(let i=0; i<size; i++) {
-    for(let j=0; j<size; j++) {
-      if (i === j) {
-        matrix[i][j] = 1.0;
-      } else {
-        const iEq = i < 5; 
-        const jEq = j < 5;
-        const iBond = i >= 8 && i <= 11;
-        const jBond = j >= 8 && j <= 11;
-        
-        if (iEq && jEq) matrix[i][j] = 0.7; 
-        else if (iBond && jBond) matrix[i][j] = 0.6; 
-        else if (iEq && jBond) matrix[i][j] = 0.1; 
-        else if (DEFAULT_ASSETS[i].id === 'cash' || DEFAULT_ASSETS[j].id === 'cash') matrix[i][j] = 0.0;
-        else matrix[i][j] = 0.3; 
-      }
-    }
-  }
-  return matrix;
+const INITIAL_CORRELATIONS_DATA = {
+  // Symmetric Data (Upper Triangle + Diagonals + some Lower provided in image, mapping to full matrix)
+  // We use a helper to construct the full map.
+  // Format: "ROW_ID": { "COL_ID": value, ... }
+  "aus_eq": { "us_large": 0.463, "us_small": 0.528, "dev_world": 0.582, "em_eq": 0.598, "reits": 0.560, "hedge": -0.162, "comm": 0.124, "aus_bond": 0.006, "gl_bond": 0.139, "hy_bond": 0.673, "em_bond": 0.073, "cash": -0.039 },
+  "us_large": { "us_small": 0.791, "dev_world": 0.771, "em_eq": 0.507, "reits": 0.604, "hedge": 0.467, "comm": 0.100, "aus_bond": 0.107, "gl_bond": 0.000, "hy_bond": 0.287, "em_bond": 0.488, "cash": -0.067 },
+  "us_small": { "dev_world": 0.664, "em_eq": 0.525, "reits": 0.607, "hedge": 0.344, "comm": 0.164, "aus_bond": 0.048, "gl_bond": -0.058, "hy_bond": 0.376, "em_bond": 0.350, "cash": -0.036 },
+  "dev_world": { "em_eq": 0.619, "reits": 0.627, "hedge": 0.300, "comm": 0.140, "aus_bond": 0.069, "gl_bond": 0.002, "hy_bond": 0.430, "em_bond": 0.365, "cash": -0.059 },
+  "em_eq": { "reits": 0.485, "hedge": 0.079, "comm": 0.082, "aus_bond": -0.028, "gl_bond": -0.016, "hy_bond": 0.598, "em_bond": 0.325, "cash": -0.027 },
+  "reits": { "hedge": 0.206, "comm": 0.066, "aus_bond": 0.231, "gl_bond": 0.236, "hy_bond": 0.470, "em_bond": 0.412, "cash": 0.002 },
+  "hedge": { "comm": 0.188, "aus_bond": 0.153, "gl_bond": -0.115, "hy_bond": -0.302, "em_bond": 0.646, "cash": 0.051 },
+  "comm": { "aus_bond": -0.127, "gl_bond": -0.195, "hy_bond": 0.088, "em_bond": 0.038, "cash": 0.011 },
+  "aus_bond": { "gl_bond": 0.707, "hy_bond": 0.079, "em_bond": 0.446, "cash": 0.230 },
+  "gl_bond": { "hy_bond": 0.282, "em_bond": 0.244, "cash": 0.228 },
+  "hy_bond": { "em_bond": 0.177, "cash": 0.025 },
+  "em_bond": { "cash": 0.115 }
 };
 
-const DEFAULT_CORRELATIONS = generateDefaultCorrelations();
+const generateFullCorrelationMatrix = (assets) => {
+  const map = {};
+  // Initialize empty
+  assets.forEach(a => {
+    map[a.id] = {};
+    assets.forEach(b => {
+      map[a.id][b.id] = (a.id === b.id) ? 1.0 : 0.0;
+    });
+  });
+
+  // Fill from Data
+  Object.keys(INITIAL_CORRELATIONS_DATA).forEach(rowId => {
+    const row = INITIAL_CORRELATIONS_DATA[rowId];
+    Object.keys(row).forEach(colId => {
+      const val = row[colId];
+      if (map[rowId] && map[rowId][colId] !== undefined) map[rowId][colId] = val;
+      if (map[colId] && map[colId][rowId] !== undefined) map[colId][rowId] = val;
+    });
+  });
+
+  return map;
+};
 
 const ENTITY_TYPES = {
   PERSONAL: { label: 'Personal Name', incomeTax: 0.47, ltCgt: 0.235 },
@@ -191,6 +206,7 @@ export default function RiskReturnOptimiser() {
   // Data State
   const [assets, setAssets] = useState(DEFAULT_ASSETS);
   const [structures, setStructures] = useState(DEFAULT_STRUCTURES);
+  const [correlations, setCorrelations] = useState(() => generateFullCorrelationMatrix(DEFAULT_ASSETS));
   
   // Cashflow Inputs
   const [incomeStreams, setIncomeStreams] = useState(DEFAULT_INCOME_STREAMS);
@@ -690,6 +706,19 @@ export default function RiskReturnOptimiser() {
     }
   };
 
+  const handleCorrelationChange = (id1, id2, value) => {
+    let val = parseFloat(value);
+    if (isNaN(val)) val = 0;
+    if (val > 1) val = 1;
+    if (val < -1) val = -1;
+    
+    setCorrelations(prev => ({
+      ...prev,
+      [id1]: { ...prev[id1], [id2]: val },
+      [id2]: { ...prev[id2], [id1]: val }
+    }));
+  };
+
   const handleAssetToggle = (id) => {
     setAssets(assets.map(a => a.id === id ? { ...a, active: !a.active } : a));
     setEfficientFrontier([]);
@@ -697,23 +726,53 @@ export default function RiskReturnOptimiser() {
   };
 
   const handleAddAsset = () => {
+    const newId = `custom_${Date.now()}`;
     const newAsset = {
-      id: `custom_${Date.now()}`,
+      id: newId,
       name: 'New Asset Class',
       return: 0.05,
       stdev: 0.10,
       incomeRatio: 0.5,
       minWeight: 0,
       maxWeight: 100,
-      color: '#' + Math.floor(Math.random()*16777215).toString(16), // Random Color
+      color: '#' + Math.floor(Math.random()*16777215).toString(16),
       active: true,
       isDefault: false
     };
+    
+    // Update correlations
+    setCorrelations(prev => {
+        const next = { ...prev };
+        next[newId] = { [newId]: 1.0 };
+        assets.forEach(a => {
+             // Default 0.3 for new vs existing
+             next[newId][a.id] = 0.3;
+             if (next[a.id]) {
+                 next[a.id] = { ...next[a.id], [newId]: 0.3 };
+             }
+        });
+        return next;
+    });
+
     setAssets([...assets, newAsset]);
   };
 
   const handleDeleteAsset = (id) => {
     setAssets(assets.filter(a => a.id !== id));
+    // Optional: cleanup correlations to save memory, though not strictly required
+    setCorrelations(prev => {
+        const next = { ...prev };
+        delete next[id];
+        // Remove from others
+        Object.keys(next).forEach(k => {
+            if (next[k][id] !== undefined) {
+                const row = { ...next[k] };
+                delete row[id];
+                next[k] = row;
+            }
+        });
+        return next;
+    });
   };
 
   // Re-defined batch simulation here to be used in handler
@@ -831,14 +890,10 @@ export default function RiskReturnOptimiser() {
     const activeIndices = assets.map((a, i) => a.active ? i : -1).filter(i => i !== -1);
     const activeCorrelations = activeIndices.map(rowIdx => 
       activeIndices.map(colIdx => {
-        // If it's a default asset, use the default matrix
-        if (rowIdx < DEFAULT_CORRELATIONS.length && colIdx < DEFAULT_CORRELATIONS.length) {
-          return DEFAULT_CORRELATIONS[rowIdx][colIdx];
-        }
-        // Self correlation is always 1
-        if (rowIdx === colIdx) return 1.0;
-        // Default assumption for custom/new assets
-        return 0.3;
+         const idA = assets[rowIdx].id;
+         const idB = assets[colIdx].id;
+         if (idA === idB) return 1.0;
+         return correlations[idA] && correlations[idA][idB] !== undefined ? correlations[idA][idB] : 0.3;
       })
     );
 
@@ -1178,6 +1233,71 @@ export default function RiskReturnOptimiser() {
               <Plus className="w-4 h-4 mr-2" /> Add Custom Asset Class
             </button>
           </div>
+        </div>
+      </div>
+
+      
+      {/* Correlation Matrix Section */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
+          Correlation Matrix
+        </h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Manage correlation factors between asset classes. Values range from -1.0 to 1.0. 
+        </p>
+        
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 text-xs table-fixed">
+            <thead>
+              <tr>
+                <th className="px-2 py-2 bg-gray-50 w-24 sticky left-0 z-20 border-r border-gray-200"></th>
+                {assets.map(a => (
+                  <th key={a.id} className="px-1 py-2 bg-gray-50 font-medium text-gray-500 text-center w-20 whitespace-nowrap overflow-hidden text-ellipsis" title={a.name}>
+                    {a.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {assets.map(rowAsset => (
+                <tr key={rowAsset.id} className={!rowAsset.active ? 'opacity-50' : ''}>
+                  <td className="px-2 py-2 font-medium text-gray-900 bg-gray-50 whitespace-nowrap sticky left-0 z-10 border-r border-gray-200 w-24 overflow-hidden text-ellipsis" title={rowAsset.name}>
+                    {rowAsset.name}
+                  </td>
+                  {assets.map(colAsset => {
+                     const isDiag = rowAsset.id === colAsset.id;
+                     const val = correlations[rowAsset.id] && correlations[rowAsset.id][colAsset.id] !== undefined ? correlations[rowAsset.id][colAsset.id] : 0;
+                     
+                     // Optimization: don't render hidden inputs if both inactive? No, user might edit.
+                     
+                     return (
+                       <td key={colAsset.id} className="px-1 py-1 text-center h-10 w-20">
+                          {isDiag ? (
+                            <div className="text-gray-300 text-center">-</div>
+                          ) : (
+                            <input 
+                              type="number"
+                              step="0.01"
+                              min="-1"
+                              max="1"
+                              className={`w-16 border rounded px-1 py-1 text-center text-xs focus:ring-1 focus:ring-fire-accent focus:border-fire-accent ${
+                                  (val > 0.5) ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                  (val < -0.1) ? 'bg-orange-50 text-orange-700 border-orange-200' : 
+                                  'border-gray-200'
+                              }`}
+                              value={val}
+                              disabled={!rowAsset.active || !colAsset.active} 
+                              onChange={(e) => handleCorrelationChange(rowAsset.id, colAsset.id, e.target.value)}
+                            />
+                          )}
+                       </td>
+                     );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
