@@ -19,19 +19,19 @@ import fireLogo from '../FIRE_Logo_White.webp';
 // --- Constants & Defaults ---
 
 const DEFAULT_ASSETS = [
-  { id: 'aus_eq', name: 'Australian Equities', return: 0.09, stdev: 0.16, incomeRatio: 0.4, min: 0, max: 1, color: '#003f5c', active: true, isDefault: true },
-  { id: 'us_large', name: 'US Large Cap', return: 0.10, stdev: 0.15, incomeRatio: 0.2, min: 0, max: 1, color: '#2f4b7c', active: true, isDefault: true },
-  { id: 'us_small', name: 'US Small Cap', return: 0.11, stdev: 0.20, incomeRatio: 0.1, min: 0, max: 1, color: '#665191', active: true, isDefault: true },
-  { id: 'dev_world', name: 'Developed World', return: 0.095, stdev: 0.16, incomeRatio: 0.25, min: 0, max: 1, color: '#a05195', active: true, isDefault: true },
-  { id: 'em_eq', name: 'Emerging Markets', return: 0.12, stdev: 0.22, incomeRatio: 0.2, min: 0, max: 1, color: '#d45087', active: true, isDefault: true },
-  { id: 'reits', name: 'Global REITs', return: 0.08, stdev: 0.14, incomeRatio: 0.6, min: 0, max: 0.15, color: '#f95d6a', active: true, isDefault: true },
-  { id: 'hedge', name: 'Hedge Fund', return: 0.07, stdev: 0.10, incomeRatio: 0.1, min: 0, max: 0.15, color: '#ff7c43', active: true, isDefault: true },
-  { id: 'comm', name: 'Commodities', return: 0.04, stdev: 0.18, incomeRatio: 0.0, min: 0, max: 0.15, color: '#ffa600', active: true, isDefault: true },
-  { id: 'aus_bond', name: 'Australian Bonds', return: 0.045, stdev: 0.05, incomeRatio: 1.0, min: 0, max: 1, color: '#0088FE', active: true, isDefault: true },
-  { id: 'gl_bond', name: 'Global Bonds', return: 0.04, stdev: 0.05, incomeRatio: 1.0, min: 0, max: 1, color: '#00C49F', active: true, isDefault: true },
-  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.065, stdev: 0.10, incomeRatio: 1.0, min: 0, max: 1, color: '#FFBB28', active: true, isDefault: true },
-  { id: 'em_bond', name: 'EM Bonds', return: 0.07, stdev: 0.12, incomeRatio: 1.0, min: 0, max: 1, color: '#FF8042', active: true, isDefault: true },
-  { id: 'cash', name: 'Cash', return: 0.03, stdev: 0.01, incomeRatio: 1.0, min: 0, max: 1, color: '#8884d8', active: true, isDefault: true },
+  { id: 'aus_eq', name: 'Australian Equities', return: 0.09, stdev: 0.16, incomeRatio: 0.4, minWeight: 0, maxWeight: 100, color: '#003f5c', active: true, isDefault: true },
+  { id: 'us_large', name: 'US Large Cap', return: 0.10, stdev: 0.15, incomeRatio: 0.2, minWeight: 0, maxWeight: 100, color: '#2f4b7c', active: true, isDefault: true },
+  { id: 'us_small', name: 'US Small Cap', return: 0.11, stdev: 0.20, incomeRatio: 0.1, minWeight: 0, maxWeight: 100, color: '#665191', active: true, isDefault: true },
+  { id: 'dev_world', name: 'Developed World', return: 0.095, stdev: 0.16, incomeRatio: 0.25, minWeight: 0, maxWeight: 100, color: '#a05195', active: true, isDefault: true },
+  { id: 'em_eq', name: 'Emerging Markets', return: 0.12, stdev: 0.22, incomeRatio: 0.2, minWeight: 0, maxWeight: 100, color: '#d45087', active: true, isDefault: true },
+  { id: 'reits', name: 'Global REITs', return: 0.08, stdev: 0.14, incomeRatio: 0.6, minWeight: 0, maxWeight: 100, color: '#f95d6a', active: true, isDefault: true },
+  { id: 'hedge', name: 'Hedge Fund', return: 0.07, stdev: 0.10, incomeRatio: 0.1, minWeight: 0, maxWeight: 100, color: '#ff7c43', active: true, isDefault: true },
+  { id: 'comm', name: 'Commodities', return: 0.04, stdev: 0.18, incomeRatio: 0.0, minWeight: 0, maxWeight: 100, color: '#ffa600', active: true, isDefault: true },
+  { id: 'aus_bond', name: 'Australian Bonds', return: 0.045, stdev: 0.05, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#0088FE', active: true, isDefault: true },
+  { id: 'gl_bond', name: 'Global Bonds', return: 0.04, stdev: 0.05, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#00C49F', active: true, isDefault: true },
+  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.065, stdev: 0.10, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#FFBB28', active: true, isDefault: true },
+  { id: 'em_bond', name: 'EM Bonds', return: 0.07, stdev: 0.12, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#FF8042', active: true, isDefault: true },
+  { id: 'cash', name: 'Cash', return: 0.03, stdev: 0.01, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#8884d8', active: true, isDefault: true },
 ];
 
 const generateDefaultCorrelations = () => {
@@ -422,7 +422,8 @@ export default function RiskReturnOptimiser() {
       y += 4;
       pdf.setFont('helvetica', 'normal');
       structures.forEach(s => {
-        pdf.text(`${s.name} (${ENTITY_TYPES[s.type].label}): ${formatCurrency(s.value)}`, col2X, y);
+        const entityLabel = ENTITY_TYPES[s.type] ? ENTITY_TYPES[s.type].label : s.type;
+        pdf.text(`${s.name} (${entityLabel}): ${formatCurrency(s.value)}`, col2X, y);
         y += 4;
       });
 
@@ -702,8 +703,8 @@ export default function RiskReturnOptimiser() {
       return: 0.05,
       stdev: 0.10,
       incomeRatio: 0.5,
-      min: 0,
-      max: 1,
+      minWeight: 0,
+      maxWeight: 100,
       color: '#' + Math.floor(Math.random()*16777215).toString(16), // Random Color
       active: true,
       isDefault: false
@@ -718,11 +719,31 @@ export default function RiskReturnOptimiser() {
   // Re-defined batch simulation here to be used in handler
   const runSingleBatchSimulation = (activeAssets, afterTaxReturns, activeCorrelations, batchSize) => {
     const results = [];
+    const n = activeAssets.length;
+    // Pre-calculate bounds
+    const mins = activeAssets.map(a => (a.minWeight || 0) / 100);
+    const maxs = activeAssets.map(a => (a.maxWeight || 100) / 100);
+
     for (let k = 0; k < batchSize; k++) {
-      let weights = activeAssets.map(() => Math.random());
-      let sum = weights.reduce((a, b) => a + b, 0);
-      weights = weights.map(w => w / sum);
+      // Constrained Random Generation (Iterative Projection)
+      let weights = activeAssets.map((_, i) => mins[i] + Math.random() * (maxs[i] - mins[i]));
       
+      for(let iter=0; iter<10; iter++) {
+         const currentSum = weights.reduce((a,b)=>a+b, 0);
+         const diff = 1 - currentSum;
+         weights = weights.map(w => w + diff/n);
+         weights = weights.map((w, i) => Math.max(mins[i], Math.min(maxs[i], w)));
+      }
+      
+      // Final normalization just in case, though projection should handle it if feasible
+      // If result is far off 1, it implies infeasibility, but we'll normalize to allow drawing something.
+      let sum = weights.reduce((a, b) => a + b, 0);
+      if (Math.abs(sum - 1) > 0.01) {
+         // If constraints are impossible (e.g. min sum > 1), this will happen. 
+         // Just normalize to 1 and violate constraints slightly to prevent crash
+         weights = weights.map(w => w / sum);
+      }
+
       const stats = calculatePortfolioStats(weights, afterTaxReturns, activeAssets, activeCorrelations);
       results.push(stats);
     }
@@ -852,7 +873,9 @@ export default function RiskReturnOptimiser() {
        const totalVal = structures.reduce((s, st) => s + st.value, 0);
        if (totalVal > 0) {
            wTaxRate = structures.reduce((s, st) => {
-               const rate = ENTITY_TYPES[st.type] ? ENTITY_TYPES[st.type].incomeTax : 0.30;
+               // Use ENTITY_TYPES if available, otherwise default to a conservative assumption like Company (30%)
+               const entityDef = ENTITY_TYPES[st.type] || ENTITY_TYPES.COMPANY; 
+               const rate = entityDef ? entityDef.incomeTax : 0.30;
                return s + (rate * (st.value / totalVal));
            }, 0);
        }
@@ -985,7 +1008,8 @@ export default function RiskReturnOptimiser() {
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Total Return (%)</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Risk (StdDev %)</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Income Yield %</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Constraints</th>
+                <th className="px-2 py-3 text-left font-medium text-gray-500 text-center">Min %</th>
+                <th className="px-2 py-3 text-left font-medium text-gray-500 text-center">Max %</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -1050,8 +1074,27 @@ export default function RiskReturnOptimiser() {
                       <span className="text-xs text-gray-400">Yield</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">
-                     Min: {(asset.min*100).toFixed(0)}% | Max: {(asset.max*100).toFixed(0)}%
+                  <td className="px-2 py-3 text-center">
+                    <input 
+                      type="number" step="1" min="0" max="100"
+                      value={asset.minWeight !== undefined ? asset.minWeight : 0} 
+                      onChange={(e) => {
+                         const val = parseFloat(e.target.value) || 0;
+                         setAssets(assets.map(a => a.id === asset.id ? { ...a, minWeight: val } : a));
+                      }}
+                      className="w-14 border border-gray-300 rounded px-1 py-1 text-sm text-center"
+                    />
+                  </td>
+                  <td className="px-2 py-3 text-center">
+                    <input 
+                      type="number" step="1" min="0" max="100"
+                      value={asset.maxWeight !== undefined ? asset.maxWeight : 100} 
+                      onChange={(e) => {
+                         const val = parseFloat(e.target.value) || 100;
+                         setAssets(assets.map(a => a.id === asset.id ? { ...a, maxWeight: val } : a));
+                      }}
+                      className="w-14 border border-gray-300 rounded px-1 py-1 text-sm text-center"
+                    />
                   </td>
                   <td className="px-4 py-3 text-center">
                     {!asset.isDefault && (
