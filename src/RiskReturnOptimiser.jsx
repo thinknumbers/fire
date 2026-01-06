@@ -334,6 +334,7 @@ export default function RiskReturnOptimiser() {
       const checkPageBreak = (heightNeeded) => {
         if (y + heightNeeded > pageHeight - margin) {
           pdf.addPage();
+          addPageBorder();
           y = margin;
           return true;
         }
@@ -347,17 +348,37 @@ export default function RiskReturnOptimiser() {
         return canvas.toDataURL('image/png');
       };
 
-      // --- 1. Header ---
+      // --- 1. Header (App Header Image) ---
+      const headerEl = document.getElementById('app-header');
+      let headerHeightPdf = 0;
+      if (headerEl) {
+        const headerCanvas = await html2canvas(headerEl, { scale: 2, backgroundColor: '#E03A3E' });
+        const headerImg = headerCanvas.toDataURL('image/png');
+        const imgProps = pdf.getImageProperties(headerImg);
+        headerHeightPdf = (imgProps.height * pageWidth) / imgProps.width;
+        pdf.addImage(headerImg, 'PNG', 0, 0, pageWidth, headerHeightPdf);
+      }
+
+      y = headerHeightPdf + 10;
+      
       addText("Wealth Strategy Report", 22, 'bold', [224, 58, 62], 'center'); // Slightly smaller title
-      y += 4;
+      y += 6;
       addText(scenarioName, 14, 'normal', [80, 80, 80], 'center');
-      y += 4;
       y += 6;
       addText(`Selected Model: ${selectedPortfolio.label}`, 12, 'bold', [224, 58, 62], 'center'); 
       y += 6;
       addText(`Generated: ${new Date().toLocaleDateString()}`, 9, 'italic', [150, 150, 150], 'center');
       y += 6;
-      addLine();
+      // addLine(); // Removed line as we have a distinct header now
+
+      // --- Helper: Add Border ---
+      const addPageBorder = () => {
+         pdf.setDrawColor(224, 58, 62); // Fire Red
+         pdf.setLineWidth(0.5);
+         pdf.rect(3, 3, pageWidth - 6, pageHeight - 6, 'S');
+      };
+      
+      addPageBorder();
 
       // --- 2. Key Assumptions (Data & Client) ---
       addText("Key Assumptions", 12, 'bold', [30, 30, 30]);
@@ -507,6 +528,16 @@ export default function RiskReturnOptimiser() {
               y += 6;
           }
       });
+      
+      // Total Row
+      checkPageBreak(8);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text("Total", margin + 8, y);
+      pdf.text("100.0%", pageWidth - margin - 40, y, { align: 'right' });
+      pdf.text(formatCurrency(totalWealth), pageWidth - margin - 5, y, { align: 'right' });
+      pdf.setDrawColor(200, 200, 200); // Darker line for total
+      pdf.line(margin, y - 4, pageWidth - margin, y - 4); // Line above total
+      
       y += 8;
 
       // --- 4. Portfolio Analysis (Full Width Boxes) ---
@@ -1542,7 +1573,7 @@ export default function RiskReturnOptimiser() {
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans text-slate-800">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-fire-accent -mx-4 -mt-4 mb-8 md:-mx-8 md:-mt-8 p-6 shadow-md text-white">
+        <div id="app-header" className="bg-fire-accent -mx-4 -mt-4 mb-8 md:-mx-8 md:-mt-8 p-6 shadow-md text-white">
           <div className="flex justify-between items-center max-w-7xl mx-auto">
              <div className="flex items-center gap-4">
                <img src={fireLogo} alt="FIRE Wealth" className="h-12 w-auto object-contain" />
