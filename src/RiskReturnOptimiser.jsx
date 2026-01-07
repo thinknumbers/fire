@@ -663,15 +663,15 @@ export default function RiskReturnOptimiser() {
       addPageBorder();
       y = margin;
 
-      // Calculate available height: A4 = 297mm, minus margins (15mm top + 15mm bottom for footer) = 267mm usable
-      // Footer takes ~12mm, border margin ~3mm each side. Safe printable: margin to (pageHeight - 15)
+      // A4: 210mm x 297mm. Safe printable area with margins and footer.
       const footerSpace = 15;
-      const availableHeight = pageHeight - margin - footerSpace;
-      const chartSpacing = 8;
-      const titleHeight = 7;
+      const titleHeight = 8;
+      const chartSpacing = 10;
+      const pdfWidth = pageWidth - (margin * 2);
       
-      // Each chart gets roughly half the available space
-      const chartHeight = (availableHeight - (titleHeight * 2) - chartSpacing) / 2;
+      // Each chart gets half the available vertical space (minus titles and spacing)
+      const totalAvailableHeight = pageHeight - margin - footerSpace;
+      const maxChartHeight = (totalAvailableHeight - (titleHeight * 2) - chartSpacing) / 2;
 
       // Efficient Frontier
       addText("Efficient Frontier Analysis", 14, 'bold', [30, 30, 30]); y += titleHeight;
@@ -685,9 +685,13 @@ export default function RiskReturnOptimiser() {
         const frontierImg = await captureChart('temp-frontier-chart');
         frontierEl.id = originalId;
         if (frontierImg) {
-          const pdfWidth = pageWidth - (margin * 2);
-          pdf.addImage(frontierImg, 'PNG', margin, y, pdfWidth, chartHeight, undefined, 'FAST');
-          y += chartHeight + chartSpacing;
+          const imgProps = pdf.getImageProperties(frontierImg);
+          // Calculate height preserving aspect ratio, capped at max
+          const aspectRatio = imgProps.height / imgProps.width;
+          const naturalHeight = pdfWidth * aspectRatio;
+          const displayHeight = Math.min(naturalHeight, maxChartHeight);
+          pdf.addImage(frontierImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
+          y += displayHeight + chartSpacing;
         }
       }
 
@@ -698,9 +702,13 @@ export default function RiskReturnOptimiser() {
       
       const projectionImg = await captureChart('cashflow-tab-content');
       if (projectionImg) {
-        const pdfWidth = pageWidth - (margin * 2);
-        const remainingHeight = pageHeight - footerSpace - y;
-        pdf.addImage(projectionImg, 'PNG', margin, y, pdfWidth, remainingHeight, undefined, 'FAST');
+        const imgProps = pdf.getImageProperties(projectionImg);
+        // Calculate height preserving aspect ratio, capped at remaining space
+        const aspectRatio = imgProps.height / imgProps.width;
+        const naturalHeight = pdfWidth * aspectRatio;
+        const remainingSpace = pageHeight - footerSpace - y;
+        const displayHeight = Math.min(naturalHeight, remainingSpace);
+        pdf.addImage(projectionImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
       }
 
       // Footer on each page
