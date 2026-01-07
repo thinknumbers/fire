@@ -1929,6 +1929,7 @@ export default function RiskReturnOptimiser() {
                  <thead>
                    <tr className="bg-gray-50 border-b border-gray-200">
                      <th className="px-3 py-2 text-left font-medium text-gray-500">Portfolio</th>
+                     <th className="px-3 py-2 text-left font-medium text-gray-500">Name</th>
                      <th className="px-3 py-2 text-right font-medium text-gray-500">Expected Return</th>
                      <th className="px-3 py-2 text-right font-medium text-gray-500">Standard Deviation</th>
                    </tr>
@@ -1937,6 +1938,7 @@ export default function RiskReturnOptimiser() {
                    {efficientFrontier.map((p, i) => (
                      <tr key={i} className={selectedPortfolioId === i+1 ? 'bg-blue-50' : ''}>
                        <td className="px-3 py-2 font-medium text-gray-900">{i + 1}</td>
+                       <td className="px-3 py-2 text-gray-700">{MODEL_NAMES[i + 1] || 'Custom'}</td>
                        <td className="px-3 py-2 text-right text-gray-600">{formatPercent(p.return)}</td>
                        <td className="px-3 py-2 text-right text-gray-600">{formatPercent(p.risk)}</td>
                      </tr>
