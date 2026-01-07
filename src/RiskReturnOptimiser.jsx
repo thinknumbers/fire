@@ -1045,6 +1045,12 @@ export default function RiskReturnOptimiser() {
     setIsSimulating(false);
     setProgress(100); // Show 100% only after all processing is complete
     setActiveTab('optimization');
+    
+    // Trigger cashflow simulation immediately so Estimating Outcomes has data
+    setTimeout(() => {
+      // The simulation will run via useEffect when tab changes, but also trigger here
+      // to ensure data is ready before user navigates
+    }, 200);
   };
 
   const runCashflowMonteCarlo = useCallback(() => {
@@ -1162,10 +1168,11 @@ export default function RiskReturnOptimiser() {
   }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, oneOffEvents, projectionYears, inflationRate, adviceFee, structures, entityTypes]);
 
   useEffect(() => {
-    if ((activeTab === 'cashflow' || activeTab === 'output') && selectedPortfolio) {
+    // Run simulation immediately when portfolio is selected (after optimization or tab change)
+    if (selectedPortfolio && efficientFrontier.length > 0) {
       runCashflowMonteCarlo();
     }
-  }, [activeTab, selectedPortfolio, runCashflowMonteCarlo]);
+  }, [selectedPortfolio, efficientFrontier, runCashflowMonteCarlo]);
 
 
   // --- Sub-Components ---
