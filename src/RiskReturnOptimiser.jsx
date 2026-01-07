@@ -1768,7 +1768,7 @@ export default function RiskReturnOptimiser() {
                     return null;
                   }}
                 />}
-                {!isExporting && <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingLeft: '10px' }} />}
+                {!isExporting && <Legend verticalAlign="bottom" align="left" wrapperStyle={{ paddingTop: '10px' }} />}
                 <Scatter name="Simulated Portfolios" data={simulations} fill="#cbd5e1" shape="circle" r={2} opacity={0.5} isAnimationActive={!isExporting} />
                 <Scatter name="Efficient Models" data={efficientFrontier} fill="#2563eb" shape="diamond" r={8} isAnimationActive={!isExporting} />
               </ScatterChart>
