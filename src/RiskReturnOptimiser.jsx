@@ -368,6 +368,7 @@ export default function RiskReturnOptimiser() {
         one_off_events: oneOffEvents,
         projection_years: projectionYears,
         inflation_rate: inflationRate,
+        advice_fee: adviceFee,
         created_at: new Date().toISOString()
       };
 
@@ -410,7 +411,7 @@ export default function RiskReturnOptimiser() {
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 15;
-      let y = margin; // Start higher
+      let y = margin;
 
       // --- Helper Functions ---
       const addText = (text, size = 10, style = 'normal', color = [0, 0, 0], align = 'left') => {
@@ -424,7 +425,6 @@ export default function RiskReturnOptimiser() {
         } else {
           pdf.text(text, margin, y);
         }
-        y += size * 0.4; // Tighter line height
       };
 
       const addLine = () => {
@@ -433,14 +433,10 @@ export default function RiskReturnOptimiser() {
         y += 5;
       };
 
-      const checkPageBreak = (heightNeeded) => {
-        if (y + heightNeeded > pageHeight - margin) {
-          pdf.addPage();
-          addPageBorder();
-          y = margin;
-          return true;
-        }
-        return false;
+      const addPageBorder = () => {
+         pdf.setDrawColor(224, 58, 62);
+         pdf.setLineWidth(0.5);
+         pdf.rect(3, 3, pageWidth - 6, pageHeight - 6, 'S');
       };
 
       const captureChart = async (elementId) => {
@@ -450,64 +446,46 @@ export default function RiskReturnOptimiser() {
         return canvas.toDataURL('image/png');
       };
 
-      // --- 1. Header (App Header Image) ---
+      // ==================== PAGE 1: EXECUTIVE SUMMARY ====================
+      
+      // Header
       const headerEl = document.getElementById('app-header');
       let headerHeightPdf = 0;
       if (headerEl) {
         const headerCanvas = await html2canvas(headerEl, { scale: 2, backgroundColor: '#E03A3E' });
         const headerImg = headerCanvas.toDataURL('image/png');
         const imgProps = pdf.getImageProperties(headerImg);
-        // Maintain aspect ratio to prevent skewing/stretching
         headerHeightPdf = (imgProps.height * pageWidth) / imgProps.width;
         pdf.addImage(headerImg, 'PNG', 0, 0, pageWidth, headerHeightPdf);
       }
 
       y = headerHeightPdf + 10;
-      
-      addText("Wealth Strategy Report", 22, 'bold', [224, 58, 62], 'center'); // Slightly smaller title
-      y += 6;
-      addText(scenarioName, 14, 'normal', [80, 80, 80], 'center');
-      y += 6;
-      const modelName = MODEL_NAMES[selectedPortfolio.id] || "Custom";
-      addText(`Selected Model: ${selectedPortfolio.label} ${modelName}`, 12, 'bold', [224, 58, 62], 'center'); 
-      y += 6;
-      addText(`Generated: ${new Date().toLocaleDateString()}`, 9, 'italic', [150, 150, 150], 'center');
-      y += 6;
-      // addLine(); // Removed line as we have a distinct header now
-
-      // --- Helper: Add Border ---
-      const addPageBorder = () => {
-         pdf.setDrawColor(224, 58, 62); // Fire Red
-         pdf.setLineWidth(0.5);
-         pdf.rect(3, 3, pageWidth - 6, pageHeight - 6, 'S');
-      };
-      
       addPageBorder();
-
-      // --- 2. Key Assumptions (Data & Client) ---
-      addText("Key Assumptions", 12, 'bold', [30, 30, 30]);
-      y += 4;
       
+      // Title Block
+      addText("Wealth Strategy Report", 22, 'bold', [224, 58, 62], 'center'); y += 10;
+      addText(scenarioName, 14, 'normal', [80, 80, 80], 'center'); y += 7;
+      const modelName = MODEL_NAMES[selectedPortfolio.id] || "Custom";
+      addText(`Selected Model: ${selectedPortfolio.label} ${modelName}`, 12, 'bold', [224, 58, 62], 'center'); y += 7;
+      addText(`Generated: ${new Date().toLocaleDateString()}`, 9, 'italic', [150, 150, 150], 'center'); y += 10;
+
+      // Key Assumptions (2 columns)
+      addText("Key Assumptions", 12, 'bold', [30, 30, 30]); y += 6;
       const col1X = margin;
       const col2X = pageWidth / 2 + 5;
       const startY = y;
 
-      // Column 1: Financials
-      pdf.setFontSize(9); // Smaller font for assumptions
-      pdf.setFont('helvetica', 'bold');
-      pdf.text("Financial Parameters", col1X, y);
-      y += 4;
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold');
+      pdf.text("Financial Parameters", col1X, y); y += 5;
       pdf.setFont('helvetica', 'normal');
       pdf.text(`Projection Period: ${projectionYears} Years`, col1X, y); y += 4;
       pdf.text(`Inflation Rate: ${(inflationRate * 100).toFixed(1)}%`, col1X, y); y += 4;
       pdf.text(`Advice Fee: ${(adviceFee * 100).toFixed(2)}%`, col1X, y); y += 4;
       pdf.text(`Total Investable: ${formatCurrency(totalWealth)}`, col1X, y); y += 4;
 
-      // Column 2: Structures
       y = startY;
       pdf.setFont('helvetica', 'bold');
-      pdf.text("Entity Structure", col2X, y);
-      y += 4;
+      pdf.text("Entity Structure", col2X, y); y += 5;
       pdf.setFont('helvetica', 'normal');
       structures.forEach(s => {
         const entityLabel = entityTypes[s.type] ? entityTypes[s.type].label : s.type;
@@ -515,212 +493,221 @@ export default function RiskReturnOptimiser() {
         y += 4;
       });
 
-      y = Math.max(y, startY + 20) + 5;
+      y = Math.max(y, startY + 25) + 5;
       addLine();
 
-      // --- 3. Asset Allocation (Stacked Vertical Layout) ---
-      // checkPageBreak(120); // Removed aggressive check
-      addText("Target Asset Allocation", 12, 'bold', [30, 30, 30]);
-      y += 4;
-
-      setActiveTab('output');
-      await new Promise(r => setTimeout(r, 2000)); 
-
-      // 3a. Pie Chart (Full Width, Centered)
-      // User requested "whole width" and "very small" previously.
-      // Page width ~180mm usable. 
-      const pieSize = 100; // Reduced from 150 to fit better
-      const pieX = (pageWidth - pieSize) / 2 ;
-      
-      // Inline capture logic for custom positioning
-      const pieContainer = document.getElementById('pie-chart-section');
-      if (pieContainer) {
-        const svg = pieContainer.querySelector('svg');
-        if (svg) {
-            const clone = svg.cloneNode(true);
-            if (!clone.getAttribute('viewBox')) {
-                const w = parseInt(clone.getAttribute('width')) || 300;
-                const h = parseInt(clone.getAttribute('height')) || 300;
-                clone.setAttribute('viewBox', `0 0 ${w} ${h}`);
-            }
-            clone.setAttribute('width', pieSize);
-            clone.setAttribute('height', pieSize);
-            
-            // Ensure labels are visible in the clone if they are hidden by default
-            // (The Recharts render logic below handles the label generation)
-
-            const tempDiv = document.createElement('div');
-            tempDiv.style.position = 'absolute';
-            tempDiv.style.left = '-9999px';
-            tempDiv.appendChild(clone);
-            document.body.appendChild(tempDiv);
-            try {
-                // Ensure we fit on page
-                checkPageBreak(pieSize + 40); // Check if pie + legend fits
-                await pdf.svg(clone, { x: pieX, y: y, width: pieSize, height: pieSize });
-            } catch (err) {
-                console.error("SVG Pie Error", err);
-            } finally {
-                document.body.removeChild(tempDiv);
-            }
-        }
-      }
-
-      y += pieSize + 5;
-
-      // 3b. Manual Legend (Grid Layout)
-      checkPageBreak(30); // Ensure legend fits
-      pdf.setFontSize(8); // Smaller font
-      pdf.setFont('helvetica', 'normal');
-      const legendItemWidth = 50; // Tighter columns
-      const legendCols = 3;
-      const activeOnly = assets.filter(a => a.active);
-      
-      let lx = (pageWidth - (legendCols * legendItemWidth)) / 2;
-      let ly = y;
-      
-      activeOnly.forEach((asset, i) => {
-          const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
-          if (weight > 0.001) {
-             const col = i % legendCols;
-             const row = Math.floor(i / legendCols);
-             
-             const itemX = lx + (col * legendItemWidth);
-             const itemY = ly + (row * 6); // Tighter rows
-
-             pdf.setFillColor(asset.color);
-             pdf.rect(itemX, itemY - 2.5, 2.5, 2.5, 'F'); // Smaller box
-             pdf.text(`${asset.name}: ${formatPercent(weight)}`, itemX + 4, itemY);
-          }
-      });
-      
-      y = ly + (Math.ceil(activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.001).length / legendCols) * 6) + 8;
-
-      // 3c. Detailed Allocation Table (Full Width)
-      // Calculate actual height needed
-      const tableHeaderHeight = 8;
-      const tableRowHeight = 6;
-      const activeCount = activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.001).length;
-      const tableHeight = tableHeaderHeight + (activeCount * tableRowHeight) + 10;
-      
-      checkPageBreak(tableHeight); // Only break if strictly needed
-      addText("Detailed Allocation", 12, 'bold', [50, 50, 50]);
-      y += 4;
-
-      // Table Header
-      pdf.setFillColor(245, 245, 245);
-      pdf.rect(margin, y, pageWidth - (margin*2), 6, 'F');
-      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(100, 100, 100);
-      pdf.text("Asset Class", margin + 5, y + 4);
-      pdf.text("Weight", pageWidth - margin - 40, y + 4, { align: 'right' });
-      pdf.text("Value", pageWidth - margin - 5, y + 4, { align: 'right' });
-      y += 8;
-
-      // Table Rows
-      pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0, 0, 0);
-      activeOnly.forEach((asset) => {
-          const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
-          if (weight > 0.001) {
-              checkPageBreak(8);
-              // Color dot
-              pdf.setFillColor(asset.color);
-              pdf.rect(margin + 2, y - 2.5, 2.5, 2.5, 'F');
-              
-              pdf.text(asset.name, margin + 8, y);
-              pdf.text(formatPercent(weight), pageWidth - margin - 40, y, { align: 'right' });
-              pdf.text(formatCurrency(weight * totalWealth), pageWidth - margin - 5, y, { align: 'right' });
-              
-              // Light line
-              pdf.setDrawColor(240, 240, 240);
-              pdf.line(margin, y + 2, pageWidth - margin, y + 2);
-              
-              y += 6;
-          }
-      });
-      
-      // Total Row
-      checkPageBreak(8);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text("Total", margin + 8, y);
-      pdf.text("100.0%", pageWidth - margin - 40, y, { align: 'right' });
-      pdf.text(formatCurrency(totalWealth), pageWidth - margin - 5, y, { align: 'right' });
-      pdf.setDrawColor(200, 200, 200); // Darker line for total
-      pdf.line(margin, y - 4, pageWidth - margin, y - 4); // Line above total
-      
-      y += 8;
-
-      // --- 4. Portfolio Analysis (Full Width Boxes) ---
-      checkPageBreak(40);
-      addText("Portfolio Analysis", 14, 'bold', [30, 30, 30]);
-      y += 5;
-      
-      // Draw Boxes manually
+      // Portfolio Analysis Boxes
+      addText("Portfolio Analysis", 12, 'bold', [30, 30, 30]); y += 8;
       const boxWidth = 50;
-      const boxHeight = 25;
+      const boxHeight = 22;
       const gap = (pageWidth - (margin * 2) - (boxWidth * 3)) / 2;
       
       const drawBox = (x, title, value, color) => {
         pdf.setFillColor(245, 245, 245);
         pdf.rect(x, y, boxWidth, boxHeight, 'F');
-        pdf.setFontSize(10); pdf.setTextColor(100, 100, 100); pdf.setFont('helvetica', 'normal');
-        pdf.text(title, x + boxWidth/2, y + 8, { align: 'center' });
-        pdf.setFontSize(14); pdf.setTextColor(...color); pdf.setFont('helvetica', 'bold');
-        pdf.text(value, x + boxWidth/2, y + 18, { align: 'center' });
+        pdf.setFontSize(9); pdf.setTextColor(100, 100, 100); pdf.setFont('helvetica', 'normal');
+        pdf.text(title, x + boxWidth/2, y + 7, { align: 'center' });
+        pdf.setFontSize(13); pdf.setTextColor(...color); pdf.setFont('helvetica', 'bold');
+        pdf.text(value, x + boxWidth/2, y + 16, { align: 'center' });
       };
 
       drawBox(margin, "Expected Return", formatPercent(selectedPortfolio.return), [22, 163, 74]);
       drawBox(margin + boxWidth + gap, "Risk (StdDev)", formatPercent(selectedPortfolio.risk), [220, 38, 38]);
       drawBox(margin + (boxWidth + gap) * 2, "Sharpe Ratio", (selectedPortfolio.return / selectedPortfolio.risk).toFixed(2), [224, 58, 62]);
+      y += boxHeight + 10;
 
-      y += 35;
+      // Pie Chart
+      addText("Target Asset Allocation", 12, 'bold', [30, 30, 30]); y += 5;
+      setActiveTab('output');
+      await new Promise(r => setTimeout(r, 1500));
 
-      // --- 5. Efficient Frontier Chart ---
-      checkPageBreak(80); 
-      addText("Efficient Frontier Analysis", 14, 'bold', [30, 30, 30]);
-      y += 5;
+      const pieSize = 80;
+      const pieX = (pageWidth - pieSize) / 2;
+      const pieContainer = document.getElementById('pie-chart-section');
+      if (pieContainer) {
+        const svg = pieContainer.querySelector('svg');
+        if (svg) {
+          const clone = svg.cloneNode(true);
+          if (!clone.getAttribute('viewBox')) {
+            const w = parseInt(clone.getAttribute('width')) || 300;
+            const h = parseInt(clone.getAttribute('height')) || 300;
+            clone.setAttribute('viewBox', `0 0 ${w} ${h}`);
+          }
+          clone.setAttribute('width', pieSize);
+          clone.setAttribute('height', pieSize);
+          const tempDiv = document.createElement('div');
+          tempDiv.style.position = 'absolute';
+          tempDiv.style.left = '-9999px';
+          tempDiv.appendChild(clone);
+          document.body.appendChild(tempDiv);
+          try {
+            await pdf.svg(clone, { x: pieX, y: y, width: pieSize, height: pieSize });
+          } catch (err) { console.error("SVG Pie Error", err); }
+          finally { document.body.removeChild(tempDiv); }
+        }
+      }
+      y += pieSize + 5;
 
+      // Legend
+      pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
+      const activeOnly = assets.filter(a => a.active);
+      const legendCols = 4;
+      const legendItemWidth = 42;
+      let lx = (pageWidth - (legendCols * legendItemWidth)) / 2;
+      activeOnly.forEach((asset, i) => {
+        const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
+        if (weight > 0.005) {
+          const col = i % legendCols;
+          const row = Math.floor(i / legendCols);
+          const itemX = lx + (col * legendItemWidth);
+          const itemY = y + (row * 5);
+          pdf.setFillColor(asset.color);
+          pdf.rect(itemX, itemY - 2, 2, 2, 'F');
+          pdf.setTextColor(0, 0, 0);
+          pdf.text(`${asset.name.substring(0, 12)}: ${formatPercent(weight)}`, itemX + 3, itemY);
+        }
+      });
+
+      // ==================== PAGE 2: DETAILED ALLOCATIONS ====================
+      pdf.addPage();
+      addPageBorder();
+      y = margin;
+
+      addText("Detailed Asset Allocation", 14, 'bold', [30, 30, 30]); y += 8;
+
+      // Table Header
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin, y, pageWidth - (margin*2), 7, 'F');
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(80, 80, 80);
+      pdf.text("Asset Class", margin + 5, y + 5);
+      pdf.text("Weight", pageWidth - margin - 45, y + 5, { align: 'right' });
+      pdf.text("Value", pageWidth - margin - 5, y + 5, { align: 'right' });
+      y += 10;
+
+      // Table Rows
+      pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0, 0, 0); pdf.setFontSize(9);
+      activeOnly.forEach((asset) => {
+        const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
+        if (weight > 0.005) {
+          pdf.setFillColor(asset.color);
+          pdf.rect(margin + 2, y - 2, 3, 3, 'F');
+          pdf.text(asset.name, margin + 8, y);
+          pdf.text(formatPercent(weight), pageWidth - margin - 45, y, { align: 'right' });
+          pdf.text(formatCurrency(weight * totalWealth), pageWidth - margin - 5, y, { align: 'right' });
+          pdf.setDrawColor(240, 240, 240);
+          pdf.line(margin, y + 2, pageWidth - margin, y + 2);
+          y += 6;
+        }
+      });
+      
+      // Total
+      pdf.setDrawColor(180, 180, 180);
+      pdf.line(margin, y - 2, pageWidth - margin, y - 2);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text("Total", margin + 8, y + 3);
+      pdf.text("100.0%", pageWidth - margin - 45, y + 3, { align: 'right' });
+      pdf.text(formatCurrency(totalWealth), pageWidth - margin - 5, y + 3, { align: 'right' });
+      y += 15;
+
+      // Model Portfolios Summary Table
+      addText("Model Portfolios Summary", 14, 'bold', [30, 30, 30]); y += 8;
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin, y, pageWidth - (margin*2), 7, 'F');
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(80, 80, 80);
+      pdf.text("Model", margin + 5, y + 5);
+      pdf.text("Name", margin + 25, y + 5);
+      pdf.text("Return", pageWidth - margin - 45, y + 5, { align: 'right' });
+      pdf.text("Risk", pageWidth - margin - 5, y + 5, { align: 'right' });
+      y += 10;
+
+      pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0, 0, 0);
+      efficientFrontier.forEach((p, i) => {
+        const isSelected = selectedPortfolioId === i + 1;
+        if (isSelected) { pdf.setFillColor(255, 240, 240); pdf.rect(margin, y - 3, pageWidth - (margin*2), 6, 'F'); }
+        pdf.text(`${i + 1}`, margin + 5, y);
+        pdf.text(MODEL_NAMES[i + 1] || 'Custom', margin + 25, y);
+        pdf.text(formatPercent(p.return), pageWidth - margin - 45, y, { align: 'right' });
+        pdf.text(formatPercent(p.risk), pageWidth - margin - 5, y, { align: 'right' });
+        y += 6;
+      });
+      y += 10;
+
+      // Estimating Outcomes Table
+      addText("Estimated Outcomes", 14, 'bold', [30, 30, 30]); y += 8;
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin, y, pageWidth - (margin*2), 7, 'F');
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(80, 80, 80);
+      pdf.text("Year", margin + 5, y + 5);
+      pdf.text("Best (95th)", pageWidth/2 - 15, y + 5, { align: 'right' });
+      pdf.text("Median (50th)", pageWidth/2 + 30, y + 5, { align: 'right' });
+      pdf.text("Worst (5th)", pageWidth - margin - 5, y + 5, { align: 'right' });
+      y += 10;
+
+      pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0, 0, 0);
+      [1, 3, 5, 10, 20].forEach(year => {
+        const idx = year - 1;
+        const res = cfSimulationResults[idx];
+        if (res) {
+          pdf.text(`${year} Year`, margin + 5, y);
+          pdf.text(formatCurrency(res.p95), pageWidth/2 - 15, y, { align: 'right' });
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(formatCurrency(res.p50), pageWidth/2 + 30, y, { align: 'right' });
+          pdf.setFont('helvetica', 'normal');
+          pdf.text(formatCurrency(res.p05), pageWidth - margin - 5, y, { align: 'right' });
+          y += 6;
+        }
+      });
+
+      // ==================== PAGE 3: PROJECTIONS ====================
+      pdf.addPage();
+      addPageBorder();
+      y = margin;
+
+      // Efficient Frontier
+      addText("Efficient Frontier Analysis", 14, 'bold', [30, 30, 30]); y += 5;
       setActiveTab('optimization');
-      await new Promise(r => setTimeout(r, 2000)); 
+      await new Promise(r => setTimeout(r, 1500));
       
       const frontierEl = document.getElementById('optimization-tab-content')?.querySelector('.h-\\[500px\\]');
       if (frontierEl) {
-         const originalId = frontierEl.id;
-         frontierEl.id = 'temp-frontier-chart';
-         const frontierImg = await captureChart('temp-frontier-chart');
-         frontierEl.id = originalId; 
-
-         if (frontierImg) {
-            const imgProps = pdf.getImageProperties(frontierImg);
-            const pdfWidth = pageWidth - (margin * 2);
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-            const displayHeight = Math.min(pdfHeight, 80); 
-            pdf.addImage(frontierImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
-            y += displayHeight + 10;
-         }
+        const originalId = frontierEl.id;
+        frontierEl.id = 'temp-frontier-chart';
+        const frontierImg = await captureChart('temp-frontier-chart');
+        frontierEl.id = originalId;
+        if (frontierImg) {
+          const imgProps = pdf.getImageProperties(frontierImg);
+          const pdfWidth = pageWidth - (margin * 2);
+          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+          const displayHeight = Math.min(pdfHeight, 100);
+          pdf.addImage(frontierImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
+          y += displayHeight + 10;
+        }
       }
 
-      // --- 6. Wealth Projection ---
-      checkPageBreak(80);
-      addText("Wealth Projection (Monte Carlo)", 14, 'bold', [30, 30, 30]);
-      y += 5;
-
+      // Wealth Projection
+      addText("Monte Carlo Wealth Projection", 14, 'bold', [30, 30, 30]); y += 5;
       setActiveTab('cashflow');
-      await new Promise(r => setTimeout(r, 2000)); 
+      await new Promise(r => setTimeout(r, 1500));
       
       const projectionImg = await captureChart('cashflow-tab-content');
       if (projectionImg) {
         const imgProps = pdf.getImageProperties(projectionImg);
         const pdfWidth = pageWidth - (margin * 2);
         const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        const displayHeight = Math.min(pdfHeight, 150); 
+        const displayHeight = Math.min(pdfHeight, 130);
         pdf.addImage(projectionImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
         y += displayHeight + 5;
       }
 
-      // Footer
-      pdf.setFontSize(8);
-      pdf.setTextColor(150, 150, 150);
-      pdf.text("Generated by FIRE Wealth Optimiser", pageWidth / 2, pageHeight - 10, { align: 'center' });
+      // Footer on each page
+      const totalPages = pdf.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
+        pdf.text("Generated by FIRE Wealth Optimiser", pageWidth / 2, pageHeight - 4, { align: 'center' });
+      }
 
       pdf.save(`${scenarioName.replace(/\s+/g, '_')}_Report.pdf`);
 
