@@ -1162,7 +1162,7 @@ export default function RiskReturnOptimiser() {
   }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, oneOffEvents, projectionYears, inflationRate, adviceFee, structures, entityTypes]);
 
   useEffect(() => {
-    if (activeTab === 'cashflow' && selectedPortfolio) {
+    if ((activeTab === 'cashflow' || activeTab === 'output') && selectedPortfolio) {
       runCashflowMonteCarlo();
     }
   }, [activeTab, selectedPortfolio, runCashflowMonteCarlo]);
