@@ -645,7 +645,7 @@ export default function RiskReturnOptimiser() {
 
       pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0, 0, 0);
       [1, 3, 5, 10, 20].forEach(year => {
-        const idx = year - 1;
+        const idx = year; // cfSimulationResults[0] is Year 0 (starting point), so Year 1 = index 1
         const res = cfSimulationResults[idx];
         if (res) {
           pdf.text(`${year} Year`, margin + 5, y);
@@ -663,8 +663,18 @@ export default function RiskReturnOptimiser() {
       addPageBorder();
       y = margin;
 
+      // Calculate available height: A4 = 297mm, minus margins (15mm top + 15mm bottom for footer) = 267mm usable
+      // Footer takes ~12mm, border margin ~3mm each side. Safe printable: margin to (pageHeight - 15)
+      const footerSpace = 15;
+      const availableHeight = pageHeight - margin - footerSpace;
+      const chartSpacing = 8;
+      const titleHeight = 7;
+      
+      // Each chart gets roughly half the available space
+      const chartHeight = (availableHeight - (titleHeight * 2) - chartSpacing) / 2;
+
       // Efficient Frontier
-      addText("Efficient Frontier Analysis", 14, 'bold', [30, 30, 30]); y += 5;
+      addText("Efficient Frontier Analysis", 14, 'bold', [30, 30, 30]); y += titleHeight;
       setActiveTab('optimization');
       await new Promise(r => setTimeout(r, 1500));
       
@@ -675,28 +685,22 @@ export default function RiskReturnOptimiser() {
         const frontierImg = await captureChart('temp-frontier-chart');
         frontierEl.id = originalId;
         if (frontierImg) {
-          const imgProps = pdf.getImageProperties(frontierImg);
           const pdfWidth = pageWidth - (margin * 2);
-          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-          const displayHeight = Math.min(pdfHeight, 100);
-          pdf.addImage(frontierImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
-          y += displayHeight + 10;
+          pdf.addImage(frontierImg, 'PNG', margin, y, pdfWidth, chartHeight, undefined, 'FAST');
+          y += chartHeight + chartSpacing;
         }
       }
 
       // Wealth Projection
-      addText("Monte Carlo Wealth Projection", 14, 'bold', [30, 30, 30]); y += 5;
+      addText("Monte Carlo Wealth Projection", 14, 'bold', [30, 30, 30]); y += titleHeight;
       setActiveTab('cashflow');
       await new Promise(r => setTimeout(r, 1500));
       
       const projectionImg = await captureChart('cashflow-tab-content');
       if (projectionImg) {
-        const imgProps = pdf.getImageProperties(projectionImg);
         const pdfWidth = pageWidth - (margin * 2);
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        const displayHeight = Math.min(pdfHeight, 130);
-        pdf.addImage(projectionImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
-        y += displayHeight + 5;
+        const remainingHeight = pageHeight - footerSpace - y;
+        pdf.addImage(projectionImg, 'PNG', margin, y, pdfWidth, remainingHeight, undefined, 'FAST');
       }
 
       // Footer on each page
@@ -1956,7 +1960,7 @@ export default function RiskReturnOptimiser() {
                  </thead>
                  <tbody className="divide-y divide-gray-100">
                    {[1, 3, 5, 10, 20].map(year => {
-                      const idx = year - 1; // 0-indexed
+                      const idx = year; // cfSimulationResults[0] is Year 0 (starting point), Year 1 = index 1
                       const res = cfSimulationResults[idx];
                       if (!res) return null;
                       return (
