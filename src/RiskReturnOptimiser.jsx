@@ -1309,10 +1309,10 @@ export default function RiskReturnOptimiser() {
       {[
         { id: 'data', label: 'Capital Market Estimates', icon: Activity },
         { id: 'client', label: 'Client details', icon: User },
-        { id: 'projections', label: 'Projections', icon: TrendingUp },
+        { id: 'projections', label: 'Projections Input', icon: TrendingUp },
         { id: 'optimization', label: 'Optimisation', icon: Calculator },
         { id: 'output', label: 'Output', icon: PieIcon },
-        { id: 'cashflow', label: 'Detailed Cashflow', icon: FileText },
+        { id: 'cashflow', label: 'Projections Output', icon: FileText },
       ].map((tab) => (
         <button
           key={tab.id}
