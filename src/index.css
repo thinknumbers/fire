@@ -3,12 +3,22 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-fire-accent: #E84E1B;
+    --color-fire-heading: #1C2E4A;
+    --color-fire-text: #333333;
+    --color-fire-text-secondary: #707070;
+    --color-fire-bg-light: #F2F2F2;
+    --color-fire-navy: #1C2E4A;
+    --color-fire-orange: #E84E1B;
+  }
+
   body {
     font-family: 'Calibri', sans-serif;
-    color: theme('colors.fire-text');
+    color: var(--color-fire-text);
   }
   h1, h2, h3, h4, h5, h6 {
-    color: theme('colors.fire-heading');
+    color: var(--color-fire-heading);
   }
 }
 

@@ -7,13 +7,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        'fire-accent': '#E84E1B', // Vibrant Orange
-        'fire-heading': '#1C2E4A', // Deep Navy Blue
-        'fire-text': '#333333', // Charcoal / Dark Grey
-        'fire-text-secondary': '#707070', // Medium Grey
-        'fire-bg-light': '#F2F2F2', // Light Grey / Off-White
-        'fire-navy': '#1C2E4A',
-        'fire-orange': '#E84E1B',
+        'fire-accent': 'var(--color-fire-accent)', 
+        'fire-heading': 'var(--color-fire-heading)',
+        'fire-text': 'var(--color-fire-text)',
+        'fire-text-secondary': 'var(--color-fire-text-secondary)',
+        'fire-bg-light': 'var(--color-fire-bg-light)',
+        'fire-navy': 'var(--color-fire-navy)',
+        'fire-orange': 'var(--color-fire-orange)',
       }
     },
   },

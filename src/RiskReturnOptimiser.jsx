@@ -298,6 +298,35 @@ export default function RiskReturnOptimiser() {
   const [progress, setProgress] = useState(0); // 0-100
   const [simulationCount, setSimulationCount] = useState(1000); // Default number of simulations
   const [selectedPortfolioId, setSelectedPortfolioId] = useState(5);
+
+  // --- Settings State ---
+  const DEFAULT_APP_SETTINGS = {
+     title: "FIREBALL",
+     logo: fireLogo,
+     colors: {
+         accent: '#E84E1B',
+         heading: '#1C2E4A',
+         text: '#333333',
+         bgLight: '#F2F2F2'
+     }
+  };
+
+  const [appSettings, setAppSettings] = useState(() => {
+      const saved = localStorage.getItem('fireball_settings');
+      return saved ? JSON.parse(saved) : DEFAULT_APP_SETTINGS;
+  });
+
+  // Persist Settings & Apply Styles
+  useEffect(() => {
+     localStorage.setItem('fireball_settings', JSON.stringify(appSettings));
+     
+     // Update CSS Variables
+     const root = document.documentElement;
+     root.style.setProperty('--color-fire-accent', appSettings.colors.accent);
+     root.style.setProperty('--color-fire-heading', appSettings.colors.heading);
+     root.style.setProperty('--color-fire-text', appSettings.colors.text);
+     root.style.setProperty('--color-fire-bg-light', appSettings.colors.bgLight);
+  }, [appSettings]);
   const [optimizationAssets, setOptimizationAssets] = useState([]);
   
   // Cashflow Result State
@@ -417,6 +446,20 @@ export default function RiskReturnOptimiser() {
     setIsExporting(true);
     const originalTab = activeTab;
     
+    // Helper to convert hex to rgb array for jsPDF
+    const hexToRgb = (hex) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? [
+            parseInt(result[1], 16),
+            parseInt(result[2], 16),
+            parseInt(result[3], 16)
+        ] : [0, 0, 0];
+    };
+
+    const accentRgb = hexToRgb(appSettings.colors.accent);
+    const headingRgb = hexToRgb(appSettings.colors.heading);
+    const textRgb = hexToRgb(appSettings.colors.text);
+    
     try {
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
@@ -445,7 +488,7 @@ export default function RiskReturnOptimiser() {
       };
 
       const addPageBorder = () => {
-         pdf.setDrawColor(232, 78, 27); // #E84E1B
+         pdf.setDrawColor(...accentRgb); 
          pdf.setLineWidth(0.5);
          pdf.rect(3, 3, pageWidth - 6, pageHeight - 6, 'S');
       };
@@ -463,7 +506,7 @@ export default function RiskReturnOptimiser() {
       const headerEl = document.getElementById('app-header');
       let headerHeightPdf = 0;
       if (headerEl) {
-        const headerCanvas = await html2canvas(headerEl, { scale: 2, backgroundColor: '#E84E1B' });
+        const headerCanvas = await html2canvas(headerEl, { scale: 2, backgroundColor: appSettings.colors.accent });
         const headerImg = headerCanvas.toDataURL('image/png');
         const imgProps = pdf.getImageProperties(headerImg);
         headerHeightPdf = (imgProps.height * pageWidth) / imgProps.width;
@@ -474,14 +517,14 @@ export default function RiskReturnOptimiser() {
       addPageBorder();
       
       // Title Block
-      addText("Wealth Strategy Report", 22, 'bold', [232, 78, 27], 'center'); y += 10;
-      addText(scenarioName, 14, 'normal', [51, 51, 51], 'center'); y += 7;
+      addText("Wealth Strategy Report", 22, 'bold', accentRgb, 'center'); y += 10;
+      addText(scenarioName, 14, 'normal', textRgb, 'center'); y += 7;
       const modelName = MODEL_NAMES[selectedPortfolio.id] || "Custom";
-      addText(`Selected Model: ${selectedPortfolio.label} ${modelName}`, 12, 'bold', [232, 78, 27], 'center'); y += 7;
+      addText(`Selected Model: ${selectedPortfolio.label} ${modelName}`, 12, 'bold', accentRgb, 'center'); y += 7;
       addText(`Generated: ${new Date().toLocaleDateString()}`, 9, 'italic', [112, 112, 112], 'center'); y += 10;
 
       // Key Assumptions (2 columns)
-      addText("Key Assumptions", 12, 'bold', [28, 46, 74]); y += 6;
+      addText("Key Assumptions", 12, 'bold', headingRgb); y += 6;
       const col1X = margin;
       const col2X = pageWidth / 2 + 5;
       const startY = y;
@@ -508,7 +551,7 @@ export default function RiskReturnOptimiser() {
       addLine();
 
       // Portfolio Analysis Boxes
-      addText("Portfolio Analysis", 12, 'bold', [28, 46, 74]); y += 8;
+      addText("Portfolio Analysis", 12, 'bold', headingRgb); y += 8;
       const boxWidth = 50;
       const boxHeight = 22;
       const gap = (pageWidth - (margin * 2) - (boxWidth * 3)) / 2;
@@ -528,7 +571,7 @@ export default function RiskReturnOptimiser() {
       y += boxHeight + 10;
 
       // Pie Chart
-      addText("Target Asset Allocation", 12, 'bold', [28, 46, 74]); y += 5;
+      addText("Target Asset Allocation", 12, 'bold', headingRgb); y += 5;
       setActiveTab('output');
       await new Promise(r => setTimeout(r, 1500));
 
@@ -584,12 +627,12 @@ export default function RiskReturnOptimiser() {
       addPageBorder();
       y = margin;
 
-      addText("Detailed Asset Allocation", 14, 'bold', [28, 46, 74]); y += 8;
+      addText("Detailed Asset Allocation", 14, 'bold', headingRgb); y += 8;
 
       // Table Header
       pdf.setFillColor(245, 245, 245);
       pdf.rect(margin, y, pageWidth - (margin*2), 7, 'F');
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(28, 46, 74);
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(...headingRgb);
       pdf.text("Asset Class", margin + 5, y + 5);
       pdf.text("Weight", pageWidth - margin - 45, y + 5, { align: 'right' });
       pdf.text("Value", pageWidth - margin - 5, y + 5, { align: 'right' });
@@ -621,10 +664,10 @@ export default function RiskReturnOptimiser() {
       y += 15;
 
       // Model Portfolios Summary Table
-      addText("Model Portfolios Summary", 14, 'bold', [28, 46, 74]); y += 8;
+      addText("Model Portfolios Summary", 14, 'bold', headingRgb); y += 8;
       pdf.setFillColor(245, 245, 245);
       pdf.rect(margin, y, pageWidth - (margin*2), 7, 'F');
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(28, 46, 74);
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(...headingRgb);
       pdf.text("Model", margin + 5, y + 5);
       pdf.text("Name", margin + 25, y + 5);
       pdf.text("Return", pageWidth - margin - 45, y + 5, { align: 'right' });
@@ -644,10 +687,10 @@ export default function RiskReturnOptimiser() {
       y += 10;
 
       // Estimating Outcomes Table
-      addText("Estimated Outcomes", 14, 'bold', [28, 46, 74]); y += 8;
+      addText("Estimated Outcomes", 14, 'bold', headingRgb); y += 8;
       pdf.setFillColor(245, 245, 245);
       pdf.rect(margin, y, pageWidth - (margin*2), 7, 'F');
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(28, 46, 74);
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(...headingRgb);
       pdf.text("Year", margin + 5, y + 5);
       pdf.text("Best (95th)", pageWidth/2 - 15, y + 5, { align: 'right' });
       pdf.text("Median (50th)", pageWidth/2 + 30, y + 5, { align: 'right' });
@@ -685,7 +728,7 @@ export default function RiskReturnOptimiser() {
       const maxChartHeight = (totalAvailableHeight - (titleHeight * 2) - chartSpacing) / 2;
 
       // Efficient Frontier
-      addText("Efficient Frontier Analysis", 14, 'bold', [28, 46, 74]); y += titleHeight;
+      addText("Efficient Frontier Analysis", 14, 'bold', headingRgb); y += titleHeight;
       setActiveTab('optimization');
       await new Promise(r => setTimeout(r, 1500));
       
@@ -707,7 +750,7 @@ export default function RiskReturnOptimiser() {
       }
 
       // Wealth Projection
-      addText("Monte Carlo Wealth Projection", 14, 'bold', [28, 46, 74]); y += titleHeight;
+      addText("Monte Carlo Wealth Projection", 14, 'bold', headingRgb); y += titleHeight;
       setActiveTab('cashflow');
       await new Promise(r => setTimeout(r, 1500));
       
@@ -729,7 +772,7 @@ export default function RiskReturnOptimiser() {
         pdf.setFontSize(8);
         pdf.setTextColor(150, 150, 150);
         pdf.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
-        pdf.text("Generated by FIRE Wealth Optimiser", pageWidth / 2, pageHeight - 4, { align: 'center' });
+        pdf.text(`Generated by ${appSettings.title || 'FIREBALL'}`, pageWidth / 2, pageHeight - 4, { align: 'center' });
       }
 
       pdf.save(`${scenarioName.replace(/\s+/g, '_')}_Report.pdf`);
@@ -1191,7 +1234,8 @@ export default function RiskReturnOptimiser() {
   const Navigation = () => (
     <div className="flex flex-col md:flex-row gap-2 mb-6 border-b border-gray-200 pb-4 overflow-x-auto">
       {[
-        { id: 'data', label: '1. Data Input', icon: Settings },
+        { id: 'settings', label: 'Settings', icon: Settings },
+        { id: 'data', label: 'Capital Market Estimates', icon: Activity },
         { id: 'client', label: '2. Client & Structure', icon: User },
         { id: 'optimization', label: '3. Optimisation', icon: Calculator },
         { id: 'output', label: '4. Output', icon: PieIcon },
@@ -1210,6 +1254,86 @@ export default function RiskReturnOptimiser() {
           {tab.label}
         </button>
       ))}
+    </div>
+  );
+
+  const SettingsTab = () => (
+    <div className="space-y-6 animate-in fade-in">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                <Settings className="w-5 h-5 mr-2 text-fire-accent" />
+                Application Settings
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Application Title</label>
+                    <input 
+                        type="text" 
+                        value={appSettings.title}
+                        onChange={(e) => setAppSettings(prev => ({ ...prev, title: e.target.value }))}
+                        className="w-full border border-gray-300 rounded px-3 py-2"
+                    />
+                </div>
+                <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+                   <div className="flex gap-2">
+                       <input 
+                           type="text" 
+                           value={appSettings.logo}
+                           onChange={(e) => setAppSettings(prev => ({ ...prev, logo: e.target.value }))}
+                           className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                           placeholder="https://example.com/logo.png"
+                       />
+                       {appSettings.logo && (
+                           <div className="w-10 h-10 bg-gray-100 rounded border border-gray-200 flex items-center justify-center p-1">
+                               <img src={appSettings.logo} alt="Preview" className="max-w-full max-h-full object-contain" />
+                           </div>
+                       )}
+                   </div>
+                   <p className="text-xs text-gray-500 mt-1">Leave empty to use default. Use full URL (https://...).</p>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color (Accent)</label>
+                    <div className="flex items-center gap-3">
+                        <input 
+                            type="color" 
+                            value={appSettings.colors.accent}
+                            onChange={(e) => setAppSettings(prev => ({ ...prev, colors: { ...prev.colors, accent: e.target.value } }))}
+                            className="h-10 w-20 p-1 rounded border border-gray-300"
+                        />
+                        <span className="text-sm text-gray-600">{appSettings.colors.accent}</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Heading Color</label>
+                    <div className="flex items-center gap-3">
+                        <input 
+                            type="color" 
+                            value={appSettings.colors.heading}
+                            onChange={(e) => setAppSettings(prev => ({ ...prev, colors: { ...prev.colors, heading: e.target.value } }))}
+                            className="h-10 w-20 p-1 rounded border border-gray-300"
+                        />
+                        <span className="text-sm text-gray-600">{appSettings.colors.heading}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-gray-200">
+                <button 
+                  onClick={() => {
+                      if(window.confirm('Reset all settings to default?')) {
+                          setAppSettings(DEFAULT_APP_SETTINGS);
+                      }
+                  }}
+                  className="px-4 py-2 text-sm text-red-600 border border-red-200 rounded hover:bg-red-50"
+                >
+                    Reset to Defaults
+                </button>
+            </div>
+        </div>
     </div>
   );
 
@@ -2332,6 +2456,7 @@ export default function RiskReturnOptimiser() {
         </div>
         {Navigation()}
         <main id="report-content">
+          {activeTab === 'settings' && <div id="settings-tab-content">{SettingsTab()}</div>}
           {activeTab === 'data' && <div id="data-tab-content">{DataTab()}</div>}
           {activeTab === 'client' && <div id="client-tab-content">{ClientTab()}</div>}
           {activeTab === 'optimization' && <div id="optimization-tab-content">
