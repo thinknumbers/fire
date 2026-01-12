@@ -2861,7 +2861,7 @@ export default function RiskReturnOptimiser() {
                                      </div>
                                      <div className="flex justify-between gap-4">
                                        <span className="text-gray-500">16th Percentile:</span>
-                                       <span className="font-mono font-bold text-red-700">{formatCurrency(data.p05)}</span>
+                                       <span className="font-mono font-bold text-red-700">{formatCurrency(data.p16)}</span>
                                      </div>
                                    </div>
                                  </div>
@@ -2889,7 +2889,7 @@ export default function RiskReturnOptimiser() {
                     <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Year</th>
                     <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Best (95th)</th>
                     <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Median (50th)</th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Worst (5th)</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Worst (16th)</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -2898,7 +2898,7 @@ export default function RiskReturnOptimiser() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.year}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-gray-900">{formatCurrency(item.p95)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-gray-900">{formatCurrency(item.p50)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-gray-900">{formatCurrency(item.p05)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-gray-900">{formatCurrency(item.p16)}</td>
                     </tr>
                   ))}
                 </tbody>
