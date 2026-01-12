@@ -228,31 +228,31 @@ const createSeededRandom = (seed) => {
 
 const OutcomeCandlestick = (props) => {
   const { x, y, width, height, payload, index } = props;
-  const { p05, p50, p95 } = payload;
+  const { p16, p50, p95 } = payload;
   
-  // Recharts Bar passed us the box for the range (p05 to p95).
-  // y is the top (p95), height is the distance to bottom (p05).
+  // Recharts Bar passed us the box for the range (p16 to p95).
+  // y is the top (p95), height is the distance to bottom (p16).
   // We can draw the box and the specific lines within it.
   
   // Using specific colors from request
   const color95 = "#fbbf24"; // Amber 400 (Top)
   const color50 = "#ea580c"; // Orange 600 (Median)
-  const color05 = "#ce2029"; // Red 700 (Bottom)
+  const color16 = "#ce2029"; // Red 700 (Bottom)
   const boxFill = "#ffedd5"; // Orange 100
 
   // Calculate pixel position for median
   // We need the scale. Recharts passes xAxis and yAxis in the props if we look for them,
   // but for CustomShape in Bar, it might be easier to rely on the fact that
-  // the Bar 'dataKey={[p05, p95]}' already sets the box from p05 to p95.
+  // the Bar 'dataKey={[p16, p95]}' already sets the box from p16 to p95.
   // BUT: The 'median' (p50) position isn't passed as a pixel value automatically.
   // We need to calculate its relative position within the bar.
   
-  // Ratio of median within range: (p50 - p05) / (p95 - p05)
+  // Ratio of median within range: (p50 - p16) / (p95 - p16)
   // Recharts Y-axis goes UP, but SVG coord Y goes DOWN.
   // Top of bar (y) corresponds to max value (p95).
-  // Bottom of bar (y + height) corresponds to min value (p05).
+  // Bottom of bar (y + height) corresponds to min value (p16).
   
-  const range = p95 - p05;
+  const range = p95 - p16;
   if(range === 0) return null;
   
   const medianRatio = (p95 - p50) / range; // Distance from top
@@ -269,8 +269,8 @@ const OutcomeCandlestick = (props) => {
       {/* Median Line */}
       <line x1={x} y1={medianY} x2={x+width} y2={medianY} stroke={color50} strokeWidth={3} />
       
-      {/* 5th Line (Bottom) */}
-      <line x1={x} y1={y+height} x2={x+width} y2={y+height} stroke={color05} strokeWidth={3} />
+      {/* 16th Line (Bottom) */}
+      <line x1={x} y1={y+height} x2={x+width} y2={y+height} stroke={color16} strokeWidth={3} />
     </g>
   );
 };
