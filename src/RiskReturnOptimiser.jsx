@@ -154,8 +154,12 @@ const calculateClientTaxAdjustedReturns = (assets, structures, entityTypes) => {
       // 1. Process Accumulation Portion (or standard entity)
       if (accumValue > 0) {
           const entityProp = accumValue / totalValue;
-          const rates = entityTypes[struct.type] || entityTypes.PERSONAL || { incomeTax: 0.47, ltCgt: 0.235 };
+          let rates = entityTypes[struct.type] || entityTypes.PERSONAL || { incomeTax: 0.47, ltCgt: 0.235 };
           
+          if (struct.useCustomTax && struct.customTax) {
+             rates = struct.customTax;
+          }
+
           const incomeComponent = asset.return * asset.incomeRatio;
           const capitalComponent = asset.return * (1 - asset.incomeRatio);
           const afterTaxIncome = incomeComponent * (1 - rates.incomeTax);
@@ -278,14 +282,31 @@ export default function RiskReturnOptimiser() {
   const [activeTab, setActiveTab] = useState('data');
   
   // Data State
+  const [clientName, setClientName] = useState('');
+  const [clientDate, setClientDate] = useState(new Date().toISOString().split('T')[0]);
   const [assets, setAssets] = useState(DEFAULT_ASSETS);
-  const [structures, setStructures] = useState(DEFAULT_STRUCTURES);
+  const [structures, setStructures] = useState([
+    { 
+      id: 1, 
+      type: 'PERSONAL', 
+      name: 'Personal Name', 
+      value: 1000000,
+      useAssetAllocation: false,
+      useCustomTax: false,
+      customTax: { incomeTax: 0.47, ltCgt: 0.235, stCgt: 0.47 },
+      assetAllocation: DEFAULT_ASSETS.map(a => ({ id: a.id, weight: 0, min: 0, max: 100 }))
+    }
+  ]);
   const [entityTypes, setEntityTypes] = useState(DEFAULT_ENTITY_TYPES);
   const [correlations, setCorrelations] = useState(() => generateFullCorrelationMatrix(DEFAULT_ASSETS));
   
   // Cashflow Inputs
-  const [incomeStreams, setIncomeStreams] = useState(DEFAULT_INCOME_STREAMS);
-  const [expenseStreams, setExpenseStreams] = useState(DEFAULT_EXPENSE_STREAMS);
+  const [incomeStreams, setIncomeStreams] = useState([
+    { id: 1, name: 'Salary', amount: 350000, startYear: 1, endYear: 5, isOneOff: false, year: 1 }
+  ]);
+  const [expenseStreams, setExpenseStreams] = useState([
+    { id: 1, name: 'Living Expenses', amount: 200000, startYear: 1, endYear: 30, isOneOff: false, year: 1 }
+  ]);
   const [oneOffEvents, setOneOffEvents] = useState(DEFAULT_ONE_OFF_EVENTS);
   const [projectionYears, setProjectionYears] = useState(30);
   const [inflationRate, setInflationRate] = useState(0.025);
@@ -1266,10 +1287,11 @@ export default function RiskReturnOptimiser() {
     <div className="flex flex-col md:flex-row gap-2 mb-6 border-b border-gray-200 pb-4 overflow-x-auto">
       {[
         { id: 'data', label: 'Capital Market Estimates', icon: Activity },
-        { id: 'client', label: '2. Client & Structure', icon: User },
-        { id: 'optimization', label: '3. Optimisation', icon: Calculator },
-        { id: 'output', label: '4. Output', icon: PieIcon },
-        { id: 'cashflow', label: '5. Projections', icon: TrendingUp },
+        { id: 'client', label: 'Client details', icon: User },
+        { id: 'projections', label: 'Projections', icon: TrendingUp },
+        { id: 'optimization', label: 'Optimisation', icon: Calculator },
+        { id: 'output', label: 'Output', icon: PieIcon },
+        { id: 'cashflow', label: 'Detailed Cashflow', icon: FileText },
       ].map((tab) => (
         <button
           key={tab.id}
@@ -1753,255 +1775,374 @@ export default function RiskReturnOptimiser() {
     
   const ClientTab = () => (
     <div className="space-y-6 animate-in fade-in">
+      {/* Client Details Header */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
           <User className="w-5 h-5 mr-2 text-fire-accent" />
-          Entity Structure
+          Client Details
         </h3>
-        <p className="text-sm text-gray-500 mb-6">
-          Define investment entities. The Optimizer uses specific tax rates (Income vs CGT) for each entity type to calculate after-tax returns.
-        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label>
+                <input 
+                    type="text" 
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-fire-accent/50 outline-none"
+                    placeholder="Enter client name"
+                />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <input 
+                    type="date" 
+                    value={clientDate}
+                    onChange={(e) => setClientDate(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-fire-accent/50 outline-none"
+                />
+            </div>
+        </div>
+      </div>
 
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <Activity className="w-5 h-5 mr-2 text-fire-accent" />
+          Client details
+        </h3>
+        
         <div className="space-y-4">
           {structures.map(struct => (
-            <div key={struct.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="md:col-span-3">
-                 <label className="block text-xs font-bold text-gray-500 mb-1">Entity Name</label>
-                 <input 
-                   type="text" 
-                   value={struct.name} 
-                   onChange={(e) => setStructures(structures.map(s => s.id === struct.id ? {...s, name: e.target.value} : s))}
-                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                 />
-              </div>
-              <div className="md:col-span-3">
-                 <label className="block text-xs font-bold text-gray-500 mb-1">Type</label>
-                 <select 
-                   value={struct.type} 
-                   onChange={(e) => setStructures(structures.map(s => s.id === struct.id ? {...s, type: e.target.value} : s))}
-                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                 >
-                   {Object.keys(entityTypes).map(k => (
-                     <option key={k} value={k}>{entityTypes[k].label}</option>
-                   ))}
-                 </select>
-              </div>
-              <div className="md:col-span-3">
-                <label className="block text-xs font-bold text-gray-500 mb-1">Investable Amount</label>
-                <NumberInput 
-                   value={struct.value}
-                   onChange={(val) => setStructures(structures.map(s => s.id === struct.id ? {...s, value: val} : s))}
-                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-semibold"
-                />
-              </div>
-                <div className="md:col-span-2">
-                   <div className="text-xs text-gray-500">
-                     Tax: {entityTypes[struct.type] ? formatPercent(entityTypes[struct.type].incomeTax) : '0%'} Inc / {entityTypes[struct.type] ? formatPercent(entityTypes[struct.type].ltCgt) : '0%'} CGT
-                   </div>
-                   {struct.type === 'SUPER_ACCUM' && (
-                       <div className="mt-2 bg-blue-50 p-2 rounded border border-blue-100">
-                           <label className="flex justify-between text-xs font-semibold text-blue-800 mb-1">
-                               <span>Pension Phase %</span>
-                               <span>{struct.pensionPercentage || 0}%</span>
-                           </label>
-                           <input 
-                              type="range" min="0" max="100" step="5"
-                              value={struct.pensionPercentage || 0}
-                              onChange={(e) => setStructures(structures.map(s => s.id === struct.id ? {...s, pensionPercentage: parseInt(e.target.value)} : s))}
-                              className="w-full h-1.5 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                           />
-                           <div className="flex justify-between text-[10px] text-blue-600 mt-1">
-                               <span>Accumulation: {formatCurrency(struct.value * (1 - (struct.pensionPercentage||0)/100))}</span>
-                               <span>Pension: {formatCurrency(struct.value * ((struct.pensionPercentage||0)/100))}</span>
-                           </div>
+            <div key={struct.id} className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
+              {/* Entity Header Row */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                  <div className="md:col-span-3">
+                     <label className="block text-xs font-bold text-gray-500 mb-1">Entity Name</label>
+                     <input 
+                       type="text" 
+                       value={struct.name} 
+                       onChange={(e) => setStructures(structures.map(s => s.id === struct.id ? {...s, name: e.target.value} : s))}
+                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                     />
+                  </div>
+                  <div className="md:col-span-3">
+                     <label className="block text-xs font-bold text-gray-500 mb-1">Type</label>
+                     <select 
+                       value={struct.type} 
+                       onChange={(e) => setStructures(structures.map(s => s.id === struct.id ? {...s, type: e.target.value} : s))}
+                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                     >
+                       {Object.keys(entityTypes).map(k => (
+                         <option key={k} value={k}>{entityTypes[k].label}</option>
+                       ))}
+                     </select>
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Investable Amount</label>
+                    <NumberInput 
+                       value={struct.value}
+                       onChange={(val) => setStructures(structures.map(s => s.id === struct.id ? {...s, value: val} : s))}
+                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-semibold"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                       <label className="block text-xs font-bold text-gray-500 mb-1">Tax Treatment</label>
+                       <div className="flex items-center space-x-2">
+                           {struct.useCustomTax ? (
+                               <div className="flex gap-1">
+                                   <div className="relative w-16">
+                                       <input 
+                                         type="number" className="w-full text-xs border rounded p-1 pr-3" placeholder="Inc"
+                                         value={(struct.customTax?.incomeTax * 100) || 0}
+                                         onChange={(e) => {
+                                             const val = parseFloat(e.target.value)/100;
+                                             setStructures(structures.map(s => s.id === struct.id ? {...s, customTax: { ...s.customTax, incomeTax: val }} : s));
+                                         }}
+                                       />
+                                       <span className="absolute right-1 top-1 text-[10px] text-gray-400">%</span>
+                                   </div>
+                               </div>
+                           ) : (
+                               <div className="text-xs text-gray-500 py-2">
+                                 {entityTypes[struct.type] ? formatPercent(entityTypes[struct.type].incomeTax) : '0%'} Tax
+                               </div>
+                           )}
+                           <button 
+                               onClick={() => setStructures(structures.map(s => s.id === struct.id ? {...s, useCustomTax: !s.useCustomTax} : s))}
+                               className={`p-1 rounded ${struct.useCustomTax ? 'bg-fire-accent text-white' : 'bg-gray-200 text-gray-600'}`}
+                               title="Toggle Custom Tax"
+                           >
+                               <Settings className="w-3 h-3" />
+                           </button>
                        </div>
-                   )}
-                </div>
-              <div className="md:col-span-1 flex justify-end">
-                <button 
-                  onClick={() => {
-                    if (structures.length > 1) {
-                      setLastDeleted({ item: struct, index: structures.findIndex(s => s.id === struct.id) });
-                      setStructures(structures.filter(s => s.id !== struct.id));
-                      setTimeout(() => setLastDeleted(null), 5000); // Clear after 5 seconds
-                    } else {
-                      alert("You must have at least one entity.");
-                    }
-                  }}
-                  className="text-gray-400 hover:text-red-500 p-2"
-                  title="Delete Entity"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                  </div>
+                  <div className="md:col-span-1 flex justify-end">
+                    <button 
+                      onClick={() => {
+                        if (structures.length > 1) {
+                          setLastDeleted({ item: struct, index: structures.findIndex(s => s.id === struct.id) });
+                          setStructures(structures.filter(s => s.id !== struct.id));
+                          setTimeout(() => setLastDeleted(null), 5000); 
+                        } else {
+                          alert("You must have at least one entity.");
+                        }
+                      }}
+                      className="text-gray-400 hover:text-red-500 p-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+              </div>
+
+              {/* Current Asset Allocation Toggle */}
+              <div className="border-t border-gray-200 pt-3">
+                  <div className="flex items-center mb-2">
+                      <label className="flex items-center cursor-pointer">
+                          <div className="relative">
+                              <input type="checkbox" className="sr-only" 
+                                checked={struct.useAssetAllocation}
+                                onChange={() => setStructures(structures.map(s => s.id === struct.id ? {...s, useAssetAllocation: !s.useAssetAllocation} : s))}
+                              />
+                              <div className={`block w-10 h-6 rounded-full ${struct.useAssetAllocation ? 'bg-fire-accent' : 'bg-gray-300'}`}></div>
+                              <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition ${struct.useAssetAllocation ? 'transform translate-x-4' : ''}`}></div>
+                          </div>
+                          <div className="ml-3 text-sm font-medium text-gray-700">Current Asset Allocation</div>
+                      </label>
+                  </div>
+
+                  {struct.useAssetAllocation && (
+                      <div className="mt-2 bg-white rounded border border-gray-200 overflow-hidden">
+                          <table className="min-w-full text-xs">
+                              <thead className="bg-gray-50">
+                                  <tr>
+                                      <th className="px-3 py-2 text-left">Asset Class</th>
+                                      <th className="px-3 py-2 text-center">Allocation (%)</th>
+                                      <th className="px-3 py-2 text-center">Constraints (Min %)</th>
+                                      <th className="px-3 py-2 text-center">Constraints (Max %)</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100">
+                                  {(struct.assetAllocation || DEFAULT_ASSETS.map(a => ({ id: a.id, weight: 0, min: 0, max: 100 }))).map(alloc => {
+                                      const assetDef = assets.find(a => a.id === alloc.id);
+                                      if(!assetDef) return null;
+                                      return (
+                                          <tr key={alloc.id}>
+                                              <td className="px-3 py-1 font-medium text-gray-700">{assetDef.name}</td>
+                                              <td className="px-3 py-1 text-center">
+                                                  <input type="number" className="w-16 border rounded text-center" 
+                                                      value={alloc.weight}
+                                                      onChange={(e) => {
+                                                          const val = parseFloat(e.target.value) || 0;
+                                                          const newAlloc = (struct.assetAllocation || DEFAULT_ASSETS.map(a => ({ id: a.id, weight: 0, min: 0, max: 100 }))).map(x => x.id === alloc.id ? {...x, weight: val} : x);
+                                                          setStructures(structures.map(s => s.id === struct.id ? {...s, assetAllocation: newAlloc} : s));
+                                                      }}
+                                                  />
+                                              </td>
+                                              <td className="px-3 py-1 text-center">
+                                                  <input type="number" className="w-16 border rounded text-center" 
+                                                      value={alloc.min}
+                                                      onChange={(e) => {
+                                                          const val = parseFloat(e.target.value) || 0;
+                                                          const newAlloc = (struct.assetAllocation || DEFAULT_ASSETS.map(a => ({ id: a.id, weight: 0, min: 0, max: 100 }))).map(x => x.id === alloc.id ? {...x, min: val} : x);
+                                                          setStructures(structures.map(s => s.id === struct.id ? {...s, assetAllocation: newAlloc} : s));
+                                                      }}
+                                                  />
+                                              </td>
+                                              <td className="px-3 py-1 text-center">
+                                                  <input type="number" className="w-16 border rounded text-center" 
+                                                      value={alloc.max}
+                                                      onChange={(e) => {
+                                                          const val = parseFloat(e.target.value) || 0;
+                                                          const newAlloc = (struct.assetAllocation || DEFAULT_ASSETS.map(a => ({ id: a.id, weight: 0, min: 0, max: 100 }))).map(x => x.id === alloc.id ? {...x, max: val} : x);
+                                                          setStructures(structures.map(s => s.id === struct.id ? {...s, assetAllocation: newAlloc} : s));
+                                                      }}
+                                                  />
+                                              </td>
+                                          </tr>
+                                      );
+                                  })}
+                              </tbody>
+                          </table>
+                      </div>
+                  )}
               </div>
             </div>
           ))}
+          
           <div className="flex justify-between items-center pt-2">
             <button 
-              onClick={() => setStructures([...structures, { id: Date.now(), type: 'PERSONAL', name: 'New Entity', value: 0 }])}
+              onClick={() => {
+                  const newStruct = { 
+                      id: Date.now(), 
+                      type: 'PERSONAL', 
+                      name: 'New Entity', 
+                      value: 0,
+                      useAssetAllocation: false,
+                      useCustomTax: false,
+                      customTax: { incomeTax: 0.47, ltCgt: 0.235, stCgt: 0.47 },
+                      assetAllocation: DEFAULT_ASSETS.map(a => ({ id: a.id, weight: 0, min: 0, max: 100 }))
+                  };
+                  setStructures([...structures, newStruct]);
+              }}
               className="flex items-center text-sm font-medium text-fire-accent hover:text-blue-800"
             >
               <Plus className="w-4 h-4 mr-2" /> Add Entity
             </button>
             <div className="text-right">
-              <span className="text-sm text-gray-500 block">Total Investable Assets</span>
+              <span className="text-sm text-gray-500 block">Total</span>
               <span className="text-xl font-bold text-gray-900">{formatCurrency(totalWealth)}</span>
             </div>
           </div>
         </div>
       </div>
+    </div>
+  );
 
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <Calendar className="w-5 h-5 mr-2 text-fire-accent" />
-          Cashflow Projection Inputs
-        </h3>
-
-        <div className="bg-red-50 p-4 rounded-lg border border-red-100 mb-6 grid md:grid-cols-2 gap-4">
-           <div>
-             <label className="flex items-center text-xs font-bold text-red-800 mb-1">
-               <Clock className="w-3 h-3 mr-1"/> Projection Period (Years)
-             </label>
-             <input 
-                type="number" 
-                value={projectionYears} 
-                onChange={(e) => setProjectionYears(parseInt(e.target.value) || 1)}
-                className="w-full border border-red-200 rounded px-2 py-1 text-sm text-red-900"
-             />
-             <div className="text-xs text-fire-accent mt-1">E.g. 30 years (Age 60 to 90)</div>
-           </div>
-           <div>
-             <label className="flex items-center text-xs font-bold text-blue-800 mb-1">
-               <Percent className="w-3 h-3 mr-1"/> Inflation Rate (% p.a.)
-             </label>
-             <div className="relative">
-               <input 
-                  type="number" 
-                  step="0.1"
-                  value={Math.round(inflationRate * 1000) / 10} 
-                  onChange={(e) => setInflationRate(parseFloat(e.target.value)/100 || 0)}
-                  className="w-full border border-red-200 rounded px-2 py-1 text-sm text-red-900 pr-6"
-               />
-               <span className="absolute right-2 top-1 text-xs text-blue-400">%</span>
-             </div>
-             <div className="text-xs text-fire-accent mt-1">Applied to recurring Income & Expenses</div>
-           </div>
-           <div className="md:col-span-2">
-             <label className="flex items-center text-xs font-bold text-red-800 mb-1">
-               <DollarSign className="w-3 h-3 mr-1"/> Advice Fee (% p.a.)
-             </label>
-             <div className="relative">
-               <input 
-                  type="number" 
-                  step="0.01"
-                  value={Math.round(adviceFee * 10000) / 100} 
-                  onChange={(e) => setAdviceFee(parseFloat(e.target.value)/100 || 0)}
-                  className="w-full border border-red-200 rounded px-2 py-1 text-sm text-red-900 pr-6"
-               />
-               <span className="absolute right-2 top-1 text-xs text-red-400">%</span>
-             </div>
-             <div className="text-xs text-fire-accent mt-1">
-               Deducted annually from portfolio balance. Adjusted for tax benefits (based on weighted avg entity tax rate).
-             </div>
-           </div>
-        </div>
-        
-        <div className="grid md:grid-cols-2 gap-8">
-          <div>
-            <h4 className="text-sm font-bold text-gray-700 mb-3 border-b pb-2">Income Streams (Today's Dollars)</h4>
-            {incomeStreams.map((item, i) => (
-              <div key={item.id} className="flex gap-2 mb-2 items-center text-sm">
-                <input type="text" value={item.name} className="w-1/3 border rounded px-2 py-1" onChange={(e) => {
-                  const n = [...incomeStreams]; n[i].name = e.target.value; setIncomeStreams(n);
-                }}/>
-                <div className="w-1/4">
-                    <NumberInput 
-                       value={item.amount} 
-                       onChange={(val) => {
-                         const n = [...incomeStreams]; n[i].amount = val; setIncomeStreams(n);
-                       }}
-                       className="w-full border rounded px-2 py-1"
-                       prefix="$"
-                    />
-                </div>
-                <div className="flex items-center text-xs text-gray-500">
-                  Yr <input type="number" value={item.startYear} className="w-10 border rounded mx-1 text-center" onChange={(e) => {
-                     const n = [...incomeStreams]; n[i].startYear = parseInt(e.target.value); setIncomeStreams(n);
-                  }}/>
-                  to <input type="number" value={item.endYear} className="w-10 border rounded mx-1 text-center" onChange={(e) => {
-                     const n = [...incomeStreams]; n[i].endYear = parseInt(e.target.value); setIncomeStreams(n);
-                  }}/>
-                </div>
-              </div>
-            ))}
-            <button className="text-xs text-fire-accent flex items-center mt-2" onClick={() => setIncomeStreams([...incomeStreams, { id: Date.now(), name: 'New Income', amount: 0, startYear: 1, endYear: 10 }])}>
-              <Plus className="w-3 h-3 mr-1"/> Add Income
-            </button>
-          </div>
-
-          <div>
-            <h4 className="text-sm font-bold text-gray-700 mb-3 border-b pb-2">Expense Streams (Today's Dollars)</h4>
-            {expenseStreams.map((item, i) => (
-              <div key={item.id} className="flex gap-2 mb-2 items-center text-sm">
-                <input type="text" value={item.name} className="w-1/3 border rounded px-2 py-1" onChange={(e) => {
-                  const n = [...expenseStreams]; n[i].name = e.target.value; setExpenseStreams(n);
-                }}/>
-                <div className="w-1/4">
-                    <NumberInput 
-                       value={item.amount} 
-                       onChange={(val) => {
-                         const n = [...expenseStreams]; n[i].amount = val; setExpenseStreams(n);
-                       }}
-                       className="w-full border rounded px-2 py-1 text-red-600"
-                       prefix="$"
-                    />
-                </div>
-                <div className="flex items-center text-xs text-gray-500">
-                  Yr <input type="number" value={item.startYear} className="w-10 border rounded mx-1 text-center" onChange={(e) => {
-                     const n = [...expenseStreams]; n[i].startYear = parseInt(e.target.value); setExpenseStreams(n);
-                  }}/>
-                  to <input type="number" value={item.endYear} className="w-10 border rounded mx-1 text-center" onChange={(e) => {
-                     const n = [...expenseStreams]; n[i].endYear = parseInt(e.target.value); setExpenseStreams(n);
-                  }}/>
-                </div>
-              </div>
-            ))}
-            <button className="text-xs text-fire-accent flex items-center mt-2" onClick={() => setExpenseStreams([...expenseStreams, { id: Date.now(), name: 'New Expense', amount: 0, startYear: 1, endYear: 30 }])}>
-              <Plus className="w-3 h-3 mr-1"/> Add Expense
-            </button>
-          </div>
-        </div>
-        
-        <div className="mt-6 pt-4 border-t border-gray-100">
-           <h4 className="text-sm font-bold text-gray-700 mb-3">One-Off Events (Costs are negative)</h4>
-            {oneOffEvents.map((item, i) => (
-              <div key={item.id} className="flex gap-4 mb-2 items-center text-sm max-w-2xl">
-                 <input type="text" value={item.name} className="flex-grow border rounded px-2 py-1" onChange={(e) => {
-                   const n = [...oneOffEvents]; n[i].name = e.target.value; setOneOffEvents(n);
-                 }}/>
-                 <div className="w-32">
-                    <NumberInput 
-                       value={item.amount}
-                       onChange={(val) => {
-                          const n = [...oneOffEvents]; n[i].amount = val; setOneOffEvents(n);
-                       }}
-                       className={`w-full border rounded px-2 py-1 ${item.amount < 0 ? 'text-red-600' : 'text-green-600'}`}
-                       prefix="$"
-                    />
+  const ProjectionsTab = () => (
+    <div className="space-y-6 animate-in fade-in">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+             <Calculator className="w-5 h-5 mr-2 text-fire-accent" />
+             Projection Parameters
+           </h3>
+           <div className="flex flex-wrap gap-8 items-end">
+               <div>
+                 <label className="block text-xs font-bold text-gray-500 mb-1">Timeframe (Years)</label>
+                 <input 
+                    type="number" 
+                    value={projectionYears} 
+                    onChange={(e) => setProjectionYears(parseInt(e.target.value) || 1)}
+                    className="w-32 border border-gray-300 rounded px-2 py-1 text-sm text-gray-900"
+                 />
+               </div>
+               <div>
+                 <label className="block text-xs font-bold text-gray-500 mb-1">Inflation</label>
+                 <div className="relative w-32">
+                   <input 
+                      type="number" step="0.1"
+                      value={Math.round(inflationRate * 1000) / 10} 
+                      onChange={(e) => setInflationRate(parseFloat(e.target.value)/100 || 0)}
+                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm text-gray-900 pr-6"
+                   />
+                   <span className="absolute right-2 top-1 text-xs text-gray-400">%</span>
                  </div>
-                 <div className="flex items-center text-xs text-gray-500">
-                    Year: <input type="number" value={item.year} className="w-16 border rounded ml-2 px-1" onChange={(e) => {
-                      const n = [...oneOffEvents]; n[i].year = parseInt(e.target.value); setOneOffEvents(n);
-                    }}/>
+               </div>
+               <div>
+                 <label className="block text-xs font-bold text-gray-500 mb-1">Fees</label>
+                 <div className="relative w-32">
+                   <input 
+                      type="number" step="0.01"
+                      value={Math.round(adviceFee * 10000) / 100} 
+                      onChange={(e) => setAdviceFee(parseFloat(e.target.value)/100 || 0)}
+                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm text-gray-900 pr-6"
+                   />
+                   <span className="absolute right-2 top-1 text-xs text-gray-400">%</span>
                  </div>
-                 <button onClick={() => setOneOffEvents(oneOffEvents.filter(e => e.id !== item.id))} className="text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4"/></button>
-              </div>
-            ))}
-           <button className="text-xs text-fire-accent flex items-center mt-2" onClick={() => setOneOffEvents([...oneOffEvents, { id: Date.now(), name: 'New Event', amount: -100000, year: 5 }])}>
-              <Plus className="w-3 h-3 mr-1"/> Add Event
-            </button>
+               </div>
+           </div>
         </div>
-      </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
+              Cashflow Projections
+            </h3>
+            
+            <div className="grid md:grid-cols-2 gap-8">
+               {/* Inflows */}
+               <div>
+                 <h4 className="text-sm font-bold text-gray-700 mb-3 border-b pb-2 text-green-700">Inflows</h4>
+                 {incomeStreams.map((item, i) => (
+                   <div key={item.id} className="flex flex-col gap-2 mb-3 bg-gray-50 p-2 rounded border border-gray-100">
+                     <div className="flex gap-2 items-center text-sm w-full">
+                         <input type="text" value={item.name} className="flex-1 border rounded px-2 py-1" placeholder="Name" onChange={(e) => {
+                           const n = [...incomeStreams]; n[i].name = e.target.value; setIncomeStreams(n);
+                         }}/>
+                         <div className="w-24">
+                             <NumberInput value={item.amount} onChange={(val) => { const n = [...incomeStreams]; n[i].amount = val; setIncomeStreams(n); }} className="w-full border rounded px-2 py-1" prefix="$" />
+                         </div>
+                     </div>
+                     <div className="flex items-center gap-4 text-xs">
+                         <label className="flex items-center text-gray-600">
+                             <input type="checkbox" className="mr-1" 
+                               checked={item.isOneOff} 
+                               onChange={() => { const n = [...incomeStreams]; n[i].isOneOff = !n[i].isOneOff; setIncomeStreams(n); }}
+                             />
+                             One-off
+                         </label>
+                         
+                         {item.isOneOff ? (
+                             <div className="flex items-center">
+                                 Year: <input type="number" className="w-12 border rounded ml-1 text-center" value={item.year || 1} onChange={(e) => {
+                                     const n = [...incomeStreams]; n[i].year = parseInt(e.target.value); setIncomeStreams(n);
+                                 }}/>
+                             </div>
+                         ) : (
+                             <div className="flex items-center">
+                                 Yrs <input type="number" className="w-10 border rounded mx-1 text-center" value={item.startYear} onChange={(e) => {
+                                     const n = [...incomeStreams]; n[i].startYear = parseInt(e.target.value); setIncomeStreams(n);
+                                 }}/>
+                                 to <input type="number" className="w-10 border rounded mx-1 text-center" value={item.endYear} onChange={(e) => {
+                                     const n = [...incomeStreams]; n[i].endYear = parseInt(e.target.value); setIncomeStreams(n);
+                                 }}/>
+                             </div>
+                         )}
+                         <button onClick={() => setIncomeStreams(incomeStreams.filter(s => s.id !== item.id))} className="text-gray-400 hover:text-red-500 ml-auto"><Trash2 className="w-3 h-3"/></button>
+                     </div>
+                   </div>
+                 ))}
+                 <button className="text-xs text-fire-accent flex items-center mt-2 font-medium" onClick={() => setIncomeStreams([...incomeStreams, { id: Date.now(), name: 'New Inflow', amount: 0, startYear: 1, endYear: 10, isOneOff: false, year: 1 }])}>
+                   <Plus className="w-3 h-3 mr-1"/> Add Inflow
+                 </button>
+               </div>
+
+               {/* Outflows */}
+               <div>
+                 <h4 className="text-sm font-bold text-gray-700 mb-3 border-b pb-2 text-red-700">Outflows</h4>
+                 {expenseStreams.map((item, i) => (
+                   <div key={item.id} className="flex flex-col gap-2 mb-3 bg-gray-50 p-2 rounded border border-gray-100">
+                     <div className="flex gap-2 items-center text-sm w-full">
+                         <input type="text" value={item.name} className="flex-1 border rounded px-2 py-1" placeholder="Name" onChange={(e) => {
+                           const n = [...expenseStreams]; n[i].name = e.target.value; setExpenseStreams(n);
+                         }}/>
+                         <div className="w-24">
+                             <NumberInput value={item.amount} onChange={(val) => { const n = [...expenseStreams]; n[i].amount = val; setExpenseStreams(n); }} className="w-full border rounded px-2 py-1 text-red-600" prefix="$" />
+                         </div>
+                     </div>
+                     <div className="flex items-center gap-4 text-xs">
+                         <label className="flex items-center text-gray-600">
+                             <input type="checkbox" className="mr-1" 
+                               checked={item.isOneOff} 
+                               onChange={() => { const n = [...expenseStreams]; n[i].isOneOff = !n[i].isOneOff; setExpenseStreams(n); }}
+                             />
+                             One-off
+                         </label>
+                         
+                         {item.isOneOff ? (
+                             <div className="flex items-center">
+                                 Year: <input type="number" className="w-12 border rounded ml-1 text-center" value={item.year || 1} onChange={(e) => {
+                                     const n = [...expenseStreams]; n[i].year = parseInt(e.target.value); setExpenseStreams(n);
+                                 }}/>
+                             </div>
+                         ) : (
+                             <div className="flex items-center">
+                                 Yrs <input type="number" className="w-10 border rounded mx-1 text-center" value={item.startYear} onChange={(e) => {
+                                     const n = [...expenseStreams]; n[i].startYear = parseInt(e.target.value); setExpenseStreams(n);
+                                 }}/>
+                                 to <input type="number" className="w-10 border rounded mx-1 text-center" value={item.endYear} onChange={(e) => {
+                                     const n = [...expenseStreams]; n[i].endYear = parseInt(e.target.value); setExpenseStreams(n);
+                                 }}/>
+                             </div>
+                         )}
+                         <button onClick={() => setExpenseStreams(expenseStreams.filter(s => s.id !== item.id))} className="text-gray-400 hover:text-red-500 ml-auto"><Trash2 className="w-3 h-3"/></button>
+                     </div>
+                   </div>
+                 ))}
+                 <button className="text-xs text-fire-accent flex items-center mt-2 font-medium" onClick={() => setExpenseStreams([...expenseStreams, { id: Date.now(), name: 'New Outflow', amount: 0, startYear: 1, endYear: 30, isOneOff: false, year: 1 }])}>
+                   <Plus className="w-3 h-3 mr-1"/> Add Outflow
+                 </button>
+               </div>
+            </div>
+        </div>
     </div>
   );
 
@@ -2598,6 +2739,7 @@ export default function RiskReturnOptimiser() {
           
           {activeTab === 'data' && <div id="data-tab-content">{DataTab()}</div>}
           {activeTab === 'client' && <div id="client-tab-content">{ClientTab()}</div>}
+          {activeTab === 'projections' && <div id="projections-tab-content">{ProjectionsTab()}</div>}
           {activeTab === 'optimization' && <div id="optimization-tab-content">
              {/* Pass isExporting to Optimization charts if we extracted them to components, 
                  but here they are inline. We need to update the inline charts. 
