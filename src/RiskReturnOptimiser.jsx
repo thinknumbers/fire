@@ -282,29 +282,21 @@ export default function RiskReturnOptimiser() {
   const [clientName, setClientName] = useState('');
   const [clientDate, setClientDate] = useState(new Date().toISOString().split('T')[0]);
   const [assets, setAssets] = useState(DEFAULT_ASSETS);
-  const [structures, setStructures] = useState([
-    { 
-      id: 1, 
-      type: 'PERSONAL', 
-      name: 'Personal Name', 
-      value: 1000000,
+  const [structures, setStructures] = useState(
+    DEFAULT_STRUCTURES.map(s => ({
+      ...s,
       useAssetAllocation: false,
       useCustomTax: false,
       customTax: { incomeTax: 0.47, ltCgt: 0.235, stCgt: 0.47 },
       assetAllocation: DEFAULT_ASSETS.map(a => ({ id: a.id, weight: 0, min: 0, max: 100 }))
-    }
-  ]);
+    }))
+  );
   const [entityTypes, setEntityTypes] = useState(DEFAULT_ENTITY_TYPES);
   const [correlations, setCorrelations] = useState(() => generateFullCorrelationMatrix(DEFAULT_ASSETS));
   
   // Cashflow Inputs
-  const [incomeStreams, setIncomeStreams] = useState([
-    { id: 1, name: 'Salary', amount: 350000, startYear: 1, endYear: 5, isOneOff: false, year: 1 }
-  ]);
-  const [expenseStreams, setExpenseStreams] = useState([
-    { id: 1, name: 'Living Expenses', amount: 200000, startYear: 1, endYear: 30, isOneOff: false, year: 1 },
-    { id: 2, name: 'Gift to Children', amount: 1500000, startYear: 1, endYear: 1, isOneOff: true, year: 5 }
-  ]);
+  const [incomeStreams, setIncomeStreams] = useState(DEFAULT_INCOME_STREAMS);
+  const [expenseStreams, setExpenseStreams] = useState(DEFAULT_EXPENSE_STREAMS);
   const [projectionYears, setProjectionYears] = useState(30);
   const [inflationRate, setInflationRate] = useState(0.025);
   const [adviceFee, setAdviceFee] = useState(0.011); // 1.1% Default incl GST maybe? Let's say 1.1% or just 0.0. User implies they want to add it. Let's default 0.0 to be safe or 0.01. Let's do 0.8% + GST = ~0.88%. Let's default to 0.0 for now so it doesn't surprise, or 0.01. Let's stick to 0.008 (0.8%).
