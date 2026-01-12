@@ -16,6 +16,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import 'svg2pdf.js';
 import fireLogo from '../FIRE_Logo_White.webp';
+import { APP_TITLE, ABN, AFSL } from './constants';
 
 // --- Constants & Defaults ---
 
@@ -305,7 +306,7 @@ export default function RiskReturnOptimiser() {
   // Supabase State
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
-  const [scenarioName, setScenarioName] = useState('My Strategy');
+  const [scenarioName, setScenarioName] = useState('');
   const [savedScenarios, setSavedScenarios] = useState([]);
   const [showLoadMenu, setShowLoadMenu] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -336,7 +337,7 @@ export default function RiskReturnOptimiser() {
 
   // --- Handlers ---
 
-  const handleSaveScenario = async () => {
+  const handleSaveScenario = async (saveAsNew = false) => {
     if (!scenarioName.trim()) {
       alert('Please enter a scenario name');
       return;
@@ -351,8 +352,16 @@ export default function RiskReturnOptimiser() {
         .single();
 
       let shouldSave = true;
+      let isUpdate = false;
+
       if (existingData) {
+        if (saveAsNew) {
+             alert(`Scenario "${scenarioName}" already exists. Please choose a different name for "Save As".`);
+             setIsSaving(false);
+             return;
+        }
         shouldSave = window.confirm(`Scenario "${scenarioName}" already exists. Do you want to overwrite it?`);
+        isUpdate = true;
       }
 
       if (!shouldSave) {
@@ -374,7 +383,7 @@ export default function RiskReturnOptimiser() {
       };
 
       let error;
-      if (existingData) {
+      if (isUpdate && !saveAsNew) {
         // Update existing
         const { error: updateError } = await supabase
           .from('scenarios')
@@ -1472,33 +1481,40 @@ export default function RiskReturnOptimiser() {
         </p>
 
         <div className="space-y-4">
-          {structures.map((struct, idx) => (
-            <div key={struct.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-gray-50 p-4 rounded-lg border border-gray-200 relative group">
+          {structures.map(struct => (
+            <div key={struct.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
               <div className="md:col-span-3">
-                <label className="block text-xs font-medium text-gray-500 mb-1">Entity Name</label>
-                <input type="text" value={struct.name}
-                  onChange={(e) => setStructures(structures.map(s => s.id === struct.id ? {...s, name: e.target.value} : s))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                />
+                 <label className="block text-xs font-bold text-gray-500 mb-1">Entity Name</label>
+                 <input 
+                   type="text" 
+                   value={struct.name} 
+                   onChange={(e) => setStructures(structures.map(s => s.id === struct.id ? {...s, name: e.target.value} : s))}
+                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                 />
               </div>
               <div className="md:col-span-3">
-                <label className="block text-xs font-medium text-gray-500 mb-1">Entity Type</label>
-                <select 
-                  value={struct.type}
-                  onChange={(e) => setStructures(structures.map(s => s.id === struct.id ? {...s, type: e.target.value} : s))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
-                >
-                  {Object.keys(entityTypes).map(k => (
-                    <option key={k} value={k}>{entityTypes[k].label}</option>
-                  ))}
-                </select>
+                 <label className="block text-xs font-bold text-gray-500 mb-1">Type</label>
+                 <select 
+                   value={struct.type} 
+                   onChange={(e) => setStructures(structures.map(s => s.id === struct.id ? {...s, type: e.target.value} : s))}
+                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                 >
+                   {Object.keys(entityTypes).map(k => (
+                     <option key={k} value={k}>{entityTypes[k].label}</option>
+                   ))}
+                 </select>
               </div>
               <div className="md:col-span-3">
-                <label className="block text-xs font-medium text-gray-500 mb-1">Value ($)</label>
-                <input type="number" value={struct.value}
-                  onChange={(e) => setStructures(structures.map(s => s.id === struct.id ? {...s, value: parseInt(e.target.value) || 0} : s))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-semibold"
-                />
+                <label className="block text-xs font-bold text-gray-500 mb-1">Investable Amount</label>
+                <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500 text-sm">$</span>
+                    <input 
+                      type="number" 
+                      value={struct.value} 
+                      onChange={(e) => setStructures(structures.map(s => s.id === struct.id ? {...s, value: parseInt(e.target.value) || 0} : s))}
+                      className="w-full pl-6 pr-3 py-2 border border-gray-300 rounded-md text-sm font-semibold"
+                    />
+                </div>
               </div>
                 <div className="md:col-span-2">
                    <div className="text-xs text-gray-500">
@@ -1618,9 +1634,12 @@ export default function RiskReturnOptimiser() {
                 <input type="text" value={item.name} className="w-1/3 border rounded px-2 py-1" onChange={(e) => {
                   const n = [...incomeStreams]; n[i].name = e.target.value; setIncomeStreams(n);
                 }}/>
-                <input type="number" value={item.amount} className="w-1/4 border rounded px-2 py-1" onChange={(e) => {
-                  const n = [...incomeStreams]; n[i].amount = parseInt(e.target.value); setIncomeStreams(n);
-                }}/>
+                <div className="relative w-1/4">
+                    <span className="absolute left-2 top-1 text-gray-500">$</span>
+                    <input type="number" value={item.amount} className="w-full border rounded pl-5 pr-2 py-1" onChange={(e) => {
+                      const n = [...incomeStreams]; n[i].amount = parseInt(e.target.value); setIncomeStreams(n);
+                    }}/>
+                </div>
                 <div className="flex items-center text-xs text-gray-500">
                   Yr <input type="number" value={item.startYear} className="w-10 border rounded mx-1 text-center" onChange={(e) => {
                      const n = [...incomeStreams]; n[i].startYear = parseInt(e.target.value); setIncomeStreams(n);
@@ -1643,9 +1662,12 @@ export default function RiskReturnOptimiser() {
                 <input type="text" value={item.name} className="w-1/3 border rounded px-2 py-1" onChange={(e) => {
                   const n = [...expenseStreams]; n[i].name = e.target.value; setExpenseStreams(n);
                 }}/>
-                <input type="number" value={item.amount} className="w-1/4 border rounded px-2 py-1 text-red-600" onChange={(e) => {
-                  const n = [...expenseStreams]; n[i].amount = parseInt(e.target.value); setExpenseStreams(n);
-                }}/>
+                <div className="relative w-1/4">
+                    <span className="absolute left-2 top-1 text-gray-500">$</span>
+                    <input type="number" value={item.amount} className="w-full border rounded pl-5 pr-2 py-1 text-red-600" onChange={(e) => {
+                      const n = [...expenseStreams]; n[i].amount = parseInt(e.target.value); setExpenseStreams(n);
+                    }}/>
+                </div>
                 <div className="flex items-center text-xs text-gray-500">
                   Yr <input type="number" value={item.startYear} className="w-10 border rounded mx-1 text-center" onChange={(e) => {
                      const n = [...expenseStreams]; n[i].startYear = parseInt(e.target.value); setExpenseStreams(n);
@@ -1664,14 +1686,17 @@ export default function RiskReturnOptimiser() {
         
         <div className="mt-6 pt-4 border-t border-gray-100">
            <h4 className="text-sm font-bold text-gray-700 mb-3">One-Off Events (Costs are negative)</h4>
-           {oneOffEvents.map((item, i) => (
-             <div key={item.id} className="flex gap-4 mb-2 items-center text-sm max-w-2xl">
-                <input type="text" value={item.name} className="flex-grow border rounded px-2 py-1" onChange={(e) => {
-                  const n = [...oneOffEvents]; n[i].name = e.target.value; setOneOffEvents(n);
-                }}/>
-                <input type="number" value={item.amount} className={`w-32 border rounded px-2 py-1 ${item.amount < 0 ? 'text-red-600' : 'text-green-600'}`} onChange={(e) => {
-                  const n = [...oneOffEvents]; n[i].amount = parseInt(e.target.value); setOneOffEvents(n);
-                }}/>
+            {oneOffEvents.map((item, i) => (
+              <div key={item.id} className="flex gap-4 mb-2 items-center text-sm max-w-2xl">
+                 <input type="text" value={item.name} className="flex-grow border rounded px-2 py-1" onChange={(e) => {
+                   const n = [...oneOffEvents]; n[i].name = e.target.value; setOneOffEvents(n);
+                 }}/>
+                 <div className="relative w-32">
+                    <span className="absolute left-2 top-1 text-gray-500">$</span>
+                    <input type="number" value={item.amount} className={`w-full border rounded pl-5 pr-2 py-1 ${item.amount < 0 ? 'text-red-600' : 'text-green-600'}`} onChange={(e) => {
+                       const n = [...oneOffEvents]; n[i].amount = parseInt(e.target.value); setOneOffEvents(n);
+                    }}/>
+                 </div>
                 <div className="flex items-center text-xs text-gray-500">
                    Year: <input type="number" value={item.year} className="w-16 border rounded ml-2 px-1" onChange={(e) => {
                      const n = [...oneOffEvents]; n[i].year = parseInt(e.target.value); setOneOffEvents(n);
@@ -2167,8 +2192,8 @@ export default function RiskReturnOptimiser() {
              <div className="flex items-center gap-4">
                <img src={fireLogo} alt="FIRE Wealth" className="h-12 w-auto object-contain" />
                <div className="hidden md:block border-l border-red-400 pl-4 ml-2">
-                  <h1 className="text-xl font-bold tracking-tight">Risk/Return Optimiser</h1>
-                  <p className="text-red-100 text-xs">Strategic Wealth Analysis</p>
+                  <h1 className="text-xl font-bold tracking-tight">{APP_TITLE}</h1>
+                  {/* Banner Subtitle Removed */}
                </div>
              </div>
              <div className="text-right">
@@ -2230,12 +2255,19 @@ export default function RiskReturnOptimiser() {
             </div>
 
             <button 
-              onClick={handleSaveScenario}
+              onClick={() => handleSaveScenario(false)}
               disabled={isSaving}
               className="flex items-center px-3 py-2 bg-fire-accent text-white border border-red-700 rounded hover:bg-red-700 text-sm font-medium disabled:opacity-50"
             >
                {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin"/> : <Cloud className="w-4 h-4 mr-2"/>}
                {isSaving ? 'Saving...' : 'Save'}
+            </button>
+            <button 
+              onClick={() => handleSaveScenario(true)}
+              disabled={isSaving}
+              className="flex items-center px-3 py-2 bg-gray-600 text-white border border-gray-700 rounded hover:bg-gray-700 text-sm font-medium disabled:opacity-50"
+            >
+               <Save className="w-4 h-4 mr-2"/> Save As
             </button>
             <button 
               onClick={handleExportPDF}
@@ -2264,6 +2296,10 @@ export default function RiskReturnOptimiser() {
           </div>}
         </main>
       </div>
+      <footer className="mt-12 text-center text-gray-400 text-xs">
+         <p>&copy; {new Date().getFullYear()} Think Numbers Pty Ltd. All rights reserved.</p>
+         <p className="mt-1">ABN {ABN} | AFSL {AFSL}</p>
+      </footer>
     </div>
   );
 }
