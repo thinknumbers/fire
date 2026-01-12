@@ -2536,13 +2536,13 @@ export default function RiskReturnOptimiser() {
     })).filter(a => a.weight > 0.005); 
 
     return (
-      <div className="space-y-6 animate-in fade-in">
-        {/* Split View Layout: Data on Left, Charts on Right */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-6 animate-in fade-in h-4/5">
+        {/* Split View Layout: Data on Left, Charts on Right - items-stretch for equal height */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
           {/* LEFT COLUMN: Data & Selection */}
-          <div className="space-y-6">
+          <div className="space-y-6 flex flex-col h-full">
             {/* Portfolio Selection */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 shrink-0">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Portfolio</h3>
               
               <select
@@ -2569,10 +2569,10 @@ export default function RiskReturnOptimiser() {
               </div>
             </div>
 
-            {/* Asset Allocation Table */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            {/* Asset Allocation Table - Flex-1 to fill remaining height */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex-1 flex flex-col">
               <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation</h4>
-              <div className="overflow-y-auto max-h-[400px]">
+              <div className="overflow-y-auto flex-1">
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 sticky top-0">
@@ -2601,34 +2601,11 @@ export default function RiskReturnOptimiser() {
           </div>
 
           {/* RIGHT COLUMN: Charts */}
-          <div className="space-y-6">
+          <div className="flex flex-col h-full">
             {/* Pie Charts Row: Overall + Per Entity */}
             <div id="pie-chart-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
               <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 overflow-y-auto">
-                {/* Overall Pie Chart */}
-                <div>
-                  <h5 className="text-sm font-semibold text-gray-700 mb-2 text-center">Overall</h5>
-                  <div className="h-[250px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie 
-                          data={activeAssets.map((a, i) => ({ ...a, value: selectedPortfolio.weights[assets.filter(x=>x.active).findIndex(x=>x.id===a.id)] * 100 }))} 
-                          cx="50%" cy="50%" 
-                          outerRadius={80} 
-                          paddingAngle={2} 
-                          dataKey="value"
-                          isAnimationActive={!isExporting}
-                          label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : null}
-                          labelLine={false}
-                        >
-                          {activeAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                        </Pie>
-                        {!isExporting && <Tooltip formatter={(val) => `${val.toFixed(1)}%`} />}
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
                 
                 {/* Per-Entity Pie Charts */}
                 {structures.map(struct => {
@@ -2662,10 +2639,34 @@ export default function RiskReturnOptimiser() {
                     </div>
                   );
                 })}
+
+                {/* Overall Pie Chart - Moved to Bottom and Centered */}
+                <div className="col-span-1 sm:col-span-2 flex flex-col items-center border-t border-gray-100 pt-4 mt-4">
+                  <h5 className="text-sm font-semibold text-gray-700 mb-2 text-center">Total Portfolio</h5>
+                  <div className="h-[250px] w-full max-w-[350px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie 
+                          data={activeAssets.map((a, i) => ({ ...a, value: selectedPortfolio.weights[assets.filter(x=>x.active).findIndex(x=>x.id===a.id)] * 100 }))} 
+                          cx="50%" cy="50%" 
+                          outerRadius={80} 
+                          paddingAngle={2} 
+                          dataKey="value"
+                          isAnimationActive={!isExporting}
+                          label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : null}
+                          labelLine={false}
+                        >
+                          {activeAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                        </Pie>
+                        {!isExporting && <Tooltip formatter={(val) => `${val.toFixed(1)}%`} />}
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               </div>
 
-              {/* Shared Legend Below Pie Charts */}
-              <div className="mt-6 flex flex-wrap justify-center gap-4 border-t border-gray-100 pt-4">
+              {/* Shared Legend Below Pie Charts - Left Aligned */}
+              <div className="mt-6 flex flex-wrap justify-start gap-4 border-t border-gray-100 pt-4">
                  {activeAssets.map(asset => (
                    <div key={asset.id} className="flex items-center">
                       <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: asset.color }} />
