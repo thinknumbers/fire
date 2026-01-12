@@ -2257,99 +2257,60 @@ export default function RiskReturnOptimiser() {
 
     return (
       <div className="space-y-6 animate-in fade-in">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 sticky top-0 z-10">
-           <div className="flex justify-between items-end mb-4">
-             <h3 className="text-lg font-semibold text-gray-900">Select Model Portfolio</h3>
-             <span className="text-sm font-medium px-3 py-1 bg-red-100 text-red-800 rounded-full">{selectedPortfolio.label}</span>
-           </div>
-           
-           <input 
-              type="range" min="1" max="10" 
-              value={selectedPortfolioId} 
-              onChange={(e) => setSelectedPortfolioId(parseInt(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-fire-accent"
-            />
-            <div className="flex justify-between mt-2 text-xs text-gray-500">
-              <span>Conservative</span>
-              <span>Balanced</span>
-              <span>Aggressive</span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4 mt-6">
-               <div className="text-center p-3 bg-gray-50 rounded border border-gray-200">
-                 <div className="text-xs text-gray-500 uppercase">Return (After-Tax)</div>
-                 <div className="text-xl font-bold text-green-600">{formatPercent(selectedPortfolio.return)}</div>
-               </div>
-               <div className="text-center p-3 bg-gray-50 rounded border border-gray-200">
-                 <div className="text-xs text-gray-500 uppercase">Risk (StdDev)</div>
-                 <div className="text-xl font-bold text-red-600">{formatPercent(selectedPortfolio.risk)}</div>
-               </div>
-               <div className="text-center p-3 bg-gray-50 rounded border border-gray-200">
-                 <div className="text-xs text-gray-500 uppercase">Sharpe Ratio</div>
-                 <div className="text-xl font-bold text-fire-accent">{(selectedPortfolio.return / selectedPortfolio.risk).toFixed(2)}</div>
-               </div>
-            </div>
-        </div>
-
+        {/* Split View Layout: Data on Left, Charts on Right */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div id="pie-chart-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center">
-            <h4 className="font-semibold text-gray-900 mb-4 w-full text-left">Overall Asset Allocation</h4>
-            <div className="h-[450px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie 
-                    data={activeAssets.map((a, i) => ({ ...a, value: selectedPortfolio.weights[assets.filter(x=>x.active).findIndex(x=>x.id===a.id)] * 100 }))} 
-                    cx="50%" cy="50%" 
-                    innerRadius={130} 
-                    outerRadius={210} 
-                    paddingAngle={2} 
-                    dataKey="value"
-                    isAnimationActive={!isExporting}
-                    label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-                      const RADIAN = Math.PI / 180;
-                      const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                      const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                      const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                    
-                      if (percent < 0.05) return null; // Don't show for small slices
-                      return (
-                        <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={12} fontWeight="bold">
-                          {`${(percent * 100).toFixed(0)}%`}
-                        </text>
-                      );
-                    }}
-                    labelLine={false}
-                  >
-                    {activeAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                  </Pie>
-                  {!isExporting && <Tooltip formatter={(val) => `${val.toFixed(1)}%`} />}
-                  {!isExporting && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />}
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+          {/* LEFT COLUMN: Data & Selection */}
+          <div className="space-y-6">
+            {/* Portfolio Selection */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Portfolio</h3>
+              
+              <select
+                value={selectedPortfolioId}
+                onChange={(e) => setSelectedPortfolioId(parseInt(e.target.value))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-fire-accent focus:border-fire-accent"
+              >
+                {efficientFrontier.map((p, i) => (
+                  <option key={i+1} value={i+1}>
+                    Model {i+1} - {MODEL_NAMES[i+1] || 'Custom'}
+                  </option>
+                ))}
+              </select>
 
-          <div id="allocation-table-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-             <h4 className="font-semibold text-gray-900 mb-4">Detailed Allocation</h4>
-             <div className="overflow-y-auto h-[450px]">
-               <table className="min-w-full text-sm">
-                 <thead>
-                   <tr className="bg-gray-50 sticky top-0">
-                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Asset</th>
-                     <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Weight</th>
-                     <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Value</th>
-                   </tr>
-                 </thead>
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="text-center p-3 bg-gray-50 rounded border border-gray-200">
+                  <div className="text-xs text-gray-500 uppercase">Return</div>
+                  <div className="text-xl font-bold text-green-600">{formatPercent(selectedPortfolio.return)}</div>
+                </div>
+                <div className="text-center p-3 bg-gray-50 rounded border border-gray-200">
+                  <div className="text-xs text-gray-500 uppercase">Risk</div>
+                  <div className="text-xl font-bold text-red-600">{formatPercent(selectedPortfolio.risk)}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Asset Allocation Table - Will be updated in Phase 2 */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+              <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation</h4>
+              <div className="overflow-y-auto max-h-[400px]">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 sticky top-0">
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Asset</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Weight</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Value</th>
+                    </tr>
+                  </thead>
                   <tbody className="divide-y divide-gray-100">
                     {activeAssets.map((asset) => (
-                        <tr key={asset.id}>
-                          <td className="px-3 py-2 font-medium flex items-center">
-                            <div className="w-2 h-2 rounded-full mr-2" style={{backgroundColor:asset.color}}/>
-                            {asset.name}
-                          </td>
-                          <td className="px-3 py-2 text-right text-gray-600">{formatPercent(asset.weight)}</td>
-                          <td className="px-3 py-2 text-right text-gray-900 font-mono">{formatCurrency(asset.weight * totalWealth)}</td>
-                        </tr>
+                      <tr key={asset.id}>
+                        <td className="px-3 py-2 font-medium flex items-center">
+                          <div className="w-2 h-2 rounded-full mr-2" style={{backgroundColor:asset.color}}/>
+                          {asset.name}
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-600">{formatPercent(asset.weight)}</td>
+                        <td className="px-3 py-2 text-right text-gray-900 font-mono">{formatCurrency(asset.weight * totalWealth)}</td>
+                      </tr>
                     ))}
                     <tr className="bg-gray-50 border-t-2 border-gray-200">
                       <td className="px-3 py-2 text-left text-xs font-bold text-gray-900 uppercase">Total</td>
@@ -2357,13 +2318,55 @@ export default function RiskReturnOptimiser() {
                       <td className="px-3 py-2 text-right text-xs font-bold text-gray-900 uppercase font-mono">{formatCurrency(totalWealth)}</td>
                     </tr>
                   </tbody>
-               </table>
-             </div>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: Charts */}
+          <div className="space-y-6">
+            {/* Pie Charts - Will add per-entity charts in Phase 2 */}
+            <div id="pie-chart-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+              <h4 className="font-semibold text-gray-900 mb-4">Overall Asset Allocation</h4>
+              <div className="h-[350px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie 
+                      data={activeAssets.map((a, i) => ({ ...a, value: selectedPortfolio.weights[assets.filter(x=>x.active).findIndex(x=>x.id===a.id)] * 100 }))} 
+                      cx="50%" cy="50%" 
+                      outerRadius={120} 
+                      paddingAngle={2} 
+                      dataKey="value"
+                      isAnimationActive={!isExporting}
+                      label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                        const RADIAN = Math.PI / 180;
+                        const radius = outerRadius + 20;
+                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                      
+                        if (percent < 0.05) return null;
+                        return (
+                          <text x={x} y={y} fill="#374151" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={11} fontWeight="600">
+                            {`${(percent * 100).toFixed(0)}%`}
+                          </text>
+                        );
+                      }}
+                      labelLine={false}
+                    >
+                      {activeAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                    </Pie>
+                    {!isExporting && <Tooltip formatter={(val) => `${val.toFixed(1)}%`} />}
+                    {!isExporting && <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />}
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* Entity-Specific Allocations - Will convert to % in Phase 2 */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h4 className="font-semibold text-gray-900 mb-4">Entity-Specific Allocations (Proportional MVP)</h4>
+          <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation by Entity</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
              {structures.map(struct => (
                <div key={struct.id} className="border border-gray-200 rounded-lg p-3">
@@ -2388,33 +2391,7 @@ export default function RiskReturnOptimiser() {
           </div>
         </div>
 
-        {/* New Summary Tables */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-             <h4 className="font-semibold text-gray-900 mb-4">Model Portfolios Summary</h4>
-             <div className="overflow-x-auto">
-               <table className="min-w-full text-sm">
-                 <thead>
-                   <tr className="bg-gray-50 border-b border-gray-200">
-                     <th className="px-3 py-2 text-left font-medium text-gray-500">Portfolio</th>
-                     <th className="px-3 py-2 text-left font-medium text-gray-500">Name</th>
-                     <th className="px-3 py-2 text-right font-medium text-gray-500">Expected Return</th>
-                     <th className="px-3 py-2 text-right font-medium text-gray-500">Standard Deviation</th>
-                   </tr>
-                 </thead>
-                 <tbody className="divide-y divide-gray-100">
-                   {efficientFrontier.map((p, i) => (
-                     <tr key={i} className={selectedPortfolioId === i+1 ? 'bg-blue-50' : ''}>
-                       <td className="px-3 py-2 font-medium text-gray-900">{i + 1}</td>
-                       <td className="px-3 py-2 text-gray-700">{MODEL_NAMES[i + 1] || 'Custom'}</td>
-                       <td className="px-3 py-2 text-right text-gray-600">{formatPercent(p.return)}</td>
-                       <td className="px-3 py-2 text-right text-gray-600">{formatPercent(p.risk)}</td>
-                     </tr>
-                   ))}
-                 </tbody>
-               </table>
-             </div>
-           </div>
+        {/* Removed Model Portfolios Summary as requested */}
 
            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
              <h4 className="font-semibold text-gray-900 mb-4">Estimating Outcomes</h4>
