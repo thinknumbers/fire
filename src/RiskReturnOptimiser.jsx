@@ -1158,6 +1158,60 @@ export default function RiskReturnOptimiser() {
     const numRuns = 1000;
     const years = projectionYears;
     
+    // 1. Calculate Pre-Tax Portfolio Return/Risk if needed
+    // We already have 'selectedPortfolio' which is implicitly After-Tax (calculated in optimization)
+    // To get Pre-Tax, we need to calculate it from the selected weights and raw asset returns involved.
+    
+    let simReturn = selectedPortfolio.return;
+    let simRisk = selectedPortfolio.risk;
+
+    if (showBeforeTax) {
+         // Calculate Pre-Tax Stats roughly based on weighted average of raw asset returns
+         // Re-use calculation logic but with raw returns
+         const weights = selectedPortfolio.weights || [];
+         if (weights.length === optimizationAssets.length) {
+             let expectedReturn = 0;
+             let variance = 0;
+             
+             // Calculate Return
+             for (let i = 0; i < weights.length; i++) {
+                 expectedReturn += weights[i] * optimizationAssets[i].return;
+             }
+
+             // Calculate Risk (variance) - using same correlations
+             // Note: Correlations are same pre/post tax generally for this model level
+             for (let i = 0; i < weights.length; i++) {
+                 for (let j = 0; j < weights.length; j++) {
+                     const activeIndices = assets.map((a, idx) => a.active ? idx : -1).filter(idx => idx !== -1);
+                     // Need to map optimizationAssets index back to global assets index to get correlation
+                     // optimizationAssets is subset of assets. Assuming order is preserved from activeAssets check.
+                     // The 'optimizationAssets' state might need to be robust. 
+                     // Let's use the 'activeAssets' derived inside handleRunOptimization if possible, 
+                     // but here we rely on 'optimizationAssets' state saved after optimization.
+                     
+                     // Helper: find asset ID to look up correlation
+                     const idA = optimizationAssets[i].id;
+                     const idB = optimizationAssets[j].id;
+                     
+                     // activeCorrelations logic is complex to reconstruct here without the matrix.
+                     // However, 'selectedPortfolio.risk' is after-tax risk. 
+                     // Pre-tax risk should generally be higher or similar. 
+                     // Approximation: Scale risk by ratio of Returns? No, that's not accurate.
+                     // Better approach: Since we don't have the full covariance matrix handy easily without 
+                     // re-deriving 'activeCorrelations' (which is local in handleRunOptimization),
+                     // and 'correlations' state is global...
+                     
+                     const val = (idA === idB) ? 1.0 : (correlations[idA] && correlations[idA][idB] !== undefined ? correlations[idA][idB] : 0.3);
+                     const cov = val * (optimizationAssets[i].stdev || 0) * (optimizationAssets[j].stdev || 0);
+                     variance += weights[i] * weights[j] * cov;
+                 }
+             }
+             
+             simReturn = expectedReturn;
+             simRisk = Math.sqrt(variance);
+         }
+    }
+
     const annualNetFlows = new Array(years + 1).fill(0);
     
     // Calculate Weighted Average Tax Rate for Fee Deduction Tax Shield
@@ -1217,13 +1271,15 @@ export default function RiskReturnOptimiser() {
         const taxRate = getTaxRateForEntity(s.entityId);
 
         if (s.isOneOff) {
-            if (s.year === y) {
-                 const netIncome = amount * (1 - taxRate);
+            // Ensure strict type comparison or loose if year can be string.
+            // s.year is usually number from input. y is number.
+            if (parseInt(s.year) === y) {
+                 const netIncome = showBeforeTax ? amount : amount * (1 - taxRate);
                  flow += netIncome * inflationFactor; 
             }
         } else {
             if(y >= s.startYear && y <= s.endYear) {
-              const netIncome = amount * (1 - taxRate);
+              const netIncome = showBeforeTax ? amount : amount * (1 - taxRate);
               flow += netIncome * inflationFactor; 
             }
         }
@@ -1231,23 +1287,29 @@ export default function RiskReturnOptimiser() {
       
       expenseStreams.forEach(s => { 
         const amount = parseFloat(s.amount) || 0;
-        // Expenses are usually post-tax spending, so just subtract amount
+        // Expenses are usually post-tax spending. 
+        // If showing Before Tax, we subtract Gross Amount needed to pay that expense? 
+        // Or just the expense amount? Convention: Expense reduces wealth directly.
+        // Usually expenses are stated in "money out of pocket". 
+        // If Before Tax view, do we gross up expenses? 
+        // No, typically Before Tax view shows Gross Income growth. Expenses are just expenses.
+        // However, standard logic: Net Flow = Income - Expense. 
+        // If Income is Gross, Flow is Gross Income - Expense. This mimics "Pre-Tax Cashflow".
+        const val = amount * inflationFactor;
+
         if (s.isOneOff) {
-            if (s.year === y) {
-                flow -= amount * inflationFactor; 
+            if (parseInt(s.year) === y) {
+                flow -= val; 
             }
         } else {
             if(y >= s.startYear && y <= s.endYear) {
-              flow -= amount * inflationFactor; 
+              flow -= val; 
             }
         }
       });
       
       annualNetFlows[y] = flow;
     }
-
-    const portReturn = selectedPortfolio.return;
-    const portRisk = selectedPortfolio.risk;
 
     const results = [];
 
@@ -1264,16 +1326,19 @@ export default function RiskReturnOptimiser() {
 
       for (let y = 1; y <= years; y++) {
         const rnd = randn_bm(rng); 
-        const annualReturn = portReturn + (rnd * portRisk);
+        const annualReturn = simReturn + (rnd * simRisk);
         
         balance = balance * (1 + annualReturn);
         
         // Fee Deduction with Tax Shield
         if (adviceFee > 0) {
             const grossFee = balance * adviceFee;
-            const taxShield = grossFee * wTaxRate;
-            const netFee = grossFee - taxShield;
-            balance -= netFee;
+            // If Before Tax, do we apply tax shield?
+            // Before Tax usually ignores tax effects. So Fee is just Fee.
+            // After Tax: Net Fee = Fee * (1 - TaxRate) (deductible)
+            
+            const effectiveFee = showBeforeTax ? grossFee : (grossFee - (grossFee * wTaxRate));
+            balance -= effectiveFee;
         }
 
         balance += annualNetFlows[y];
@@ -1292,7 +1357,7 @@ export default function RiskReturnOptimiser() {
     }));
 
     setCfSimulationResults(finalData);
-  }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, projectionYears, inflationRate, adviceFee, structures, entityTypes]);
+  }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, projectionYears, inflationRate, adviceFee, structures, entityTypes, showBeforeTax, optimizationAssets, assets, correlations]);
 
   useEffect(() => {
     // Run simulation immediately when portfolio is selected (after optimization or tab change)
@@ -2598,6 +2663,16 @@ export default function RiskReturnOptimiser() {
                   );
                 })}
               </div>
+
+              {/* Shared Legend Below Pie Charts */}
+              <div className="mt-6 flex flex-wrap justify-center gap-4 border-t border-gray-100 pt-4">
+                 {activeAssets.map(asset => (
+                   <div key={asset.id} className="flex items-center">
+                      <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: asset.color }} />
+                      <span className="text-xs text-gray-600">{asset.name}</span>
+                   </div>
+                 ))}
+              </div>
             </div>
           </div>
         </div>
@@ -2670,24 +2745,47 @@ export default function RiskReturnOptimiser() {
     return (
       <div className="space-y-6 animate-in fade-in">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
                Wealth Projection
             </h3>
             
-            <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-lg border border-gray-200">
-               <div className="text-xs font-medium text-gray-500">Portfolio:</div>
-               <input 
-                  type="range" min="1" max="10" 
-                  value={selectedPortfolioId} 
-                  onChange={(e) => setSelectedPortfolioId(parseInt(e.target.value))}
-                  className="w-32 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-fire-accent"
-               />
-               <div className="text-sm font-bold text-red-800 w-20 text-right">{selectedPortfolio.label}</div>
-               <div className="text-xs text-gray-500 border-l pl-3 ml-1">
-                  <div>Ret: <span className="text-green-600 font-mono">{formatPercent(selectedPortfolio.return)}</span></div>
-                  <div>Risk: <span className="text-red-600 font-mono">{formatPercent(selectedPortfolio.risk)}</span></div>
+            <div className="flex flex-wrap items-center gap-4 bg-gray-50 p-2 rounded-lg border border-gray-200">
+               {/* Portfolio Selector */}
+               <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-500">Portfolio:</span>
+                  <select
+                    value={selectedPortfolioId}
+                    onChange={(e) => setSelectedPortfolioId(parseInt(e.target.value))}
+                    className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-fire-accent focus:border-fire-accent"
+                  >
+                    {efficientFrontier.map((p, i) => (
+                      <option key={i+1} value={i+1}>Model {i+1} - {MODEL_NAMES[i+1] || 'Custom'}</option>
+                    ))}
+                  </select>
+               </div>
+
+               {/* Tax Toggle */}
+               <div className="flex items-center gap-2 border-l border-gray-300 pl-4 h-6">
+                  <span className="text-xs font-medium text-gray-500">Display:</span>
+                  <button
+                     onClick={() => setShowBeforeTax(!showBeforeTax)}
+                     className={`px-3 py-1 rounded text-xs font-medium transition-colors ${showBeforeTax ? 'bg-fire-accent text-white' : 'bg-gray-200 text-gray-700'}`}
+                  >
+                     {showBeforeTax ? 'Before Tax' : 'After Tax'}
+                  </button>
+               </div>
+
+               {/* Nominal/Real Toggle */}
+               <div className="flex items-center gap-2 border-l border-gray-300 pl-4 h-6">
+                  <span className="text-xs font-medium text-gray-500">Values:</span>
+                  <button
+                     onClick={() => setShowNominal(!showNominal)}
+                     className={`px-3 py-1 rounded text-xs font-medium transition-colors ${showNominal ? 'bg-fire-accent text-white' : 'bg-gray-200 text-gray-700'}`}
+                  >
+                     {showNominal ? 'Nominal' : 'Real'}
+                  </button>
                </div>
             </div>
           </div>
@@ -2707,9 +2805,7 @@ export default function RiskReturnOptimiser() {
                 {!isExporting && <Tooltip 
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
-                      // Access the full data object for this year directly
                       const data = payload[0].payload;
-
                       return (
                         <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-xs z-50">
                           <p className="font-bold mb-2 text-gray-900">Year {label}</p>
@@ -2745,66 +2841,9 @@ export default function RiskReturnOptimiser() {
           </div>
         </div>
 
-
-
-        {/* Portfolio Selection and Toggles */}
+        {/* Portfolio Outcomes - Estimated Outcomes only */}
         {selectedPortfolio && cfSimulationResults.length > 0 && (
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <PieIcon className="w-5 h-5 mr-2 text-fire-accent" />
-                Portfolio Outcomes
-              </h3>
-              
-              <div className="flex gap-4 items-center">
-                {/* Portfolio Selector */}
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-medium text-gray-500">Portfolio:</label>
-                  <select
-                    value={selectedPortfolioId}
-                    onChange={(e) => setSelectedPortfolioId(parseInt(e.target.value))}
-                    className="border border-gray-300 rounded px-3 py-1 text-sm focus:ring-2 focus:ring-fire-accent focus:border-fire-accent"
-                  >
-                    {efficientFrontier.map((p, i) => (
-                      <option key={i+1} value={i+1}>
-                        Model {i+1} - {MODEL_NAMES[i+1] || 'Custom'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Before/After Tax Toggle */}
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-medium text-gray-500">Display:</label>
-                  <button
-                    onClick={() => setShowBeforeTax(!showBeforeTax)}
-                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                      showBeforeTax 
-                        ? 'bg-gray-200 text-gray-700' 
-                        : 'bg-fire-accent text-white'
-                    }`}
-                  >
-                    {showBeforeTax ? 'Before Tax' : 'After Tax'}
-                  </button>
-                </div>
-
-                {/* Nominal/Real Toggle */}
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-medium text-gray-500">Values:</label>
-                  <button
-                    onClick={() => setShowNominal(!showNominal)}
-                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                      showNominal 
-                        ? 'bg-fire-accent text-white' 
-                        : 'bg-gray-200 text-gray-700'
-                    }`}
-                  >
-                    {showNominal ? 'Nominal' : 'Real'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
             {/* Estimating Outcomes Chart */}
             <h4 className="font-semibold text-gray-900 mb-4">Estimating Outcomes</h4>
             <div className="h-[400px] w-full">
