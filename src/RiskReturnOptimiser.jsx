@@ -2328,7 +2328,7 @@ export default function RiskReturnOptimiser() {
             {/* Pie Charts Row: Overall + Per Entity */}
             <div id="pie-chart-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
               <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto">
                 {/* Overall Pie Chart */}
                 <div>
                   <h5 className="text-sm font-semibold text-gray-700 mb-2 text-center">Overall</h5>
