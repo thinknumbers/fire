@@ -1516,14 +1516,14 @@ export default function RiskReturnOptimiser() {
                   <td className="px-4 py-3">
                     <input type="number" step="0.01" className="w-20 border rounded px-2 py-1 text-xs"
                       disabled={!asset.active}
-                      value={Math.round(asset.return * 10000) / 100} // 2 decimal places (0.09 -> 9.00)
+                      value={(asset.return * 100).toFixed(2)}
                       onChange={(e) => setAssets(assets.map(a => a.id === asset.id ? {...a, return: parseFloat(e.target.value)/100} : a))}
                     />
                   </td>
                   <td className="px-4 py-3">
                     <input type="number" step="0.01" className="w-20 border rounded px-2 py-1 text-xs"
                       disabled={!asset.active}
-                      value={Math.round(asset.stdev * 10000) / 100} // 2 decimal places
+                      value={(asset.stdev * 100).toFixed(2)}
                       onChange={(e) => setAssets(assets.map(a => a.id === asset.id ? {...a, stdev: parseFloat(e.target.value)/100} : a))}
                     />
                   </td>
@@ -1624,7 +1624,7 @@ export default function RiskReturnOptimiser() {
                                   (val < -0.1) ? 'bg-orange-50 text-orange-700 border-orange-200' : 
                                   'border-gray-200'
                               }`}
-                              value={val}
+                              value={val.toFixed(6)}
                               disabled={!rowAsset.active || !colAsset.active} 
                               onChange={(e) => handleCorrelationChange(rowAsset.id, colAsset.id, e.target.value)}
                             />
