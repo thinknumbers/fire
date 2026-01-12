@@ -2150,22 +2150,18 @@ export default function RiskReturnOptimiser() {
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Calculator className="w-5 h-5 mr-2 text-fire-accent" />
-              Optimization Engine
-            </h3>
-            <p className="text-sm text-gray-500">Run Monte Carlo simulations to generate tax-optimized Efficient Frontier.</p>
+            {/* Removed heading and descriptive text */}
           </div>
           
           <div className="flex items-center gap-4">
              <div className="text-right">
                <label className="block text-xs font-bold text-gray-500 mb-1">Simulations</label>
-               <input 
-                 type="number" 
+               <NumberInput 
                  value={simulationCount} 
-                 onChange={(e) => setSimulationCount(parseInt(e.target.value) || 1000)}
-                 className="w-24 text-right border border-gray-300 rounded px-2 py-1 text-sm"
-                 disabled={isSimulating}
+                 onChange={(val) => setSimulationCount(val || 1000)}
+                 className="w-32 text-right border border-gray-300 rounded px-2 py-1 text-sm"
+                 placeholder="1000"
+                 prefix=""
                />
              </div>
 
@@ -2188,7 +2184,7 @@ export default function RiskReturnOptimiser() {
                   disabled={isSimulating}
                   className="flex items-center justify-center px-6 py-3 bg-fire-accent hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 shadow-sm"
                 >
-                  <Cpu className="w-4 h-4 mr-2" /> Run Analysis
+                  <Cpu className="w-4 h-4 mr-2" /> Optimise
                 </button>
               )}
           </div>
@@ -2205,7 +2201,7 @@ export default function RiskReturnOptimiser() {
                   name="Risk" 
                   unit="" 
                   tickFormatter={(val) => formatPercent(val)}
-                  label={{ value: 'Risk (Standard Deviation)', position: 'bottom', offset: 0 }}
+                  label={{ value: 'Risk', position: 'bottom', offset: 0 }}
                   domain={['auto', 'auto']}
                 />
                 <YAxis 
@@ -2214,8 +2210,8 @@ export default function RiskReturnOptimiser() {
                   name="Return" 
                   unit="" 
                   tickFormatter={(val) => formatPercent(val)}
-                  label={{ value: 'Expected Return (After Tax)', angle: -90, position: 'insideLeft' }}
-                  domain={['auto', 'auto']}
+                  label={{ value: 'Return', angle: -90, position: 'insideLeft' }}
+                  domain={[0, 'auto']}
                 />
                 {!isExporting && <Tooltip 
                   cursor={{ strokeDasharray: '3 3' }} 
@@ -2233,9 +2229,9 @@ export default function RiskReturnOptimiser() {
                     return null;
                   }}
                 />}
-                {!isExporting && <Legend verticalAlign="bottom" align="left" wrapperStyle={{ paddingTop: '10px' }} />}
-                <Scatter name="Simulated Portfolios" data={simulations} fill="#cbd5e1" shape="circle" r={2} opacity={0.5} isAnimationActive={!isExporting} />
-                <Scatter name="Efficient Models" data={efficientFrontier} fill="#2563eb" shape="diamond" r={8} isAnimationActive={!isExporting} />
+                {/* Legend removed as requested */}
+                <Scatter name="Portfolios" data={simulations} fill="#cbd5e1" shape="circle" r={2} opacity={0.5} isAnimationActive={!isExporting} />
+                <Scatter name="Models" data={efficientFrontier} fill="#2563eb" shape="diamond" r={8} isAnimationActive={!isExporting} />
               </ScatterChart>
             </ResponsiveContainer>
           </div>
@@ -2243,7 +2239,7 @@ export default function RiskReturnOptimiser() {
           <div className="h-[300px] flex flex-col items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
             <Activity className="w-12 h-12 text-gray-300 mb-4" />
             <p className="text-gray-500 font-medium">No simulation data generated yet.</p>
-            <p className="text-gray-400 text-sm">Click "Run Analysis" to start.</p>
+            <p className="text-gray-400 text-sm">Click "Optimise" to start.</p>
           </div>
         )}
       </div>
