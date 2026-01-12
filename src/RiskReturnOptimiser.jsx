@@ -1315,7 +1315,8 @@ export default function RiskReturnOptimiser() {
 
     const finalData = results.map(r => ({
       year: r.year,
-      p05: calculatePercentile(r.paths, 5),
+      p05: calculatePercentile(r.paths, 5), // Keep p05 for safety/legacy checks
+      p16: calculatePercentile(r.paths, 16),
       p50: calculatePercentile(r.paths, 50),
       p95: calculatePercentile(r.paths, 95)
     }));
@@ -2678,6 +2679,16 @@ export default function RiskReturnOptimiser() {
   const CashflowTab = () => {
     if (!selectedPortfolio || cfSimulationResults.length === 0) return <div className="p-8 text-center text-gray-500">Please select a portfolio in the Output tab first to run projections.</div>;
 
+    // Collect active one-off events for chart callouts
+    const oneOffEvents = [
+        ...incomeStreams.filter(s => s.active && s.isOneOff),
+        ...expenseStreams.filter(s => s.active && s.isOneOff)
+    ].map(e => ({
+        year: parseInt(e.year),
+        label: e.name,
+        type: incomeStreams.includes(e) ? 'income' : 'expense'
+    })).filter(e => !isNaN(e.year) && e.year > 0 && e.year <= projectionYears);
+
     // Calculate outcomes for display (with tax and inflation adjustments)
     const getAdjustedOutcomes = () => {
       if (!selectedPortfolio || cfSimulationResults.length === 0) return null;
@@ -2696,11 +2707,11 @@ export default function RiskReturnOptimiser() {
         // Before tax would require running with pre-tax returns
         
         return {
-          year: `${yr} year${yr > 1 ? 's' : ''}`,
-          p05: res.p05 * inflationFactor,
+          year: `${yr} Year`,
+          p16: res.p16 * inflationFactor,
           p50: res.p50 * inflationFactor,
           p95: res.p95 * inflationFactor,
-          range: [res.p05 * inflationFactor, res.p95 * inflationFactor]
+          range: [res.p16 * inflationFactor, res.p95 * inflationFactor]
         };
       }).filter(Boolean);
     };
@@ -2784,8 +2795,8 @@ export default function RiskReturnOptimiser() {
                               <span className="font-mono font-bold text-fire-accent">{formatCurrency(data.p50)}</span>
                             </div>
                             <div className="flex justify-between gap-4">
-                              <span className="text-gray-500">Worst Case (5th):</span>
-                              <span className="font-mono font-medium text-red-400">{formatCurrency(data.p05)}</span>
+                              <span className="text-gray-500">Worst Case (16th):</span>
+                              <span className="font-mono font-medium text-red-400">{formatCurrency(data.p16)}</span>
                             </div>
                           </div>
                         </div>
@@ -2795,12 +2806,23 @@ export default function RiskReturnOptimiser() {
                   }}
                 />}
                 
+                {/* One-Off Event Reference Lines */}
+                {oneOffEvents.map((event, idx) => (
+                    <ReferenceLine 
+                        key={`${event.type}-${idx}`} 
+                        x={event.year} 
+                        stroke={event.type === 'income' ? '#22c55e' : '#ef4444'} 
+                        strokeDasharray="3 3"
+                        label={{ value: event.label, position: 'top', fill: event.type === 'income' ? '#15803d' : '#b91c1c', fontSize: 10 }}
+                    />
+                ))}
+
                 <Area type="monotone" dataKey="p95" stroke="none" fill="url(#confidenceBand)" name="95th Percentile" isAnimationActive={!isExporting} />
-                <Area type="monotone" dataKey="p05" stroke="none" fill="#fff" name="5th Percentile" isAnimationActive={!isExporting} /> 
+                <Area type="monotone" dataKey="p16" stroke="none" fill="#fff" name="16th Percentile" isAnimationActive={!isExporting} /> 
                 
                 <Line type="monotone" dataKey="p50" stroke="#E03A3E" strokeWidth={3} dot={false} strokeDasharray="5 5" name="Median (50th)" isAnimationActive={!isExporting} />
                 <Line type="monotone" dataKey="p95" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Best Case (95th)" isAnimationActive={!isExporting} />
-                <Line type="monotone" dataKey="p05" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Worst Case (5th)" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p16" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Worst Case (16th)" isAnimationActive={!isExporting} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
