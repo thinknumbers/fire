@@ -1663,7 +1663,7 @@ export default function RiskReturnOptimiser() {
                      <div className="relative w-32">
                        <input 
                          type="number" step="0.5" 
-                         value={Math.round(data.incomeTax * 1000) / 10}
+                         value={(data.incomeTax * 100).toFixed(2)}
                          onChange={(e) => {
                             const val = parseFloat(e.target.value)/100 || 0;
                             setEntityTypes(prev => ({
@@ -1680,7 +1680,7 @@ export default function RiskReturnOptimiser() {
                      <div className="relative w-32">
                        <input 
                          type="number" step="0.5" 
-                         value={Math.round(data.ltCgt * 1000) / 10}
+                         value={(data.ltCgt * 100).toFixed(2)}
                          onChange={(e) => {
                             const val = parseFloat(e.target.value)/100 || 0;
                             setEntityTypes(prev => ({
@@ -1697,7 +1697,7 @@ export default function RiskReturnOptimiser() {
                      <div className="relative w-32">
                        <input 
                          type="number" step="0.5" 
-                         value={data.stCgt !== undefined ? Math.round(data.stCgt * 1000) / 10 : 0}
+                         value={data.stCgt !== undefined ? (data.stCgt * 100).toFixed(2) : '0.00'}
                          onChange={(e) => {
                             const val = parseFloat(e.target.value)/100 || 0;
                             setEntityTypes(prev => ({
@@ -2484,7 +2484,7 @@ export default function RiskReturnOptimiser() {
              <div className="flex items-center gap-4">
                <img src={fireLogo} alt="FIRE Wealth" className="h-12 w-auto object-contain" />
                <div className="hidden md:block border-l border-red-400 pl-4 ml-2">
-                  <h1 className="text-xl font-bold tracking-tight">{APP_TITLE}</h1>
+                  <h1 className="text-4xl font-bold tracking-tight">{appSettings.title || "FIREBALL"}</h1>
                   {/* Banner Subtitle Removed */}
                </div>
              </div>

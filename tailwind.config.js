@@ -14,6 +14,9 @@ export default {
         'fire-bg-light': 'var(--color-fire-bg-light)',
         'fire-navy': 'var(--color-fire-navy)',
         'fire-orange': 'var(--color-fire-orange)',
+      },
+      fontFamily: {
+        sans: ['var(--font-main)', 'Calibri', 'sans-serif'],
       }
     },
   },
