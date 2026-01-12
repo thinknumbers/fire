@@ -9,7 +9,7 @@ import {
   Settings, User, Activity, PieChart as PieIcon, TrendingUp, 
   ChevronRight, Save, Calculator, ArrowRight, DollarSign, Plus, Trash2, Calendar,
   AlertCircle, FileText, CheckSquare, Square, Clock, Percent, Loader, Cpu, Cloud,
-  FolderOpen, ChevronDown
+  FolderOpen, ChevronDown, X
 } from 'lucide-react';
 import { supabase } from './supabase';
 import html2canvas from 'html2canvas';
@@ -310,6 +310,7 @@ export default function RiskReturnOptimiser() {
   const [savedScenarios, setSavedScenarios] = useState([]);
   const [showLoadMenu, setShowLoadMenu] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [lastDeleted, setLastDeleted] = useState(null); // For Undo
 
   useEffect(() => {
     fetchScenarios();
@@ -1571,7 +1572,9 @@ export default function RiskReturnOptimiser() {
                 <button 
                   onClick={() => {
                     if (structures.length > 1) {
+                      setLastDeleted({ item: struct, index: structures.findIndex(s => s.id === struct.id) });
                       setStructures(structures.filter(s => s.id !== struct.id));
+                      setTimeout(() => setLastDeleted(null), 5000); // Clear after 5 seconds
                     } else {
                       alert("You must have at least one entity.");
                     }
@@ -2302,6 +2305,25 @@ export default function RiskReturnOptimiser() {
                {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin"/> : <Cloud className="w-4 h-4 mr-2"/>}
                {isSaving ? 'Saving...' : 'Save As'}
             </button>
+            {lastDeleted && (
+                <div className="absolute top-16 right-4 z-50 bg-gray-900 text-white px-4 py-2 rounded shadow-lg flex items-center gap-3 animate-in slide-in-from-top-2">
+                   <span className="text-sm">Deleted "{lastDeleted.item.name}"</span>
+                   <button 
+                     onClick={() => {
+                        const newStructs = [...structures];
+                        newStructs.splice(lastDeleted.index, 0, lastDeleted.item);
+                        setStructures(newStructs);
+                        setLastDeleted(null);
+                     }}
+                     className="text-fire-accent font-bold text-sm hover:underline"
+                   >
+                     Undo
+                   </button>
+                   <button onClick={() => setLastDeleted(null)} className="text-gray-500 hover:text-white ml-2">
+                     <X className="w-3 h-3"/>
+                   </button>
+                </div>
+            )}
             <button 
               onClick={handleExportPDF}
               className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium"
