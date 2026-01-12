@@ -105,17 +105,14 @@ const DEFAULT_STRUCTURES = [
 ];
 
 const DEFAULT_INCOME_STREAMS = [
-  { id: 1, name: 'Husband Salary', amount: 350000, startYear: 1, endYear: 5 },
-  { id: 2, name: 'Wife Salary', amount: 150000, startYear: 1, endYear: 5 },
+  { id: 1, name: 'Husband Salary', amount: 350000, startYear: 1, endYear: 5, isOneOff: false, year: 1 },
+  { id: 2, name: 'Wife Salary', amount: 150000, startYear: 1, endYear: 5, isOneOff: false, year: 1 },
+  { id: 3, name: 'Downsize Home', amount: 2000000, startYear: 1, endYear: 1, isOneOff: true, year: 15 },
 ];
 
 const DEFAULT_EXPENSE_STREAMS = [
-  { id: 1, name: 'Living Expenses', amount: 200000, startYear: 1, endYear: 30 },
-];
-
-const DEFAULT_ONE_OFF_EVENTS = [
-  { id: 1, name: 'Gift to Children', amount: -1500000, year: 5 },
-  { id: 2, name: 'Downsize Home', amount: 2000000, year: 15 },
+  { id: 1, name: 'Living Expenses', amount: 200000, startYear: 1, endYear: 30, isOneOff: false, year: 1 },
+  { id: 2, name: 'Gift to Children', amount: 1500000, startYear: 1, endYear: 1, isOneOff: true, year: 5 },
 ];
 
 // --- Math Functions ---
@@ -305,9 +302,9 @@ export default function RiskReturnOptimiser() {
     { id: 1, name: 'Salary', amount: 350000, startYear: 1, endYear: 5, isOneOff: false, year: 1 }
   ]);
   const [expenseStreams, setExpenseStreams] = useState([
-    { id: 1, name: 'Living Expenses', amount: 200000, startYear: 1, endYear: 30, isOneOff: false, year: 1 }
+    { id: 1, name: 'Living Expenses', amount: 200000, startYear: 1, endYear: 30, isOneOff: false, year: 1 },
+    { id: 2, name: 'Gift to Children', amount: 1500000, startYear: 1, endYear: 1, isOneOff: true, year: 5 }
   ]);
-  const [oneOffEvents, setOneOffEvents] = useState(DEFAULT_ONE_OFF_EVENTS);
   const [projectionYears, setProjectionYears] = useState(30);
   const [inflationRate, setInflationRate] = useState(0.025);
   const [adviceFee, setAdviceFee] = useState(0.011); // 1.1% Default incl GST maybe? Let's say 1.1% or just 0.0. User implies they want to add it. Let's default 0.0 to be safe or 0.01. Let's do 0.8% + GST = ~0.88%. Let's default to 0.0 for now so it doesn't surprise, or 0.01. Let's stick to 0.008 (0.8%).
@@ -457,7 +454,6 @@ export default function RiskReturnOptimiser() {
         structures,
         income_streams: incomeStreams,
         expense_streams: expenseStreams,
-        one_off_events: oneOffEvents,
         projection_years: projectionYears,
         inflation_rate: inflationRate,
         advice_fee: adviceFee,
@@ -852,7 +848,7 @@ export default function RiskReturnOptimiser() {
       if (data.structures) setStructures(data.structures);
       if (data.income_streams) setIncomeStreams(data.income_streams);
       if (data.expense_streams) setExpenseStreams(data.expense_streams);
-      if (data.one_off_events) setOneOffEvents(data.one_off_events);
+      // Legacy one_off_events are ignored or could be migrated here if needed
       if (data.projection_years) setProjectionYears(data.projection_years);
       if (data.inflation_rate) setInflationRate(data.inflation_rate);
       if (data.advice_fee !== undefined) setAdviceFee(data.advice_fee);
@@ -1208,19 +1204,30 @@ export default function RiskReturnOptimiser() {
       const taxRate = entityTypes.PERSONAL ? entityTypes.PERSONAL.incomeTax : 0.47;
 
       incomeStreams.forEach(s => {  
-        if(y >= s.startYear && y <= s.endYear) {
-          const netIncome = s.amount * (1 - taxRate);
-          flow += netIncome * inflationFactor; 
+        if (s.isOneOff) {
+            if (s.year === y) {
+                 const netIncome = s.amount * (1 - taxRate);
+                 flow += netIncome * inflationFactor; 
+            }
+        } else {
+            if(y >= s.startYear && y <= s.endYear) {
+              const netIncome = s.amount * (1 - taxRate);
+              flow += netIncome * inflationFactor; 
+            }
         }
       });
       
       expenseStreams.forEach(s => { 
-        if(y >= s.startYear && y <= s.endYear) {
-          flow -= s.amount * inflationFactor; 
+        if (s.isOneOff) {
+            if (s.year === y) {
+                flow -= s.amount * inflationFactor; 
+            }
+        } else {
+            if(y >= s.startYear && y <= s.endYear) {
+              flow -= s.amount * inflationFactor; 
+            }
         }
       });
-      
-      oneOffEvents.forEach(e => { if(e.year === y) flow += e.amount; }); 
       
       annualNetFlows[y] = flow;
     }
@@ -1271,7 +1278,7 @@ export default function RiskReturnOptimiser() {
     }));
 
     setCfSimulationResults(finalData);
-  }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, oneOffEvents, projectionYears, inflationRate, adviceFee, structures, entityTypes]);
+  }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, projectionYears, inflationRate, adviceFee, structures, entityTypes]);
 
   useEffect(() => {
     // Run simulation immediately when portfolio is selected (after optimization or tab change)
