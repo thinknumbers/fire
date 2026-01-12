@@ -2289,7 +2289,7 @@ export default function RiskReturnOptimiser() {
               </div>
             </div>
 
-            {/* Asset Allocation Table - Will be updated in Phase 2 */}
+            {/* Asset Allocation Table */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
               <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation</h4>
               <div className="overflow-y-auto max-h-[400px]">
@@ -2297,8 +2297,7 @@ export default function RiskReturnOptimiser() {
                   <thead>
                     <tr className="bg-gray-50 sticky top-0">
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Asset</th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Weight</th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Value</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">%</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -2308,14 +2307,12 @@ export default function RiskReturnOptimiser() {
                           <div className="w-2 h-2 rounded-full mr-2" style={{backgroundColor:asset.color}}/>
                           {asset.name}
                         </td>
-                        <td className="px-3 py-2 text-right text-gray-600">{formatPercent(asset.weight)}</td>
-                        <td className="px-3 py-2 text-right text-gray-900 font-mono">{formatCurrency(asset.weight * totalWealth)}</td>
+                        <td className="px-3 py-2 text-right text-gray-900 font-mono">{formatPercent(asset.weight)}</td>
                       </tr>
                     ))}
                     <tr className="bg-gray-50 border-t-2 border-gray-200">
                       <td className="px-3 py-2 text-left text-xs font-bold text-gray-900 uppercase">Total</td>
                       <td className="px-3 py-2 text-right text-xs font-bold text-gray-900 uppercase">100.0%</td>
-                      <td className="px-3 py-2 text-right text-xs font-bold text-gray-900 uppercase font-mono">{formatCurrency(totalWealth)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -2390,7 +2387,7 @@ export default function RiskReturnOptimiser() {
           </div>
         </div>
 
-        {/* Entity-Specific Allocations - Will convert to % in Phase 2 */}
+        {/* Entity-Specific Allocations */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation by Entity</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2399,18 +2396,19 @@ export default function RiskReturnOptimiser() {
                  <div className="font-bold text-sm text-gray-800 mb-2 border-b pb-1">{struct.name}</div>
                  <div className="space-y-1">
                    {activeAssets.map((asset) => {
-                     const structValue = asset.weight * struct.value; 
+                     const structPercent = (asset.weight * struct.value / totalWealth) * 100;
+                     if (structPercent < 0.1) return null; // Skip very small allocations
                      return (
                        <div key={asset.id} className="flex justify-between text-xs">
                          <span className="text-gray-500">{asset.name}</span>
-                         <span className="font-mono text-gray-900">{formatCurrency(structValue)}</span>
+                         <span className="font-mono text-gray-900">{structPercent.toFixed(1)}%</span>
                        </div>
                      )
                    })}
                  </div>
                  <div className="mt-3 pt-2 border-t-2 border-gray-200 flex justify-between items-center bg-gray-50 -mx-3 -mb-3 p-3 rounded-b-lg">
                     <span className="text-xs font-bold text-gray-900 uppercase">Total</span>
-                    <span className="text-xs font-bold text-gray-900 uppercase font-mono">{formatCurrency(struct.value)}</span>
+                    <span className="text-xs font-bold text-gray-900 uppercase font-mono">{((struct.value / totalWealth) * 100).toFixed(1)}%</span>
                  </div>
                </div>
              ))}
