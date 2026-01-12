@@ -2328,9 +2328,9 @@ export default function RiskReturnOptimiser() {
             {/* Pie Charts Row: Overall + Per Entity */}
             <div id="pie-chart-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
               <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation</h4>
-              <div className="flex gap-4 overflow-x-auto pb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Overall Pie Chart */}
-                <div className="flex-shrink-0" style={{width: '280px'}}>
+                <div>
                   <h5 className="text-sm font-semibold text-gray-700 mb-2 text-center">Overall</h5>
                   <div className="h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
@@ -2361,7 +2361,7 @@ export default function RiskReturnOptimiser() {
                   })).filter(a => a.value > 0.5);
                   
                   return (
-                    <div key={struct.id} className="flex-shrink-0" style={{width: '280px'}}>
+                    <div key={struct.id}>
                       <h5 className="text-sm font-semibold text-gray-700 mb-2 text-center">{struct.name}</h5>
                       <div className="h-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
