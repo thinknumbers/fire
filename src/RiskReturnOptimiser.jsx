@@ -435,7 +435,7 @@ export default function RiskReturnOptimiser() {
       };
 
       const addPageBorder = () => {
-         pdf.setDrawColor(224, 58, 62);
+         pdf.setDrawColor(232, 78, 27); // #E84E1B
          pdf.setLineWidth(0.5);
          pdf.rect(3, 3, pageWidth - 6, pageHeight - 6, 'S');
       };
@@ -453,7 +453,7 @@ export default function RiskReturnOptimiser() {
       const headerEl = document.getElementById('app-header');
       let headerHeightPdf = 0;
       if (headerEl) {
-        const headerCanvas = await html2canvas(headerEl, { scale: 2, backgroundColor: '#E03A3E' });
+        const headerCanvas = await html2canvas(headerEl, { scale: 2, backgroundColor: '#E84E1B' });
         const headerImg = headerCanvas.toDataURL('image/png');
         const imgProps = pdf.getImageProperties(headerImg);
         headerHeightPdf = (imgProps.height * pageWidth) / imgProps.width;
@@ -464,14 +464,14 @@ export default function RiskReturnOptimiser() {
       addPageBorder();
       
       // Title Block
-      addText("Wealth Strategy Report", 22, 'bold', [224, 58, 62], 'center'); y += 10;
-      addText(scenarioName, 14, 'normal', [80, 80, 80], 'center'); y += 7;
+      addText("Wealth Strategy Report", 22, 'bold', [232, 78, 27], 'center'); y += 10;
+      addText(scenarioName, 14, 'normal', [51, 51, 51], 'center'); y += 7;
       const modelName = MODEL_NAMES[selectedPortfolio.id] || "Custom";
-      addText(`Selected Model: ${selectedPortfolio.label} ${modelName}`, 12, 'bold', [224, 58, 62], 'center'); y += 7;
-      addText(`Generated: ${new Date().toLocaleDateString()}`, 9, 'italic', [150, 150, 150], 'center'); y += 10;
+      addText(`Selected Model: ${selectedPortfolio.label} ${modelName}`, 12, 'bold', [232, 78, 27], 'center'); y += 7;
+      addText(`Generated: ${new Date().toLocaleDateString()}`, 9, 'italic', [112, 112, 112], 'center'); y += 10;
 
       // Key Assumptions (2 columns)
-      addText("Key Assumptions", 12, 'bold', [30, 30, 30]); y += 6;
+      addText("Key Assumptions", 12, 'bold', [28, 46, 74]); y += 6;
       const col1X = margin;
       const col2X = pageWidth / 2 + 5;
       const startY = y;
@@ -498,7 +498,7 @@ export default function RiskReturnOptimiser() {
       addLine();
 
       // Portfolio Analysis Boxes
-      addText("Portfolio Analysis", 12, 'bold', [30, 30, 30]); y += 8;
+      addText("Portfolio Analysis", 12, 'bold', [28, 46, 74]); y += 8;
       const boxWidth = 50;
       const boxHeight = 22;
       const gap = (pageWidth - (margin * 2) - (boxWidth * 3)) / 2;
@@ -514,11 +514,11 @@ export default function RiskReturnOptimiser() {
 
       drawBox(margin, "Expected Return", formatPercent(selectedPortfolio.return), [22, 163, 74]);
       drawBox(margin + boxWidth + gap, "Risk (StdDev)", formatPercent(selectedPortfolio.risk), [220, 38, 38]);
-      drawBox(margin + (boxWidth + gap) * 2, "Sharpe Ratio", (selectedPortfolio.return / selectedPortfolio.risk).toFixed(2), [224, 58, 62]);
+      drawBox(margin + (boxWidth + gap) * 2, "Sharpe Ratio", (selectedPortfolio.return / selectedPortfolio.risk).toFixed(2), [232, 78, 27]);
       y += boxHeight + 10;
 
       // Pie Chart
-      addText("Target Asset Allocation", 12, 'bold', [30, 30, 30]); y += 5;
+      addText("Target Asset Allocation", 12, 'bold', [28, 46, 74]); y += 5;
       setActiveTab('output');
       await new Promise(r => setTimeout(r, 1500));
 
@@ -574,12 +574,12 @@ export default function RiskReturnOptimiser() {
       addPageBorder();
       y = margin;
 
-      addText("Detailed Asset Allocation", 14, 'bold', [30, 30, 30]); y += 8;
+      addText("Detailed Asset Allocation", 14, 'bold', [28, 46, 74]); y += 8;
 
       // Table Header
       pdf.setFillColor(245, 245, 245);
       pdf.rect(margin, y, pageWidth - (margin*2), 7, 'F');
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(80, 80, 80);
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(28, 46, 74);
       pdf.text("Asset Class", margin + 5, y + 5);
       pdf.text("Weight", pageWidth - margin - 45, y + 5, { align: 'right' });
       pdf.text("Value", pageWidth - margin - 5, y + 5, { align: 'right' });
@@ -611,10 +611,10 @@ export default function RiskReturnOptimiser() {
       y += 15;
 
       // Model Portfolios Summary Table
-      addText("Model Portfolios Summary", 14, 'bold', [30, 30, 30]); y += 8;
+      addText("Model Portfolios Summary", 14, 'bold', [28, 46, 74]); y += 8;
       pdf.setFillColor(245, 245, 245);
       pdf.rect(margin, y, pageWidth - (margin*2), 7, 'F');
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(80, 80, 80);
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(28, 46, 74);
       pdf.text("Model", margin + 5, y + 5);
       pdf.text("Name", margin + 25, y + 5);
       pdf.text("Return", pageWidth - margin - 45, y + 5, { align: 'right' });
@@ -634,10 +634,10 @@ export default function RiskReturnOptimiser() {
       y += 10;
 
       // Estimating Outcomes Table
-      addText("Estimated Outcomes", 14, 'bold', [30, 30, 30]); y += 8;
+      addText("Estimated Outcomes", 14, 'bold', [28, 46, 74]); y += 8;
       pdf.setFillColor(245, 245, 245);
       pdf.rect(margin, y, pageWidth - (margin*2), 7, 'F');
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(80, 80, 80);
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(28, 46, 74);
       pdf.text("Year", margin + 5, y + 5);
       pdf.text("Best (95th)", pageWidth/2 - 15, y + 5, { align: 'right' });
       pdf.text("Median (50th)", pageWidth/2 + 30, y + 5, { align: 'right' });
@@ -675,7 +675,7 @@ export default function RiskReturnOptimiser() {
       const maxChartHeight = (totalAvailableHeight - (titleHeight * 2) - chartSpacing) / 2;
 
       // Efficient Frontier
-      addText("Efficient Frontier Analysis", 14, 'bold', [30, 30, 30]); y += titleHeight;
+      addText("Efficient Frontier Analysis", 14, 'bold', [28, 46, 74]); y += titleHeight;
       setActiveTab('optimization');
       await new Promise(r => setTimeout(r, 1500));
       
@@ -697,7 +697,7 @@ export default function RiskReturnOptimiser() {
       }
 
       // Wealth Projection
-      addText("Monte Carlo Wealth Projection", 14, 'bold', [30, 30, 30]); y += titleHeight;
+      addText("Monte Carlo Wealth Projection", 14, 'bold', [28, 46, 74]); y += titleHeight;
       setActiveTab('cashflow');
       await new Promise(r => setTimeout(r, 1500));
       
