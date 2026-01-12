@@ -344,6 +344,11 @@ export default function RiskReturnOptimiser() {
   // Cashflow Result State
   const [cfSimulationResults, setCfSimulationResults] = useState([]);
   
+  // Projections Tab State
+  const [selectedCashflowEntity, setSelectedCashflowEntity] = useState('all'); // 'all' or entity id
+  const [showBeforeTax, setShowBeforeTax] = useState(false); // false = after tax, true = before tax
+  const [showNominal, setShowNominal] = useState(true); // true = nominal, false = real (inflation-adjusted)
+  
   // Supabase State
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
@@ -1187,36 +1192,53 @@ export default function RiskReturnOptimiser() {
        }
     }
 
+    // Helper to get tax rate for a stream
+    const getTaxRateForEntity = (entityId) => {
+        if (!entityId || entityId === 'all') {
+            // Default to Personal Rate if not specified
+            return entityTypes.PERSONAL ? entityTypes.PERSONAL.incomeTax : 0.47;
+        }
+        const struct = structures.find(s => s.id == entityId); // loose equality in case of string/int mismatch
+        if (!struct) return 0.47; // Default fallback
+
+        if (struct.useCustomTax && struct.customTax) {
+             return struct.customTax.incomeTax || 0;
+        }
+        const typeDef = entityTypes[struct.type];
+        return typeDef ? typeDef.incomeTax : 0.47;
+    };
+
     for (let y = 1; y <= years; y++) {
       let flow = 0;
       const inflationFactor = Math.pow(1 + inflationRate, y);
       
-      // Assume income streams are personal exertion income (Gross) and tax at top marginal rate
-      // Use the current Personal rate from settings
-      const taxRate = entityTypes.PERSONAL ? entityTypes.PERSONAL.incomeTax : 0.47;
-
       incomeStreams.forEach(s => {  
+        const amount = parseFloat(s.amount) || 0;
+        const taxRate = getTaxRateForEntity(s.entityId);
+
         if (s.isOneOff) {
             if (s.year === y) {
-                 const netIncome = s.amount * (1 - taxRate);
+                 const netIncome = amount * (1 - taxRate);
                  flow += netIncome * inflationFactor; 
             }
         } else {
             if(y >= s.startYear && y <= s.endYear) {
-              const netIncome = s.amount * (1 - taxRate);
+              const netIncome = amount * (1 - taxRate);
               flow += netIncome * inflationFactor; 
             }
         }
       });
       
       expenseStreams.forEach(s => { 
+        const amount = parseFloat(s.amount) || 0;
+        // Expenses are usually post-tax spending, so just subtract amount
         if (s.isOneOff) {
             if (s.year === y) {
-                flow -= s.amount * inflationFactor; 
+                flow -= amount * inflationFactor; 
             }
         } else {
             if(y >= s.startYear && y <= s.endYear) {
-              flow -= s.amount * inflationFactor; 
+              flow -= amount * inflationFactor; 
             }
         }
       });
@@ -1996,8 +2018,70 @@ export default function RiskReturnOptimiser() {
     </div>
   );
 
-  const ProjectionsTab = () => (
-    <div className="space-y-6 animate-in fade-in">
+  const ProjectionsTab = () => {
+    // Filter cash flows by selected entity if needed
+    // Handle undefined entityId as 'all' effectively or just don't match? 
+    // Actually, if I want default items to show up under 'all', I need to safeguard.
+    // But if I want items with NO entityId to trigger default tax (Personal), maybe I should treat them as... 
+    // Let's stick to strict match effectively, but handle legacy items.
+    
+    // Actually, simpler:
+    const getFilteredStreams = (streams) => {
+        if (selectedCashflowEntity === 'all') return streams;
+        return streams.filter(item => {
+             // If item has no entityId, assume it might depend on implementation. 
+             // But let's assume strict filtering.
+             return item.entityId == selectedCashflowEntity;
+        });
+    };
+
+    const currentInflows = getFilteredStreams(incomeStreams);
+    const currentOutflows = getFilteredStreams(expenseStreams);
+
+    // Update handlers using ID lookup to avoid index issues with filtering
+    const updateInflow = (id, field, value) => {
+        setIncomeStreams(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+    };
+
+    const updateOutflow = (id, field, value) => {
+        setExpenseStreams(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+    };
+
+    const deleteInflow = (id) => setIncomeStreams(prev => prev.filter(item => item.id !== id));
+    const deleteOutflow = (id) => setExpenseStreams(prev => prev.filter(item => item.id !== id));
+
+    // Calculate outcomes for display (with tax and inflation adjustments)
+    const getAdjustedOutcomes = () => {
+      if (!selectedPortfolio || cfSimulationResults.length === 0) return null;
+      
+      const years = [1, 3, 5, 10, 20];
+      return years.map(yr => {
+        const idx = yr - 1;
+        if (!cfSimulationResults[idx]) return null;
+        const res = cfSimulationResults[idx];
+        
+        // Apply inflation adjustment if showing real values
+        const inflationFactor = showNominal ? 1 : Math.pow(1 + inflationRate, -yr);
+        
+        // For before/after tax, we'd need to calculate differently
+        // For now, the simulation already uses after-tax returns
+        // Before tax would require running with pre-tax returns
+        
+        return {
+          year: `${yr} year${yr > 1 ? 's' : ''}`,
+          p05: res.p05 * inflationFactor,
+          p50: res.p50 * inflationFactor,
+          p95: res.p95 * inflationFactor,
+          range: [res.p05 * inflationFactor, res.p95 * inflationFactor]
+        };
+      }).filter(Boolean);
+    };
+
+    const adjustedOutcomes = getAdjustedOutcomes();
+
+    return (
+      <div className="space-y-6 animate-in fade-in">
+        {/* Projection Parameters */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
              <Calculator className="w-5 h-5 mr-2 text-fire-accent" />
@@ -2040,56 +2124,88 @@ export default function RiskReturnOptimiser() {
            </div>
         </div>
 
+        {/* Cashflow Projections with Entity Selector */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
-              Cashflow Projections
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
+                Cashflow Projections
+              </h3>
+              
+              {/* Entity Selector */}
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-gray-500">Filter by Entity:</label>
+                <select
+                  value={selectedCashflowEntity}
+                  onChange={(e) => setSelectedCashflowEntity(e.target.value)}
+                  className="border border-gray-300 rounded px-3 py-1 text-sm focus:ring-2 focus:ring-fire-accent focus:border-fire-accent"
+                >
+                  <option value="all">All Entities</option>
+                  {structures.map(struct => (
+                    <option key={struct.id} value={struct.id}>{struct.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             
             <div className="grid md:grid-cols-2 gap-8">
                {/* Inflows */}
                <div>
                  <h4 className="text-sm font-bold text-gray-700 mb-3 border-b pb-2 text-green-700">Inflows</h4>
-                 {incomeStreams.map((item, i) => (
+                 {currentInflows.map((item) => (
                    <div key={item.id} className="flex flex-col gap-2 mb-3 bg-gray-50 p-2 rounded border border-gray-100">
                      <div className="flex gap-2 items-center text-sm w-full">
-                         <input type="text" value={item.name} className="flex-1 border rounded px-2 py-1" placeholder="Name" onChange={(e) => {
-                           const n = [...incomeStreams]; n[i].name = e.target.value; setIncomeStreams(n);
-                         }}/>
+                         <input type="text" value={item.name} className="flex-1 border rounded px-2 py-1" placeholder="Name" 
+                           onChange={(e) => updateInflow(item.id, 'name', e.target.value)}
+                         />
                          <div className="w-24">
-                             <NumberInput value={item.amount} onChange={(val) => { const n = [...incomeStreams]; n[i].amount = val; setIncomeStreams(n); }} className="w-full border rounded px-2 py-1" prefix="$" />
+                             <NumberInput value={item.amount} onChange={(val) => updateInflow(item.id, 'amount', val)} className="w-full border rounded px-2 py-1" prefix="$" />
                          </div>
                      </div>
-                     <div className="flex items-center gap-4 text-xs">
+                     <div className="flex flex-wrap items-center gap-2 text-xs">
                          <label className="flex items-center text-gray-600">
                              <input type="checkbox" className="mr-1" 
                                checked={item.isOneOff} 
-                               onChange={() => { const n = [...incomeStreams]; n[i].isOneOff = !n[i].isOneOff; setIncomeStreams(n); }}
+                               onChange={() => updateInflow(item.id, 'isOneOff', !item.isOneOff)}
                              />
                              One-off
                          </label>
                          
                          {item.isOneOff ? (
                              <div className="flex items-center">
-                                 Year: <input type="number" className="w-12 border rounded ml-1 text-center" value={item.year || 1} onChange={(e) => {
-                                     const n = [...incomeStreams]; n[i].year = parseInt(e.target.value); setIncomeStreams(n);
-                                 }}/>
+                                 Year: <input type="number" className="w-12 border rounded ml-1 text-center" value={item.year || 1} 
+                                   onChange={(e) => updateInflow(item.id, 'year', parseInt(e.target.value))}
+                                 />
                              </div>
                          ) : (
                              <div className="flex items-center">
-                                 Yrs <input type="number" className="w-10 border rounded mx-1 text-center" value={item.startYear} onChange={(e) => {
-                                     const n = [...incomeStreams]; n[i].startYear = parseInt(e.target.value); setIncomeStreams(n);
-                                 }}/>
-                                 to <input type="number" className="w-10 border rounded mx-1 text-center" value={item.endYear} onChange={(e) => {
-                                     const n = [...incomeStreams]; n[i].endYear = parseInt(e.target.value); setIncomeStreams(n);
-                                 }}/>
+                                 Yrs <input type="number" className="w-10 border rounded mx-1 text-center" value={item.startYear} 
+                                   onChange={(e) => updateInflow(item.id, 'startYear', parseInt(e.target.value))}
+                                 />
+                                 to <input type="number" className="w-10 border rounded mx-1 text-center" value={item.endYear} 
+                                   onChange={(e) => updateInflow(item.id, 'endYear', parseInt(e.target.value))}
+                                 />
                              </div>
                          )}
-                         <button onClick={() => setIncomeStreams(incomeStreams.filter(s => s.id !== item.id))} className="text-gray-400 hover:text-red-500 ml-auto"><Trash2 className="w-3 h-3"/></button>
+
+                         {/* Per-Item Entity Selector */}
+                         <div className="flex items-center ml-auto gap-1">
+                             <span className="text-gray-400">Owner:</span>
+                             <select 
+                                value={item.entityId || ''} 
+                                onChange={(e) => updateInflow(item.id, 'entityId', e.target.value)}
+                                className="border rounded px-1 py-0.5 text-xs max-w-[100px]"
+                             >
+                                <option value="">Default (Personal)</option>
+                                {structures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                             </select>
+                         </div>
+
+                         <button onClick={() => deleteInflow(item.id)} className="text-gray-400 hover:text-red-500 ml-1"><Trash2 className="w-3 h-3"/></button>
                      </div>
                    </div>
                  ))}
-                 <button className="text-xs text-fire-accent flex items-center mt-2 font-medium" onClick={() => setIncomeStreams([...incomeStreams, { id: Date.now(), name: 'New Inflow', amount: 0, startYear: 1, endYear: 10, isOneOff: false, year: 1 }])}>
+                 <button className="text-xs text-fire-accent flex items-center mt-2 font-medium" onClick={() => setIncomeStreams([...incomeStreams, { id: Date.now(), name: 'New Inflow', amount: 0, startYear: 1, endYear: 10, isOneOff: false, year: 1, entityId: selectedCashflowEntity === 'all' ? structures[0]?.id : selectedCashflowEntity }])}>
                    <Plus className="w-3 h-3 mr-1"/> Add Inflow
                  </button>
                </div>
@@ -2097,53 +2213,179 @@ export default function RiskReturnOptimiser() {
                {/* Outflows */}
                <div>
                  <h4 className="text-sm font-bold text-gray-700 mb-3 border-b pb-2 text-red-700">Outflows</h4>
-                 {expenseStreams.map((item, i) => (
+                 {currentOutflows.map((item) => (
                    <div key={item.id} className="flex flex-col gap-2 mb-3 bg-gray-50 p-2 rounded border border-gray-100">
                      <div className="flex gap-2 items-center text-sm w-full">
-                         <input type="text" value={item.name} className="flex-1 border rounded px-2 py-1" placeholder="Name" onChange={(e) => {
-                           const n = [...expenseStreams]; n[i].name = e.target.value; setExpenseStreams(n);
-                         }}/>
+                         <input type="text" value={item.name} className="flex-1 border rounded px-2 py-1" placeholder="Name" 
+                           onChange={(e) => updateOutflow(item.id, 'name', e.target.value)}
+                         />
                          <div className="w-24">
-                             <NumberInput value={item.amount} onChange={(val) => { const n = [...expenseStreams]; n[i].amount = val; setExpenseStreams(n); }} className="w-full border rounded px-2 py-1 text-red-600" prefix="$" />
+                             <NumberInput value={item.amount} onChange={(val) => updateOutflow(item.id, 'amount', val)} className="w-full border rounded px-2 py-1 text-red-600" prefix="$" />
                          </div>
                      </div>
-                     <div className="flex items-center gap-4 text-xs">
+                     <div className="flex flex-wrap items-center gap-2 text-xs">
                          <label className="flex items-center text-gray-600">
                              <input type="checkbox" className="mr-1" 
                                checked={item.isOneOff} 
-                               onChange={() => { const n = [...expenseStreams]; n[i].isOneOff = !n[i].isOneOff; setExpenseStreams(n); }}
+                               onChange={() => updateOutflow(item.id, 'isOneOff', !item.isOneOff)}
                              />
                              One-off
                          </label>
                          
                          {item.isOneOff ? (
                              <div className="flex items-center">
-                                 Year: <input type="number" className="w-12 border rounded ml-1 text-center" value={item.year || 1} onChange={(e) => {
-                                     const n = [...expenseStreams]; n[i].year = parseInt(e.target.value); setExpenseStreams(n);
-                                 }}/>
+                                 Year: <input type="number" className="w-12 border rounded ml-1 text-center" value={item.year || 1} 
+                                   onChange={(e) => updateOutflow(item.id, 'year', parseInt(e.target.value))}
+                                 />
                              </div>
                          ) : (
                              <div className="flex items-center">
-                                 Yrs <input type="number" className="w-10 border rounded mx-1 text-center" value={item.startYear} onChange={(e) => {
-                                     const n = [...expenseStreams]; n[i].startYear = parseInt(e.target.value); setExpenseStreams(n);
-                                 }}/>
-                                 to <input type="number" className="w-10 border rounded mx-1 text-center" value={item.endYear} onChange={(e) => {
-                                     const n = [...expenseStreams]; n[i].endYear = parseInt(e.target.value); setExpenseStreams(n);
-                                 }}/>
+                                 Yrs <input type="number" className="w-10 border rounded mx-1 text-center" value={item.startYear} 
+                                   onChange={(e) => updateOutflow(item.id, 'startYear', parseInt(e.target.value))}
+                                 />
+                                 to <input type="number" className="w-10 border rounded mx-1 text-center" value={item.endYear} 
+                                   onChange={(e) => updateOutflow(item.id, 'endYear', parseInt(e.target.value))}
+                                 />
                              </div>
                          )}
-                         <button onClick={() => setExpenseStreams(expenseStreams.filter(s => s.id !== item.id))} className="text-gray-400 hover:text-red-500 ml-auto"><Trash2 className="w-3 h-3"/></button>
+
+                         {/* Per-Item Entity Selector */}
+                         <div className="flex items-center ml-auto gap-1">
+                             <span className="text-gray-400">Owner:</span>
+                             <select 
+                                value={item.entityId || ''} 
+                                onChange={(e) => updateOutflow(item.id, 'entityId', e.target.value)}
+                                className="border rounded px-1 py-0.5 text-xs max-w-[100px]"
+                             >
+                                <option value="">Default (Personal)</option>
+                                {structures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                             </select>
+                         </div>
+
+                         <button onClick={() => deleteOutflow(item.id)} className="text-gray-400 hover:text-red-500 ml-1"><Trash2 className="w-3 h-3"/></button>
                      </div>
                    </div>
                  ))}
-                 <button className="text-xs text-fire-accent flex items-center mt-2 font-medium" onClick={() => setExpenseStreams([...expenseStreams, { id: Date.now(), name: 'New Outflow', amount: 0, startYear: 1, endYear: 30, isOneOff: false, year: 1 }])}>
+                 <button className="text-xs text-fire-accent flex items-center mt-2 font-medium" onClick={() => setExpenseStreams([...expenseStreams, { id: Date.now(), name: 'New Outflow', amount: 0, startYear: 1, endYear: 30, isOneOff: false, year: 1, entityId: selectedCashflowEntity === 'all' ? structures[0]?.id : selectedCashflowEntity }])}>
                    <Plus className="w-3 h-3 mr-1"/> Add Outflow
                  </button>
                </div>
             </div>
         </div>
+
+        {/* Portfolio Selection and Toggles */}
+        {selectedPortfolio && cfSimulationResults.length > 0 && (
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <PieIcon className="w-5 h-5 mr-2 text-fire-accent" />
+                Portfolio Outcomes
+              </h3>
+              
+              <div className="flex gap-4 items-center">
+                {/* Portfolio Selector */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-gray-500">Portfolio:</label>
+                  <select
+                    value={selectedPortfolioId}
+                    onChange={(e) => setSelectedPortfolioId(parseInt(e.target.value))}
+                    className="border border-gray-300 rounded px-3 py-1 text-sm focus:ring-2 focus:ring-fire-accent focus:border-fire-accent"
+                  >
+                    {efficientFrontier.map((p, i) => (
+                      <option key={i+1} value={i+1}>
+                        Model {i+1} - {MODEL_NAMES[i+1] || 'Custom'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Before/After Tax Toggle */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-gray-500">Display:</label>
+                  <button
+                    onClick={() => setShowBeforeTax(!showBeforeTax)}
+                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                      showBeforeTax 
+                        ? 'bg-gray-200 text-gray-700' 
+                        : 'bg-fire-accent text-white'
+                    }`}
+                  >
+                    {showBeforeTax ? 'Before Tax' : 'After Tax'}
+                  </button>
+                </div>
+
+                {/* Nominal/Real Toggle */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-gray-500">Values:</label>
+                  <button
+                    onClick={() => setShowNominal(!showNominal)}
+                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                      showNominal 
+                        ? 'bg-fire-accent text-white' 
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {showNominal ? 'Nominal' : 'Real'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Estimating Outcomes Chart */}
+            <h4 className="font-semibold text-gray-900 mb-4">Estimating Outcomes</h4>
+            <div className="h-[400px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart 
+                  data={adjustedOutcomes}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="year" axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} />
+                  {!isExporting && <Tooltip 
+                     cursor={{fill: 'transparent'}}
+                     content={({ active, payload, label }) => {
+                         if (active && payload && payload.length) {
+                              const data = payload[0].payload;
+                              return (
+                                <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-xs z-50">
+                                  <p className="font-bold mb-2 text-gray-900">{label}</p>
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between gap-4">
+                                      <span className="text-gray-500">95th Percentile:</span>
+                                      <span className="font-mono font-bold text-amber-400">{formatCurrency(data.p95)}</span>
+                                    </div>
+                                    <div className="flex justify-between gap-4">
+                                      <span className="text-gray-500">Median (50th):</span>
+                                      <span className="font-mono font-bold text-orange-600">{formatCurrency(data.p50)}</span>
+                                    </div>
+                                    <div className="flex justify-between gap-4">
+                                      <span className="text-gray-500">16th Percentile:</span>
+                                      <span className="font-mono font-bold text-red-700">{formatCurrency(data.p05)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                         }
+                         return null;
+                     }}
+                  />}
+                  <Bar dataKey="range" barSize={60} shape={<OutcomeCandlestick />} isAnimationActive={!isExporting} />
+                  <Legend 
+                     payload={[
+                       { value: '95th Percentile (Best)', type: 'line', color: '#fbbf24' },
+                       { value: 'Median (50th)', type: 'line', color: '#ea580c' },
+                       { value: '16th Percentile (Worst)', type: 'line', color: '#ce2029' },
+                     ]}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
     </div>
   );
+  };
 
   const OptimizationTab = () => (
     <div className="space-y-6 animate-in fade-in">
@@ -2429,11 +2671,11 @@ export default function RiskReturnOptimiser() {
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
-               Monte Carlo Wealth Projection
+               Wealth Projection
             </h3>
             
             <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-lg border border-gray-200">
-               <div className="text-xs font-medium text-gray-500">Select Model:</div>
+               <div className="text-xs font-medium text-gray-500">Portfolio:</div>
                <input 
                   type="range" min="1" max="10" 
                   value={selectedPortfolioId} 
@@ -2499,83 +2741,6 @@ export default function RiskReturnOptimiser() {
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-
-          <div className="mt-4 p-4 bg-red-50 rounded-lg text-sm text-red-800 border border-red-100 flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 shrink-0" />
-            <div>
-              <strong>Analysis:</strong> Based on 1,000 simulations using the <strong>{selectedPortfolio.label}</strong> over <strong>{projectionYears} years</strong>.
-              The shaded area represents the 90% confidence interval.
-              <ul className="list-disc ml-5 mt-2 space-y-1 text-xs">
-                 <li>Median Result (Year {projectionYears}): <strong>{formatCurrency(cfSimulationResults[cfSimulationResults.length-1].p50)}</strong></li>
-                 <li>Worst Case (Year {projectionYears}): <strong>{formatCurrency(cfSimulationResults[cfSimulationResults.length-1].p05)}</strong></li>
-                 <li>Assumed Inflation: <strong>{(inflationRate * 100).toFixed(1)}% p.a.</strong></li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* Outcome Whisker Chart */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-           <h4 className="font-semibold text-gray-900 mb-6">Estimating Outcomes</h4>
-           <div className="h-[400px] w-full">
-             <ResponsiveContainer width="100%" height="100%">
-               <ComposedChart 
-                 data={[1, 3, 5, 10, 20].map(yr => {
-                   const idx = yr - 1;
-                   if (!cfSimulationResults[idx]) return null;
-                   const res = cfSimulationResults[idx];
-                   return {
-                     year: `${yr} year`,
-                     p05: res.p05,
-                     p50: res.p50,
-                     p95: res.p95,
-                     range: [res.p05, res.p95]
-                   };
-                 }).filter(Boolean)}
-                 margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-               >
-                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                 <XAxis dataKey="year" axisLine={false} tickLine={false} />
-                 <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} />
-                 {!isExporting && <Tooltip 
-                    cursor={{fill: 'transparent'}}
-                    content={({ active, payload, label }) => {
-                        if (active && payload && payload.length) {
-                             const data = payload[0].payload;
-                             return (
-                               <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-xs z-50">
-                                 <p className="font-bold mb-2 text-gray-900">{label}</p>
-                                 <div className="space-y-1">
-                                   <div className="flex justify-between gap-4">
-                                     <span className="text-gray-500">95th Percentile:</span>
-                                     <span className="font-mono font-bold text-amber-400">{formatCurrency(data.p95)}</span>
-                                   </div>
-                                   <div className="flex justify-between gap-4">
-                                     <span className="text-gray-500">Median (50th):</span>
-                                     <span className="font-mono font-bold text-orange-600">{formatCurrency(data.p50)}</span>
-                                   </div>
-                                   <div className="flex justify-between gap-4">
-                                     <span className="text-gray-500">5th Percentile:</span>
-                                     <span className="font-mono font-bold text-red-700">{formatCurrency(data.p05)}</span>
-                                   </div>
-                                 </div>
-                               </div>
-                             );
-                        }
-                        return null;
-                    }}
-                 />}
-                 <Bar dataKey="range" barSize={60} shape={<OutcomeCandlestick />} isAnimationActive={!isExporting} />
-                 <Legend 
-                    payload={[
-                      { value: '95th Percentile (Best)', type: 'line', color: '#fbbf24' },
-                      { value: 'Median (50th)', type: 'line', color: '#ea580c' },
-                      { value: '5th Percentile (Worst)', type: 'line', color: '#ce2029' },
-                    ]}
-                 />
-               </ComposedChart>
-             </ResponsiveContainer>
-           </div>
         </div>
       </div>
     );
