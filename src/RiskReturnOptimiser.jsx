@@ -2050,34 +2050,7 @@ export default function RiskReturnOptimiser() {
     const deleteInflow = (id) => setIncomeStreams(prev => prev.filter(item => item.id !== id));
     const deleteOutflow = (id) => setExpenseStreams(prev => prev.filter(item => item.id !== id));
 
-    // Calculate outcomes for display (with tax and inflation adjustments)
-    const getAdjustedOutcomes = () => {
-      if (!selectedPortfolio || cfSimulationResults.length === 0) return null;
-      
-      const years = [1, 3, 5, 10, 20];
-      return years.map(yr => {
-        const idx = yr - 1;
-        if (!cfSimulationResults[idx]) return null;
-        const res = cfSimulationResults[idx];
-        
-        // Apply inflation adjustment if showing real values
-        const inflationFactor = showNominal ? 1 : Math.pow(1 + inflationRate, -yr);
-        
-        // For before/after tax, we'd need to calculate differently
-        // For now, the simulation already uses after-tax returns
-        // Before tax would require running with pre-tax returns
-        
-        return {
-          year: `${yr} year${yr > 1 ? 's' : ''}`,
-          p05: res.p05 * inflationFactor,
-          p50: res.p50 * inflationFactor,
-          p95: res.p95 * inflationFactor,
-          range: [res.p05 * inflationFactor, res.p95 * inflationFactor]
-        };
-      }).filter(Boolean);
-    };
 
-    const adjustedOutcomes = getAdjustedOutcomes();
 
     return (
       <div className="space-y-6 animate-in fade-in">
@@ -2538,23 +2511,23 @@ export default function RiskReturnOptimiser() {
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 sticky top-0">
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Asset</th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">%</th>
+                      <th className="px-3 py-1 text-left text-xs font-medium text-gray-500 uppercase">Asset</th>
+                      <th className="px-3 py-1 text-right text-xs font-medium text-gray-500 uppercase">%</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {activeAssets.map((asset) => (
                       <tr key={asset.id}>
-                        <td className="px-3 py-2 font-medium flex items-center">
+                        <td className="px-3 py-1 font-medium flex items-center">
                           <div className="w-2 h-2 rounded-full mr-2" style={{backgroundColor:asset.color}}/>
                           {asset.name}
                         </td>
-                        <td className="px-3 py-2 text-right text-gray-900 font-mono">{formatPercent(asset.weight)}</td>
+                        <td className="px-3 py-1 text-right text-gray-900 font-mono">{formatPercent(asset.weight)}</td>
                       </tr>
                     ))}
                     <tr className="bg-gray-50 border-t-2 border-gray-200">
-                      <td className="px-3 py-2 text-left text-xs font-bold text-gray-900 uppercase">Total</td>
-                      <td className="px-3 py-2 text-right text-xs font-bold text-gray-900 uppercase">100.0%</td>
+                      <td className="px-3 py-1 text-left text-xs font-bold text-gray-900 uppercase">Total</td>
+                      <td className="px-3 py-1 text-right text-xs font-bold text-gray-900 uppercase">100.0%</td>
                     </tr>
                   </tbody>
                 </table>
@@ -2665,6 +2638,35 @@ export default function RiskReturnOptimiser() {
   const CashflowTab = () => {
     if (!selectedPortfolio || cfSimulationResults.length === 0) return <div className="p-8 text-center text-gray-500">Please select a portfolio in the Output tab first to run projections.</div>;
 
+    // Calculate outcomes for display (with tax and inflation adjustments)
+    const getAdjustedOutcomes = () => {
+      if (!selectedPortfolio || cfSimulationResults.length === 0) return null;
+      
+      const years = [1, 3, 5, 10, 20];
+      return years.map(yr => {
+        const idx = yr - 1;
+        if (!cfSimulationResults[idx]) return null;
+        const res = cfSimulationResults[idx];
+        
+        // Apply inflation adjustment if showing real values
+        const inflationFactor = showNominal ? 1 : Math.pow(1 + inflationRate, -yr);
+        
+        // For before/after tax, we'd need to calculate differently
+        // For now, the simulation already uses after-tax returns
+        // Before tax would require running with pre-tax returns
+        
+        return {
+          year: `${yr} year${yr > 1 ? 's' : ''}`,
+          p05: res.p05 * inflationFactor,
+          p50: res.p50 * inflationFactor,
+          p95: res.p95 * inflationFactor,
+          range: [res.p05 * inflationFactor, res.p95 * inflationFactor]
+        };
+      }).filter(Boolean);
+    };
+
+    const adjustedOutcomes = getAdjustedOutcomes();
+
     return (
       <div className="space-y-6 animate-in fade-in">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -2742,12 +2744,125 @@ export default function RiskReturnOptimiser() {
             </ResponsiveContainer>
           </div>
         </div>
+
+
+
+        {/* Portfolio Selection and Toggles */}
+        {selectedPortfolio && cfSimulationResults.length > 0 && (
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <PieIcon className="w-5 h-5 mr-2 text-fire-accent" />
+                Portfolio Outcomes
+              </h3>
+              
+              <div className="flex gap-4 items-center">
+                {/* Portfolio Selector */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-gray-500">Portfolio:</label>
+                  <select
+                    value={selectedPortfolioId}
+                    onChange={(e) => setSelectedPortfolioId(parseInt(e.target.value))}
+                    className="border border-gray-300 rounded px-3 py-1 text-sm focus:ring-2 focus:ring-fire-accent focus:border-fire-accent"
+                  >
+                    {efficientFrontier.map((p, i) => (
+                      <option key={i+1} value={i+1}>
+                        Model {i+1} - {MODEL_NAMES[i+1] || 'Custom'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Before/After Tax Toggle */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-gray-500">Display:</label>
+                  <button
+                    onClick={() => setShowBeforeTax(!showBeforeTax)}
+                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                      showBeforeTax 
+                        ? 'bg-gray-200 text-gray-700' 
+                        : 'bg-fire-accent text-white'
+                    }`}
+                  >
+                    {showBeforeTax ? 'Before Tax' : 'After Tax'}
+                  </button>
+                </div>
+
+                {/* Nominal/Real Toggle */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-gray-500">Values:</label>
+                  <button
+                    onClick={() => setShowNominal(!showNominal)}
+                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                      showNominal 
+                        ? 'bg-fire-accent text-white' 
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {showNominal ? 'Nominal' : 'Real'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Estimating Outcomes Chart */}
+            <h4 className="font-semibold text-gray-900 mb-4">Estimating Outcomes</h4>
+            <div className="h-[400px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart 
+                  data={adjustedOutcomes}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="year" axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} />
+                  {!isExporting && <Tooltip 
+                     cursor={{fill: 'transparent'}}
+                     content={({ active, payload, label }) => {
+                         if (active && payload && payload.length) {
+                               const data = payload[0].payload;
+                               return (
+                                 <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-xs z-50">
+                                   <p className="font-bold mb-2 text-gray-900">{label}</p>
+                                   <div className="space-y-1">
+                                     <div className="flex justify-between gap-4">
+                                       <span className="text-gray-500">95th Percentile:</span>
+                                       <span className="font-mono font-bold text-amber-400">{formatCurrency(data.p95)}</span>
+                                     </div>
+                                     <div className="flex justify-between gap-4">
+                                       <span className="text-gray-500">Median (50th):</span>
+                                       <span className="font-mono font-bold text-orange-600">{formatCurrency(data.p50)}</span>
+                                     </div>
+                                     <div className="flex justify-between gap-4">
+                                       <span className="text-gray-500">16th Percentile:</span>
+                                       <span className="font-mono font-bold text-red-700">{formatCurrency(data.p05)}</span>
+                                     </div>
+                                   </div>
+                                 </div>
+                               );
+                         }
+                         return null;
+                     }}
+                  />}
+                  <Bar dataKey="range" barSize={60} shape={<OutcomeCandlestick />} isAnimationActive={!isExporting} />
+                  <Legend 
+                     payload={[
+                       { value: '95th Percentile (Best)', type: 'line', color: '#fbbf24' },
+                       { value: 'Median (50th)', type: 'line', color: '#ea580c' },
+                       { value: '16th Percentile (Worst)', type: 'line', color: '#ce2029' },
+                     ]}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans text-slate-800">
+    <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans text-slate-800" style={{ fontFamily: 'var(--font-main)' }}>
       <div className="max-w-7xl mx-auto">
         <div id="app-header" className="bg-fire-accent -mx-4 -mt-4 mb-8 md:-mx-8 md:-mt-8 p-6 shadow-md text-white">
           <div className="flex justify-between items-center max-w-7xl mx-auto">
