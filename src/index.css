@@ -14,7 +14,7 @@
   }
 
   body {
-    font-family: 'Calibri', sans-serif;
+    font-family: var(--font-main, 'Calibri'), sans-serif;
     color: var(--color-fire-text);
   }
   h1, h2, h3, h4, h5, h6 {

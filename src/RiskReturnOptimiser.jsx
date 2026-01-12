@@ -9,7 +9,7 @@ import {
   Settings, User, Activity, PieChart as PieIcon, TrendingUp, 
   ChevronRight, Save, Calculator, ArrowRight, DollarSign, Plus, Trash2, Calendar,
   AlertCircle, FileText, CheckSquare, Square, Clock, Percent, Loader, Cpu, Cloud,
-  FolderOpen, ChevronDown, X
+  FolderOpen, ChevronDown, X, Upload, Type
 } from 'lucide-react';
 import { supabase } from './supabase';
 import html2canvas from 'html2canvas';
@@ -325,7 +325,9 @@ export default function RiskReturnOptimiser() {
      root.style.setProperty('--color-fire-accent', appSettings.colors.accent);
      root.style.setProperty('--color-fire-heading', appSettings.colors.heading);
      root.style.setProperty('--color-fire-text', appSettings.colors.text);
+     root.style.setProperty('--color-fire-text', appSettings.colors.text);
      root.style.setProperty('--color-fire-bg-light', appSettings.colors.bgLight);
+     root.style.setProperty('--font-main', AVAILABLE_FONTS.find(f => f.id === appSettings.font)?.family || 'Calibri, sans-serif');
   }, [appSettings]);
   const [optimizationAssets, setOptimizationAssets] = useState([]);
   
@@ -340,10 +342,39 @@ export default function RiskReturnOptimiser() {
   const [showLoadMenu, setShowLoadMenu] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [lastDeleted, setLastDeleted] = useState(null); // For Undo
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const AVAILABLE_FONTS = [
+      { id: 'Calibri', label: 'Calibri (Default)', family: 'Calibri, sans-serif' },
+      { id: 'Inter', label: 'Inter', family: "'Inter', sans-serif" },
+      { id: 'Roboto', label: 'Roboto', family: "'Roboto', sans-serif" },
+      { id: 'Lato', label: 'Lato', family: "'Lato', sans-serif" },
+      { id: 'Open Sans', label: 'Open Sans', family: "'Open Sans', sans-serif" },
+  ];
 
   useEffect(() => {
     fetchScenarios();
   }, []);
+
+  // Inject Fonts
+  useEffect(() => {
+      if (!appSettings.font || appSettings.font === 'Calibri') return;
+      
+      const fontName = appSettings.font;
+      const linkId = 'dynamic-font-link';
+      let link = document.getElementById(linkId);
+      
+      if (!link) {
+          link = document.createElement('link');
+          link.id = linkId;
+          link.rel = 'stylesheet';
+          document.head.appendChild(link);
+      }
+      
+      link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(' ', '+')}:wght@400;500;700&display=swap`;
+  }, [appSettings.font]);
 
   const fetchScenarios = async () => {
     const { data, error } = await supabase
@@ -1234,7 +1265,6 @@ export default function RiskReturnOptimiser() {
   const Navigation = () => (
     <div className="flex flex-col md:flex-row gap-2 mb-6 border-b border-gray-200 pb-4 overflow-x-auto">
       {[
-        { id: 'settings', label: 'Settings', icon: Settings },
         { id: 'data', label: 'Capital Market Estimates', icon: Activity },
         { id: 'client', label: '2. Client & Structure', icon: User },
         { id: 'optimization', label: '3. Optimisation', icon: Calculator },
@@ -1257,85 +1287,182 @@ export default function RiskReturnOptimiser() {
     </div>
   );
 
-  const SettingsTab = () => (
-    <div className="space-y-6 animate-in fade-in">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-                <Settings className="w-5 h-5 mr-2 text-fire-accent" />
-                Application Settings
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Application Title</label>
-                    <input 
-                        type="text" 
-                        value={appSettings.title}
-                        onChange={(e) => setAppSettings(prev => ({ ...prev, title: e.target.value }))}
-                        className="w-full border border-gray-300 rounded px-3 py-2"
-                    />
-                </div>
-                <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
-                   <div className="flex gap-2">
-                       <input 
-                           type="text" 
-                           value={appSettings.logo}
-                           onChange={(e) => setAppSettings(prev => ({ ...prev, logo: e.target.value }))}
-                           className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                           placeholder="https://example.com/logo.png"
-                       />
-                       {appSettings.logo && (
-                           <div className="w-10 h-10 bg-gray-100 rounded border border-gray-200 flex items-center justify-center p-1">
-                               <img src={appSettings.logo} alt="Preview" className="max-w-full max-h-full object-contain" />
-                           </div>
-                       )}
-                   </div>
-                   <p className="text-xs text-gray-500 mt-1">Leave empty to use default. Use full URL (https://...).</p>
-                </div>
+  const handleLogoUpload = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color (Accent)</label>
-                    <div className="flex items-center gap-3">
-                        <input 
-                            type="color" 
-                            value={appSettings.colors.accent}
-                            onChange={(e) => setAppSettings(prev => ({ ...prev, colors: { ...prev.colors, accent: e.target.value } }))}
-                            className="h-10 w-20 p-1 rounded border border-gray-300"
-                        />
-                        <span className="text-sm text-gray-600">{appSettings.colors.accent}</span>
+      setIsUploading(true);
+      try {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `logo-${Date.now()}.${fileExt}`;
+          const filePath = `${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+              .from('assets') // Ensure this bucket exists or use 'public' if configured
+              .upload(filePath, file);
+
+          if (uploadError) throw uploadError;
+
+          const { data } = supabase.storage
+              .from('assets')
+              .getPublicUrl(filePath);
+
+          setSettingsDraft(prev => ({ ...prev, logo: data.publicUrl }));
+      } catch (error) {
+          console.error('Error uploading logo:', error);
+          alert('Failed to upload logo: ' + error.message);
+      } finally {
+          setIsUploading(false);
+      }
+  };
+
+  const SettingsModal = () => {
+      if (!isSettingsOpen) return null;
+      // Initialize draft on open
+      if (!settingsDraft) return null;
+
+      return (
+        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
+                <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                    <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                        <Settings className="w-6 h-6 mr-2 text-fire-accent" />
+                        Application Settings
+                    </h3>
+                    <button 
+                        onClick={() => setIsSettingsOpen(false)}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+                
+                <div className="p-6 space-y-8">
+                    {/* Identity Section */}
+                    <div className="space-y-4">
+                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                            <Activity className="w-4 h-4" /> Identity
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Application Title</label>
+                                <input 
+                                    type="text" 
+                                    value={settingsDraft.title}
+                                    onChange={(e) => setSettingsDraft(prev => ({ ...prev, title: e.target.value }))}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-fire-accent/50 outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                               <label className="block text-sm font-medium text-gray-700 mb-1">Logo</label>
+                               <div className="flex gap-3 items-start">
+                                   <div className="w-16 h-16 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center p-2 shrink-0">
+                                       <img src={settingsDraft.logo || fireLogo} alt="Preview" className="max-w-full max-h-full object-contain" />
+                                   </div>
+                                   <div className="flex-1">
+                                       <label className="flex items-center justify-center w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors">
+                                            <Upload className="w-4 h-4 mr-2" />
+                                            {isUploading ? 'Uploading...' : 'Upload New Logo'}
+                                            <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} disabled={isUploading} />
+                                       </label>
+                                       <p className="text-xs text-gray-500 mt-2">Recommended: PNG or SVG with transparent background.</p>
+                                   </div>
+                               </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-gray-100"></div>
+
+                    {/* Appearance Section */}
+                    <div className="space-y-4">
+                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                             <Type className="w-4 h-4" /> Appearance
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Font Family</label>
+                                <select 
+                                    value={settingsDraft.font || 'Calibri'}
+                                    onChange={(e) => setSettingsDraft(prev => ({ ...prev, font: e.target.value }))}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-fire-accent/50 outline-none"
+                                >
+                                    {AVAILABLE_FONTS.map(font => (
+                                        <option key={font.id} value={font.id}>{font.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>
+                                    <div className="flex items-center gap-2">
+                                        <div className="relative">
+                                            <input 
+                                                type="color" 
+                                                value={settingsDraft.colors.accent}
+                                                onChange={(e) => setSettingsDraft(prev => ({ ...prev, colors: { ...prev.colors, accent: e.target.value } }))}
+                                                className="w-10 h-10 rounded cursor-pointer border-0 p-0 overflow-hidden shadow-sm"
+                                            />
+                                        </div>
+                                        <span className="text-xs font-mono text-gray-500">{settingsDraft.colors.accent}</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Heading Color</label>
+                                    <div className="flex items-center gap-2">
+                                        <div className="relative">
+                                            <input 
+                                                type="color" 
+                                                value={settingsDraft.colors.heading}
+                                                onChange={(e) => setSettingsDraft(prev => ({ ...prev, colors: { ...prev.colors, heading: e.target.value } }))}
+                                                className="w-10 h-10 rounded cursor-pointer border-0 p-0 overflow-hidden shadow-sm"
+                                            />
+                                        </div>
+                                        <span className="text-xs font-mono text-gray-500">{settingsDraft.colors.heading}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Heading Color</label>
-                    <div className="flex items-center gap-3">
-                        <input 
-                            type="color" 
-                            value={appSettings.colors.heading}
-                            onChange={(e) => setAppSettings(prev => ({ ...prev, colors: { ...prev.colors, heading: e.target.value } }))}
-                            className="h-10 w-20 p-1 rounded border border-gray-300"
-                        />
-                        <span className="text-sm text-gray-600">{appSettings.colors.heading}</span>
+                <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-center rounded-b-xl">
+                    <button 
+                      onClick={() => {
+                          if(window.confirm('Reset all settings to default?')) {
+                              setAppSettings(DEFAULT_APP_SETTINGS);
+                              setSettingsDraft(DEFAULT_APP_SETTINGS);
+                              setIsSettingsOpen(false);
+                          }
+                      }}
+                      className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                        Reset to Defaults
+                    </button>
+                    <div className="flex gap-3">
+                         <button 
+                            onClick={() => setIsSettingsOpen(false)}
+                            className="px-5 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={() => {
+                                setAppSettings(settingsDraft);
+                                setIsSettingsOpen(false);
+                            }}
+                            className="px-5 py-2 text-sm font-medium bg-fire-accent text-white rounded-lg shadow-sm hover:opacity-90 transition-opacity flex items-center"
+                        >
+                            <Save className="w-4 h-4 mr-2" />
+                            Save Changes
+                        </button>
                     </div>
                 </div>
-            </div>
-
-            <div className="mt-8 pt-6 border-t border-gray-200">
-                <button 
-                  onClick={() => {
-                      if(window.confirm('Reset all settings to default?')) {
-                          setAppSettings(DEFAULT_APP_SETTINGS);
-                      }
-                  }}
-                  className="px-4 py-2 text-sm text-red-600 border border-red-200 rounded hover:bg-red-50"
-                >
-                    Reset to Defaults
-                </button>
             </div>
         </div>
-    </div>
-  );
+      );
+  };
+   
 
   const DataTab = () => (
     <div className="space-y-6 animate-in fade-in">
@@ -1519,7 +1646,7 @@ export default function RiskReturnOptimiser() {
           Tax Rates
         </h3>
         <div className="overflow-x-auto">
-           <table className="min-w-full divide-y divide-gray-200 text-sm">
+           <table className="min-w-full divide-y divide-gray-200 text-xs">
              <thead>
                <tr className="bg-gray-50">
                  <th className="px-4 py-3 text-left font-medium text-gray-500">Entity</th>
@@ -2452,11 +2579,23 @@ export default function RiskReturnOptimiser() {
             >
                <FileText className="w-4 h-4 mr-2"/> Export PDF
             </button>
+            <button 
+              onClick={() => {
+                  setSettingsDraft(appSettings); // Init draft with current settings
+                  setIsSettingsOpen(true);
+              }}
+              className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium text-gray-700 shadow-sm"
+              title="Settings"
+            >
+               <Settings className="w-4 h-4"/>
+            </button>
           </div>
         </div>
         {Navigation()}
         <main id="report-content">
-          {activeTab === 'settings' && <div id="settings-tab-content">{SettingsTab()}</div>}
+          {/* Settings Modal is Global */}
+          <SettingsModal />
+          
           {activeTab === 'data' && <div id="data-tab-content">{DataTab()}</div>}
           {activeTab === 'client' && <div id="client-tab-content">{ClientTab()}</div>}
           {activeTab === 'optimization' && <div id="optimization-tab-content">
