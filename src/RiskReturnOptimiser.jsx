@@ -2415,38 +2415,7 @@ export default function RiskReturnOptimiser() {
           </div>
         </div>
 
-        {/* Removed Model Portfolios Summary as requested */}
 
-           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-             <h4 className="font-semibold text-gray-900 mb-4">Estimating Outcomes</h4>
-             <div className="overflow-x-auto">
-               <table className="min-w-full text-sm">
-                 <thead>
-                   <tr className="bg-gray-50 border-b border-gray-200">
-                     <th className="px-3 py-2 text-left font-medium text-gray-500">Outcome</th>
-                     <th className="px-3 py-2 text-right font-medium text-gray-500">95th (Best)</th>
-                     <th className="px-3 py-2 text-right font-medium text-gray-500">50th (Median)</th>
-                     <th className="px-3 py-2 text-right font-medium text-gray-500">5th (Worst)</th>
-                   </tr>
-                 </thead>
-                 <tbody className="divide-y divide-gray-100">
-                   {[1, 3, 5, 10, 20].map(year => {
-                      const idx = year; // cfSimulationResults[0] is Year 0 (starting point), Year 1 = index 1
-                      const res = cfSimulationResults[idx];
-                      if (!res) return null;
-                      return (
-                        <tr key={year}>
-                          <td className="px-3 py-2 font-medium text-gray-900">{year} year</td>
-                          <td className="px-3 py-2 text-right text-gray-600 font-mono">{formatCurrency(res.p95)}</td>
-                          <td className="px-3 py-2 text-right font-bold text-gray-900 font-mono">{formatCurrency(res.p50)}</td>
-                          <td className="px-3 py-2 text-right text-gray-600 font-mono">{formatCurrency(res.p05)}</td>
-                        </tr>
-                      );
-                   })}
-                 </tbody>
-               </table>
-             </div>
-           </div>
       </div>
     );
   };
