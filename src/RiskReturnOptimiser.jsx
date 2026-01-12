@@ -2423,7 +2423,6 @@ export default function RiskReturnOptimiser() {
                </table>
              </div>
            </div>
-        </div>
       </div>
     );
   };
