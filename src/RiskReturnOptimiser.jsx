@@ -22,17 +22,17 @@ import { APP_TITLE, ABN, AFSL } from './constants';
 
 const DEFAULT_ASSETS = [
   { id: 'aus_eq', name: 'Australian Equities', return: 0.09, stdev: 0.16, incomeRatio: 0.4, minWeight: 0, maxWeight: 100, color: '#003f5c', active: true, isDefault: true },
-  { id: 'us_large', name: 'US Large Cap', return: 0.10, stdev: 0.15, incomeRatio: 0.2, minWeight: 0, maxWeight: 100, color: '#2f4b7c', active: true, isDefault: true },
-  { id: 'us_small', name: 'US Small Cap', return: 0.11, stdev: 0.20, incomeRatio: 0.1, minWeight: 0, maxWeight: 100, color: '#665191', active: true, isDefault: true },
-  { id: 'dev_world', name: 'Developed World', return: 0.095, stdev: 0.16, incomeRatio: 0.25, minWeight: 0, maxWeight: 100, color: '#a05195', active: true, isDefault: true },
-  { id: 'em_eq', name: 'Emerging Markets', return: 0.12, stdev: 0.22, incomeRatio: 0.2, minWeight: 0, maxWeight: 100, color: '#d45087', active: true, isDefault: true },
+  { id: 'us_large', name: 'US Large Cap Equities', return: 0.10, stdev: 0.15, incomeRatio: 0.2, minWeight: 0, maxWeight: 100, color: '#2f4b7c', active: true, isDefault: true },
+  { id: 'us_small', name: 'US Small Cap Equities', return: 0.11, stdev: 0.20, incomeRatio: 0.1, minWeight: 0, maxWeight: 100, color: '#665191', active: true, isDefault: true },
+  { id: 'dev_world', name: 'Developed World Equities', return: 0.095, stdev: 0.16, incomeRatio: 0.25, minWeight: 0, maxWeight: 100, color: '#a05195', active: true, isDefault: true },
+  { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.12, stdev: 0.22, incomeRatio: 0.2, minWeight: 0, maxWeight: 100, color: '#d45087', active: true, isDefault: true },
   { id: 'reits', name: 'Global REITs', return: 0.08, stdev: 0.14, incomeRatio: 0.6, minWeight: 0, maxWeight: 100, color: '#f95d6a', active: true, isDefault: true },
   { id: 'hedge', name: 'Hedge Fund', return: 0.07, stdev: 0.10, incomeRatio: 0.1, minWeight: 0, maxWeight: 100, color: '#ff7c43', active: true, isDefault: true },
   { id: 'comm', name: 'Commodities', return: 0.04, stdev: 0.18, incomeRatio: 0.0, minWeight: 0, maxWeight: 100, color: '#ffa600', active: true, isDefault: true },
   { id: 'aus_bond', name: 'Australian Bonds', return: 0.045, stdev: 0.05, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#0088FE', active: true, isDefault: true },
   { id: 'gl_bond', name: 'Global Bonds', return: 0.04, stdev: 0.05, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#00C49F', active: true, isDefault: true },
   { id: 'hy_bond', name: 'High Yield Bonds', return: 0.065, stdev: 0.10, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#FFBB28', active: true, isDefault: true },
-  { id: 'em_bond', name: 'EM Bonds', return: 0.07, stdev: 0.12, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#FF8042', active: true, isDefault: true },
+  { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.07, stdev: 0.12, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#FF8042', active: true, isDefault: true },
   { id: 'cash', name: 'Cash', return: 0.03, stdev: 0.01, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#8884d8', active: true, isDefault: true },
 ];
 
@@ -78,11 +78,11 @@ const generateFullCorrelationMatrix = (assets) => {
 };
 
 const DEFAULT_ENTITY_TYPES = {
-  PERSONAL: { label: 'Personal Name', incomeTax: 0.47, ltCgt: 0.235 },
-  COMPANY: { label: 'Company', incomeTax: 0.25, ltCgt: 0.25 },
-  TRUST: { label: 'Discretionary Trust', incomeTax: 0.30, ltCgt: 0.15 }, // Avg dist rate
-  SUPER_ACCUM: { label: 'Super Fund (Accumulation)', incomeTax: 0.15, ltCgt: 0.10 },
-  PENSION: { label: 'Super Fund (Pension Phase)', incomeTax: 0.00, ltCgt: 0.00 },
+  PERSONAL: { label: 'Personal Name', incomeTax: 0.47, ltCgt: 0.235, stCgt: 0.47 },
+  COMPANY: { label: 'Company', incomeTax: 0.25, ltCgt: 0.25, stCgt: 0.25 },
+  TRUST: { label: 'Family Trust', incomeTax: 0.30, ltCgt: 0.15, stCgt: 0.30 }, // Avg dist rate
+  SUPER_ACCUM: { label: 'Superannuation (Accumulation Phase)', incomeTax: 0.15, ltCgt: 0.10, stCgt: 0.15 },
+  PENSION: { label: 'Superannuation (Pensions Phase)', incomeTax: 0.00, ltCgt: 0.00, stCgt: 0.00 },
 };
 
 const MODEL_NAMES = {
@@ -1218,23 +1218,21 @@ export default function RiskReturnOptimiser() {
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
           <Activity className="w-5 h-5 mr-2 text-fire-accent" />
-          Capital Market Assumptions
+          Capital Market Estimates
         </h3>
-        <p className="text-sm text-gray-500 mb-4">
-          Select applicable asset classes and define their expected returns, risk, and yield. Unchecked assets will be excluded from optimization.
-        </p>
+        {/* Removed descriptive text "Select applicable asset classes..." */}
         
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
+          <table className="min-w-full divide-y divide-gray-200 text-xs"> {/* Reduced font size to text-xs */}
             <thead>
               <tr className="bg-gray-50">
                 <th className="px-4 py-3 text-left font-medium text-gray-500 w-12 text-center">Include</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Asset Class</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Total Return (%)</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Risk (StdDev %)</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Income Yield %</th>
-                <th className="px-2 py-3 text-left font-medium text-gray-500 text-center">Min %</th>
-                <th className="px-2 py-3 text-left font-medium text-gray-500 text-center">Max %</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">Expected Return %</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">Expected SD %</th>
+                {/* Removed Income Yield % column */}
+                <th className="px-2 py-3 text-left font-medium text-gray-500 text-center">Proportion of return – gains (%)</th>
+                <th className="px-2 py-3 text-left font-medium text-gray-500 text-center">Proportion of return – income (%)</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -1246,12 +1244,12 @@ export default function RiskReturnOptimiser() {
                       onClick={() => handleAssetToggle(asset.id)}
                       className={`p-1 rounded transition-colors ${asset.active ? 'text-fire-accent hover:bg-blue-50' : 'text-gray-400 hover:bg-gray-200'}`}
                     >
-                      {asset.active ? <CheckSquare className="w-5 h-5"/> : <Square className="w-5 h-5"/>}
+                      {asset.active ? <CheckSquare className="w-4 h-4"/> : <Square className="w-4 h-4"/>}
                     </button>
                   </td>
                   <td className="px-4 py-3 font-medium text-gray-900">
                     <div className="flex items-center">
-                      <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: asset.color }}></div>
+                      {/* Removed colored dot */}
                       {asset.isDefault ? (
                         asset.name
                       ) : (
@@ -1259,66 +1257,53 @@ export default function RiskReturnOptimiser() {
                           type="text" 
                           value={asset.name}
                           onChange={(e) => setAssets(assets.map(a => a.id === asset.id ? {...a, name: e.target.value} : a))}
-                          className="border border-gray-300 rounded px-2 py-1 w-full"
+                          className="border border-gray-300 rounded px-2 py-1 w-full text-xs"
                         />
                       )}
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <input type="number" step="0.1" className="w-20 border rounded px-2 py-1"
+                    <input type="number" step="0.01" className="w-20 border rounded px-2 py-1 text-xs"
                       disabled={!asset.active}
-                      value={Math.round(asset.return * 1000) / 10}
+                      value={Math.round(asset.return * 10000) / 100} // 2 decimal places (0.09 -> 9.00)
                       onChange={(e) => setAssets(assets.map(a => a.id === asset.id ? {...a, return: parseFloat(e.target.value)/100} : a))}
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <input type="number" step="0.1" className="w-20 border rounded px-2 py-1"
+                    <input type="number" step="0.01" className="w-20 border rounded px-2 py-1 text-xs"
                       disabled={!asset.active}
-                      value={Math.round(asset.stdev * 1000) / 10}
+                      value={Math.round(asset.stdev * 10000) / 100} // 2 decimal places
                       onChange={(e) => setAssets(assets.map(a => a.id === asset.id ? {...a, stdev: parseFloat(e.target.value)/100} : a))}
                     />
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="number" 
-                        step="1" 
-                        min="0"
-                        max="100"
-                        disabled={!asset.active}
-                        className="w-16 border rounded px-2 py-1"
-                        value={Math.round(asset.incomeRatio * 100)}
-                        onChange={(e) => {
-                          let val = parseInt(e.target.value);
-                          if (val > 100) val = 100;
-                          if (val < 0) val = 0;
-                          if (isNaN(val)) val = 0;
-                          setAssets(assets.map(a => a.id === asset.id ? {...a, incomeRatio: val/100} : a))
-                        }}
-                      />
-                      <span className="text-xs text-gray-400">Yield</span>
-                    </div>
-                  </td>
+                  {/* Removed Income Yield input */}
                   <td className="px-2 py-3 text-center">
                     <input 
                       type="number" step="1" min="0" max="100"
-                      value={asset.minWeight !== undefined ? asset.minWeight : 0} 
+                      value={Math.round((1 - asset.incomeRatio) * 100)} 
                       onChange={(e) => {
-                         const val = parseFloat(e.target.value) || 0;
-                         setAssets(assets.map(a => a.id === asset.id ? { ...a, minWeight: val } : a));
+                         let val = parseFloat(e.target.value);
+                         if (isNaN(val)) val = 0;
+                         if (val > 100) val = 100;
+                         if (val < 0) val = 0;
+                         // Set incomeRatio (which is income portion) to 1 - gains portion
+                         setAssets(assets.map(a => a.id === asset.id ? { ...a, incomeRatio: 1 - (val / 100) } : a));
                       }}
-                      className="w-14 border border-gray-300 rounded px-1 py-1 text-sm text-center"
+                      className="w-16 border border-gray-300 rounded px-1 py-1 text-xs text-center"
                     />
                   </td>
                   <td className="px-2 py-3 text-center">
                     <input 
                       type="number" step="1" min="0" max="100"
-                      value={asset.maxWeight !== undefined ? asset.maxWeight : 100} 
+                      value={Math.round(asset.incomeRatio * 100)} 
                       onChange={(e) => {
-                         const val = parseFloat(e.target.value) || 100;
-                         setAssets(assets.map(a => a.id === asset.id ? { ...a, maxWeight: val } : a));
+                         let val = parseFloat(e.target.value);
+                         if (isNaN(val)) val = 0;
+                         if (val > 100) val = 100;
+                         if (val < 0) val = 0;
+                         setAssets(assets.map(a => a.id === asset.id ? { ...a, incomeRatio: val / 100 } : a));
                       }}
-                      className="w-14 border border-gray-300 rounded px-1 py-1 text-sm text-center"
+                      className="w-16 border border-gray-300 rounded px-1 py-1 text-xs text-center"
                     />
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -1343,16 +1328,13 @@ export default function RiskReturnOptimiser() {
         </div>
       </div>
 
-      
       {/* Correlation Matrix Section */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
           <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
-          Correlation Matrix
+          Correlation
         </h3>
-        <p className="text-sm text-gray-500 mb-4">
-          Manage correlation factors between asset classes. Values range from -1.0 to 1.0. 
-        </p>
+        {/* Removed descriptive text "Manage correlation factors..." */}
         
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-xs table-fixed">
@@ -1376,8 +1358,6 @@ export default function RiskReturnOptimiser() {
                      const isDiag = rowAsset.id === colAsset.id;
                      const val = correlations[rowAsset.id] && correlations[rowAsset.id][colAsset.id] !== undefined ? correlations[rowAsset.id][colAsset.id] : 0;
                      
-                     // Optimization: don't render hidden inputs if both inactive? No, user might edit.
-                     
                      return (
                        <td key={colAsset.id} className="px-1 py-1 text-center h-10 w-20">
                           {isDiag ? (
@@ -1385,7 +1365,7 @@ export default function RiskReturnOptimiser() {
                           ) : (
                             <input 
                               type="number"
-                              step="0.0001"
+                              step="0.000001"
                               min="-1"
                               max="1"
                               className={`w-16 border rounded px-1 py-1 text-center text-xs focus:ring-1 focus:ring-fire-accent focus:border-fire-accent ${
@@ -1412,15 +1392,16 @@ export default function RiskReturnOptimiser() {
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mt-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
           <FileText className="w-5 h-5 mr-2 text-fire-accent" />
-          Entity Tax Rates
+          Tax Rates
         </h3>
         <div className="overflow-x-auto">
            <table className="min-w-full divide-y divide-gray-200 text-sm">
              <thead>
                <tr className="bg-gray-50">
-                 <th className="px-4 py-3 text-left font-medium text-gray-500">Entity Type</th>
-                 <th className="px-4 py-3 text-left font-medium text-gray-500">Income Tax Rate</th>
-                 <th className="px-4 py-3 text-left font-medium text-gray-500">Long Term CGT Rate</th>
+                 <th className="px-4 py-3 text-left font-medium text-gray-500">Entity</th>
+                 <th className="px-4 py-3 text-left font-medium text-gray-500">Income</th>
+                 <th className="px-4 py-3 text-left font-medium text-gray-500">Long Term Capital Gains</th>
+                 <th className="px-4 py-3 text-left font-medium text-gray-500">Short Term Capital Gains</th>
                </tr>
              </thead>
              <tbody className="divide-y divide-gray-200">
@@ -1454,6 +1435,23 @@ export default function RiskReturnOptimiser() {
                             setEntityTypes(prev => ({
                                 ...prev,
                                 [key]: { ...prev[key], ltCgt: val }
+                            }));
+                         }}
+                         className="w-full border border-gray-300 rounded px-2 py-1 pr-6"
+                       />
+                       <span className="absolute right-2 top-1 text-gray-400">%</span>
+                     </div>
+                   </td>
+                   <td className="px-4 py-2">
+                     <div className="relative w-32">
+                       <input 
+                         type="number" step="0.5" 
+                         value={data.stCgt !== undefined ? Math.round(data.stCgt * 1000) / 10 : 0}
+                         onChange={(e) => {
+                            const val = parseFloat(e.target.value)/100 || 0;
+                            setEntityTypes(prev => ({
+                                ...prev,
+                                [key]: { ...prev[key], stCgt: val }
                             }));
                          }}
                          className="w-full border border-gray-300 rounded px-2 py-1 pr-6"
