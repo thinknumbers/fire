@@ -599,27 +599,21 @@ export default function RiskReturnOptimiser() {
       addText("Portfolio Analysis", 12, 'bold', headingRgb); y += 8;
       const boxWidth = 50;
       const boxHeight = 22;
-      drawBox(margin, "Expected Return", formatPercent(selectedPortfolio.return), [22, 163, 74]);
-      // Center the two boxes
-      const secondBoxX = pageWidth - margin - boxWidth;
-      // Adjust drawBox call for 2nd box to just be right aligned or calculated center?
-      // Layout logic was: margin + boxWidth + gap.
-      // Let's re-calc gap for 2 boxes.
-      // margin | box | gap | box | margin
-      // gap = pageWidth - 2margin - 2box
-      const gap2 = pageWidth - (margin * 2) - (boxWidth * 2);
-      // Wait, let's keep it simple. Just use the calculated gap for 2 boxes if we want them spread out, 
-      // or just put them next to each other.
-      // The App UI has them side-by-side. 
-      // Let's put a standard gap between them and center the group.
       const contentWidth = (boxWidth * 2) + 10; // 10mm gap
       const startX = (pageWidth - contentWidth) / 2;
       
-      // We need to re-implement drawBox calls with new positions
-      // Overwriting previous calls
+      const drawBox = (x, title, value, color) => {
+        pdf.setFillColor(245, 245, 245);
+        pdf.rect(x, y, boxWidth, boxHeight, 'F');
+        pdf.setFontSize(9); pdf.setTextColor(100, 100, 100); pdf.setFont('helvetica', 'normal');
+        pdf.text(title, x + boxWidth/2, y + 7, { align: 'center' });
+        pdf.setFontSize(13); pdf.setTextColor(...color); pdf.setFont('helvetica', 'bold');
+        pdf.text(value, x + boxWidth/2, y + 16, { align: 'center' });
+      };
+
       drawBox(startX, "Expected Return", formatPercent(selectedPortfolio.return), [22, 163, 74]);
       drawBox(startX + boxWidth + 10, "Risk (StdDev)", formatPercent(selectedPortfolio.risk), [220, 38, 38]);
-      // Sharpe Ratio removed
+      
       y += boxHeight + 10;
 
       // Pie Chart
