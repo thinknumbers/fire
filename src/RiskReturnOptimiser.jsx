@@ -643,7 +643,7 @@ export default function RiskReturnOptimiser() {
       pdf.text("Entity Structure", col2X, y); y += 5;
       pdf.setFont('helvetica', 'normal');
       structures.forEach(s => {
-        const entityLabel = entityTypes[s.type] ? entityTypes[s.type].label : s.type;
+        const entityLabel = DEFAULT_ENTITY_TYPES[s.type] ? DEFAULT_ENTITY_TYPES[s.type].label : s.type;
         pdf.text(`${s.name} (${entityLabel}): ${formatCurrency(s.value)}`, col2X, y);
         y += 4;
       });
@@ -657,129 +657,210 @@ export default function RiskReturnOptimiser() {
       const boxHeight = 22;
       const contentWidth = (boxWidth * 2) + 10; // 10mm gap
       const startX = (pageWidth - contentWidth) / 2;
-      const pdfWidth = pageWidth - (margin * 2); // Define pdfWidth globally for the function
+      const pdfWidth = pageWidth - (margin * 2);
       
-      const drawBox = (x, title, value, color) => {
+      const drawBox = (bx, title, value, color) => {
         pdf.setFillColor(245, 245, 245);
-        pdf.rect(x, y, boxWidth, boxHeight, 'F');
+        pdf.rect(bx, y, boxWidth, boxHeight, 'F');
         pdf.setFontSize(9); pdf.setTextColor(100, 100, 100); pdf.setFont('helvetica', 'normal');
-        pdf.text(title, x + boxWidth/2, y + 7, { align: 'center' });
+        pdf.text(title, bx + boxWidth/2, y + 7, { align: 'center' });
         pdf.setFontSize(13); pdf.setTextColor(...color); pdf.setFont('helvetica', 'bold');
-        pdf.text(value, x + boxWidth/2, y + 16, { align: 'center' });
+        pdf.text(value, bx + boxWidth/2, y + 16, { align: 'center' });
       };
 
       drawBox(startX, "Expected Return", formatPercent(selectedPortfolio.return), [22, 163, 74]);
       drawBox(startX + boxWidth + 10, "Risk (StdDev)", formatPercent(selectedPortfolio.risk), [220, 38, 38]);
       
       y += boxHeight + 10;
-      
-      // ==================== PAGE 2: ASSET ALLOCATION ====================
+
+      // ==================== PAGE 1: PIE CHARTS ====================
+      // Overall Pie Chart
+      addText("Target Asset Allocation", 12, 'bold', headingRgb); y += 5;
+      setActiveTab('output');
+      await new Promise(r => setTimeout(r, 1500));
+
+      const pieSize = 55; // Smaller to fit with entities
+      const pieX = (pageWidth - pieSize) / 2;
+      const pieContainer = document.getElementById('pie-chart-section');
+      if (pieContainer) {
+        const svg = pieContainer.querySelector('svg');
+        if (svg) {
+          const clone = svg.cloneNode(true);
+          if (!clone.getAttribute('viewBox')) {
+            const w = parseInt(clone.getAttribute('width')) || 300;
+            const h = parseInt(clone.getAttribute('height')) || 300;
+            clone.setAttribute('viewBox', `0 0 ${w} ${h}`);
+          }
+          clone.setAttribute('width', pieSize);
+          clone.setAttribute('height', pieSize);
+          const tempDiv = document.createElement('div');
+          tempDiv.style.position = 'absolute';
+          tempDiv.style.left = '-9999px';
+          tempDiv.appendChild(clone);
+          document.body.appendChild(tempDiv);
+          try {
+            await pdf.svg(clone, { x: pieX, y: y, width: pieSize, height: pieSize });
+          } catch (err) { console.error("SVG Pie Error", err); }
+          finally { document.body.removeChild(tempDiv); }
+        }
+      }
+      y += pieSize + 5;
+
+      // Legend
+      pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
+      const activeOnly = assets.filter(a => a.active);
+      const legendCols = 4;
+      const legendItemWidth = 42;
+      let lx = (pageWidth - (legendCols * legendItemWidth)) / 2;
+      activeOnly.forEach((asset, i) => {
+        const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
+        if (weight > 0.005) {
+          const col = i % legendCols;
+          const row = Math.floor(i / legendCols);
+          const itemX = lx + (col * legendItemWidth);
+          const itemY = y + (row * 5);
+          pdf.setFillColor(asset.color);
+          pdf.rect(itemX, itemY - 2, 2, 2, 'F');
+          pdf.setTextColor(0, 0, 0);
+          pdf.text(`${asset.name.substring(0, 12)}: ${formatPercent(weight)}`, itemX + 3, itemY);
+        }
+      });
+      y += Math.ceil(activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.005).length / legendCols) * 5 + 8;
+
+      // Entity Pie Charts (smaller, side by side)
+      addText("Allocation by Entity", 10, 'bold', headingRgb); y += 5;
+      const entityPieSize = 35;
+      const entityGap = 5;
+      const entityCount = structures.length;
+      const totalEntityWidth = entityCount * entityPieSize + (entityCount - 1) * entityGap;
+      let entityStartX = (pageWidth - totalEntityWidth) / 2;
+
+      structures.forEach((struct, idx) => {
+        const ex = entityStartX + idx * (entityPieSize + entityGap);
+        // Draw placeholder circle with label
+        pdf.setDrawColor(200, 200, 200);
+        pdf.circle(ex + entityPieSize/2, y + entityPieSize/2, entityPieSize/2 - 2, 'S');
+        pdf.setFontSize(7);
+        pdf.setTextColor(50, 50, 50);
+        const label = struct.name.length > 10 ? struct.name.substring(0, 10) + '...' : struct.name;
+        pdf.text(label, ex + entityPieSize/2, y + entityPieSize + 3, { align: 'center' });
+      });
+      y += entityPieSize + 10;
+
+      // ==================== PAGE 2: TABLES ====================
       pdf.addPage();
       addPageBorder();
       y = margin;
 
-      // Note: Pie Charts removed as requested ("revert back... before pie charts were added")
-
-
-      // Asset Allocation by Entity Table (New addition to Page 2)
-      // We render a simple table manually here
-      addText("Asset Allocation by Entity", 12, 'bold', headingRgb); y += 6;
+      // 1. Detailed Asset Allocation Table
+      addText("Detailed Asset Allocation", 14, 'bold', headingRgb); y += 6;
       
       // Table Header
-      const tableStartX = margin;
-      const colWidth = (pageWidth - (margin * 2)) / (structures.length + 1);
-      
       pdf.setFillColor(245, 245, 245);
-      pdf.rect(tableStartX, y, pageWidth - (margin * 2), 8, 'F');
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
-      
-      // First Col: Asset Class
-      pdf.text("Asset Class", tableStartX + 2, y + 5);
-      
-      // Entity Cols
-      structures.forEach((struct, i) => {
-          const x = tableStartX + colWidth * (i + 1);
-          // Label fix: Use full label if available
-          const rawType = struct.type;
-          // Use ENTITY_TYPES constant
-          const typeLabel = ENTITY_TYPES[rawType]?.label || rawType;
-          // Use typeLabel for column header
-          pdf.text(typeLabel, x + 2, y + 5);
-      });
-      y += 8;
+      pdf.rect(margin, y, pdfWidth, 7, 'F');
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
+      pdf.text("Asset Class", margin + 2, y + 5);
+      pdf.text("Weight", margin + pdfWidth * 0.6, y + 5);
+      pdf.text("Value", margin + pdfWidth * 0.8, y + 5);
+      y += 7;
 
       // Table Rows
       pdf.setFont('helvetica', 'normal');
-      activeOnly.forEach((asset, idx) => { // Use activeOnly defined earlier
-         const isEven = idx % 2 === 0;
-         if (!isEven) {
-             pdf.setFillColor(250, 250, 250);
-             pdf.rect(tableStartX, y, pageWidth - (margin * 2), 6, 'F');
-         }
-         
-         pdf.setTextColor(0, 0, 0);
-         pdf.text(asset.name, tableStartX + 2, y + 4);
-         
-         structures.forEach((struct, i) => {
-             const x = tableStartX + colWidth * (i + 1);
-             // Let's just display the Global Weight string since it's uniform.
-             pdf.text(formatPercent(selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0), x + 2, y + 4);
-         });
-         y += 6;
+      let totalValue = 0;
+      activeOnly.forEach((asset, idx) => {
+        const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
+        const value = weight * totalWealth;
+        totalValue += value;
+        
+        if (idx % 2 === 1) {
+          pdf.setFillColor(250, 250, 250);
+          pdf.rect(margin, y, pdfWidth, 5, 'F');
+        }
+        
+        pdf.setFillColor(asset.color);
+        pdf.rect(margin + 2, y + 1, 2, 3, 'F');
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(asset.name, margin + 6, y + 4);
+        pdf.text(formatPercent(weight), margin + pdfWidth * 0.6, y + 4);
+        pdf.text(formatCurrency(value), margin + pdfWidth * 0.8, y + 4);
+        y += 5;
+      });
+      
+      // Total Row
+      pdf.setFillColor(240, 240, 240);
+      pdf.rect(margin, y, pdfWidth, 6, 'F');
+      pdf.setFont('helvetica', 'bold');
+      pdf.text("Total", margin + 6, y + 4);
+      pdf.text("100.0%", margin + pdfWidth * 0.6, y + 4);
+      pdf.text(formatCurrency(totalWealth), margin + pdfWidth * 0.8, y + 4);
+      y += 12;
+
+      // 2. Model Portfolios Summary
+      addText("Model Portfolios Summary", 14, 'bold', headingRgb); y += 6;
+      
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin, y, pdfWidth, 7, 'F');
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
+      pdf.text("Model", margin + 2, y + 5);
+      pdf.text("Name", margin + 25, y + 5);
+      pdf.text("Return", margin + pdfWidth * 0.65, y + 5);
+      pdf.text("Risk", margin + pdfWidth * 0.85, y + 5);
+      y += 7;
+
+      pdf.setFont('helvetica', 'normal');
+      efficientFrontier.forEach((port, idx) => {
+        if (idx % 2 === 1) {
+          pdf.setFillColor(250, 250, 250);
+          pdf.rect(margin, y, pdfWidth, 5, 'F');
+        }
+        
+        const isSelected = port.id === selectedPortfolio.id;
+        if (isSelected) {
+          pdf.setFillColor(255, 240, 220);
+          pdf.rect(margin, y, pdfWidth, 5, 'F');
+        }
+        
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(String(port.id || idx + 1), margin + 2, y + 4);
+        pdf.text(MODEL_NAMES[port.id] || 'Custom', margin + 25, y + 4);
+        pdf.text(formatPercent(port.return), margin + pdfWidth * 0.65, y + 4);
+        pdf.text(formatPercent(port.risk), margin + pdfWidth * 0.85, y + 4);
+        y += 5;
       });
       y += 10;
-      
-      
-      // ==================== PAGE 3: PROJECTIONS ====================
-      pdf.addPage();
-      addPageBorder();
-      y = margin;
 
-      // 3 Charts Vertical: Efficient Frontier, Wealth Projection, Estimating Outcomes
-      // Available height ~250mm. Each chart ~80mm.
-      const chartH = 75; 
+      // 3. Estimated Outcomes Table
+      addText("Estimated Outcomes", 14, 'bold', headingRgb); y += 6;
       
-      // 1. Efficient Frontier
-      addText("Efficient Frontier Analysis", 14, 'bold', headingRgb); y += 8;
-      setActiveTab('optimization');
-      await new Promise(r => setTimeout(r, 1000));
-      const frontierEl = document.getElementById('optimization-tab-content')?.querySelector('.h-\\[500px\\]');
-      if (frontierEl) {
-         // Create generic capture function or logic?
-         const originalId = frontierEl.id;
-         frontierEl.id = 'temp-frontier-chart';
-         const img = await captureChart('temp-frontier-chart');
-         frontierEl.id = originalId;
-         if (img) {
-            pdf.addImage(img, 'PNG', margin, y, pdfWidth, chartH, undefined, 'FAST');
-            y += chartH + 10;
-         }
-      } else {
-         y += chartH + 10; // Placeholder space
-      }
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin, y, pdfWidth, 7, 'F');
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
+      pdf.text("Year", margin + 2, y + 5);
+      pdf.text("Best (95th)", margin + pdfWidth * 0.3, y + 5);
+      pdf.text("Median (50th)", margin + pdfWidth * 0.55, y + 5);
+      pdf.text("Worst (16th)", margin + pdfWidth * 0.8, y + 5);
+      y += 7;
 
-      // Projections Tab Charts
-      setActiveTab('cashflow');
-      await new Promise(r => setTimeout(r, 1500));
-
-      // 2. Monte Carlo Wealth Projection
-      addText("Monte Carlo Wealth Projection", 14, 'bold', headingRgb); y += 8;
-      // We need to target the specific charts. 
-      // The code structure has them in `cashflow-tab-content`. 
-      // I need to add IDs to the specific chart containers in the JSX to capture them individually.
-      // Assuming I'll add 'wealth-projection-chart' and 'estimating-outcomes-chart' IDs.
-      const wealthImg = await captureChart('wealth-projection-chart');
-      if (wealthImg) {
-          pdf.addImage(wealthImg, 'PNG', margin, y, pdfWidth, chartH, undefined, 'FAST');
-          y += chartH + 10;
-      }
-      
-      // 3. Estimating Outcomes (moved from Page 2 to Page 3)
-      addText("Estimated Outcomes", 14, 'bold', headingRgb); y += 8;
-      const outcomesImg = await captureChart('estimating-outcomes-chart');
-      if (outcomesImg) {
-          pdf.addImage(outcomesImg, 'PNG', margin, y, pdfWidth, chartH, undefined, 'FAST');
-      }
+      pdf.setFont('helvetica', 'normal');
+      const outcomeYears = [1, 3, 5, 10, 20];
+      outcomeYears.forEach((yr, idx) => {
+        const res = cfSimulationResults[yr];
+        if (!res) return;
+        
+        if (idx % 2 === 1) {
+          pdf.setFillColor(250, 250, 250);
+          pdf.rect(margin, y, pdfWidth, 5, 'F');
+        }
+        
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(`${yr} Year`, margin + 2, y + 4);
+        pdf.text(formatCurrency(res.p95), margin + pdfWidth * 0.3, y + 4);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(formatCurrency(res.p50), margin + pdfWidth * 0.55, y + 4);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(formatCurrency(res.p16), margin + pdfWidth * 0.8, y + 4);
+        y += 5;
+      });
 
       // Footer on each page
       const totalPages = pdf.internal.getNumberOfPages();
