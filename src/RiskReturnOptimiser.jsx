@@ -516,6 +516,8 @@ export default function RiskReturnOptimiser() {
 
       const payload = {
         name: scenarioName,
+        client_name: clientName,
+        client_date: clientDate,
         assets,
         structures,
         income_streams: incomeStreams,
@@ -880,9 +882,9 @@ export default function RiskReturnOptimiser() {
       pdf.rect(margin, y, pdfWidth, 7, 'F');
       pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
       pdf.text("Year", margin + 2, y + 5);
-      pdf.text("Upside (1 SD)", margin + pdfWidth * 0.3, y + 5);
-      pdf.text("Median (50th)", margin + pdfWidth * 0.55, y + 5);
-      pdf.text("Downside (2 SD)", margin + pdfWidth * 0.8, y + 5);
+      pdf.text("Upside", margin + pdfWidth * 0.3, y + 5);
+      pdf.text("Median", margin + pdfWidth * 0.55, y + 5);
+      pdf.text("Downside", margin + pdfWidth * 0.8, y + 5);
       y += 7;
 
       pdf.setFont('helvetica', 'normal');
@@ -978,15 +980,20 @@ export default function RiskReturnOptimiser() {
       .single();
 
     if (data) {
+      if (data.advice_fee !== undefined) setAdviceFee(data.advice_fee);
+      
+      // Restore client details
+      setClientName(data.client_name || '');
+      setClientDate(data.client_date || new Date().toISOString().split('T')[0]);
+
+      // Restore other data
       setScenarioName(data.name || 'Untitled');
       if (data.assets) setAssets(data.assets);
       if (data.structures) setStructures(data.structures);
       if (data.income_streams) setIncomeStreams(data.income_streams);
       if (data.expense_streams) setExpenseStreams(data.expense_streams);
-      // Legacy one_off_events are ignored or could be migrated here if needed
       if (data.projection_years) setProjectionYears(data.projection_years);
       if (data.inflation_rate) setInflationRate(data.inflation_rate);
-      if (data.advice_fee !== undefined) setAdviceFee(data.advice_fee);
       
       // Reset simulation state
       setSimulations([]);
@@ -2945,15 +2952,15 @@ export default function RiskReturnOptimiser() {
                           <p className="font-bold mb-2 text-gray-900">Year {label}</p>
                           <div className="space-y-1">
                             <div className="flex justify-between gap-4">
-                              <span className="text-gray-500">Upside (1 SD / 84th):</span>
+                              <span className="text-gray-500">Upside:</span>
                               <span className="font-mono font-medium text-red-400">{formatCurrency(data.p84)}</span>
                             </div>
                             <div className="flex justify-between gap-4">
-                              <span className="text-gray-500">Median (50th):</span>
+                              <span className="text-gray-500">Median:</span>
                               <span className="font-mono font-bold text-fire-accent">{formatCurrency(data.p50)}</span>
                             </div>
                             <div className="flex justify-between gap-4">
-                              <span className="text-gray-500">Downside (2 SD / 2.3rd):</span>
+                              <span className="text-gray-500">Downside:</span>
                               <span className="font-mono font-medium text-red-400">{formatCurrency(data.p02)}</span>
                             </div>
                           </div>
@@ -2964,12 +2971,12 @@ export default function RiskReturnOptimiser() {
                   }}
                 />}
                 
-                <Area type="monotone" dataKey="p84" stroke="none" fill="url(#confidenceBand)" name="Upside (1 SD / 84th)" isAnimationActive={!isExporting} />
-                <Area type="monotone" dataKey="p02" stroke="none" fill="#fff" name="Downside (2 SD / 2.3rd)" isAnimationActive={!isExporting} /> 
+                <Area type="monotone" dataKey="p84" stroke="none" fill="url(#confidenceBand)" name="Upside" isAnimationActive={!isExporting} />
+                <Area type="monotone" dataKey="p02" stroke="none" fill="#fff" name="Downside" isAnimationActive={!isExporting} /> 
                 
-                <Line type="monotone" dataKey="p50" stroke="#E03A3E" strokeWidth={3} dot={false} strokeDasharray="5 5" name="Median (50th)" isAnimationActive={!isExporting} />
-                <Line type="monotone" dataKey="p84" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Upside (1 SD / 84th)" isAnimationActive={!isExporting} />
-                <Line type="monotone" dataKey="p02" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Downside (2 SD / 2.3rd)" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p50" stroke="#E03A3E" strokeWidth={3} dot={false} strokeDasharray="5 5" name="Median" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p84" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Upside" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p02" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Downside" isAnimationActive={!isExporting} />
 
                 {/* One-Off Event Reference Lines - Rendered last to be on top */}
                 {oneOffEvents.map((event, idx) => (
@@ -3011,15 +3018,15 @@ export default function RiskReturnOptimiser() {
                                    <p className="font-bold mb-2 text-gray-900">{label}</p>
                                    <div className="space-y-1">
                                      <div className="flex justify-between gap-4">
-                                       <span className="text-gray-500">Upside (1 SD):</span>
+                                       <span className="text-gray-500">Upside:</span>
                                        <span className="font-mono font-bold text-amber-400">{formatCurrency(data.p84)}</span>
                                      </div>
                                      <div className="flex justify-between gap-4">
-                                       <span className="text-gray-500">Median (50th):</span>
+                                       <span className="text-gray-500">Median:</span>
                                        <span className="font-mono font-bold text-orange-600">{formatCurrency(data.p50)}</span>
                                      </div>
                                      <div className="flex justify-between gap-4">
-                                       <span className="text-gray-500">Downside (2 SD):</span>
+                                       <span className="text-gray-500">Downside:</span>
                                        <span className="font-mono font-bold text-red-700">{formatCurrency(data.p02)}</span>
                                      </div>
                                    </div>
@@ -3032,9 +3039,9 @@ export default function RiskReturnOptimiser() {
                   <Bar dataKey="range" barSize={60} shape={<OutcomeCandlestick />} isAnimationActive={!isExporting} />
                   <Legend 
                      payload={[
-                       { value: 'Upside (1 SD)', type: 'line', color: '#fbbf24' },
-                       { value: 'Median (50th)', type: 'line', color: '#ea580c' },
-                       { value: 'Downside (2 SD)', type: 'line', color: '#ce2029' },
+                       { value: 'Upside', type: 'line', color: '#fbbf24' },
+                       { value: 'Median', type: 'line', color: '#ea580c' },
+                       { value: 'Downside', type: 'line', color: '#ce2029' },
                      ]}
                   />
                 </ComposedChart>
@@ -3046,9 +3053,9 @@ export default function RiskReturnOptimiser() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Year</th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Downside (2 SD)</th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Median (50th)</th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Upside (1 SD)</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Downside</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Median</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Upside</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
