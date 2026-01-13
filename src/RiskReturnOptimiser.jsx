@@ -654,6 +654,7 @@ export default function RiskReturnOptimiser() {
       const boxHeight = 22;
       const contentWidth = (boxWidth * 2) + 10; // 10mm gap
       const startX = (pageWidth - contentWidth) / 2;
+      const pdfWidth = pageWidth - (margin * 2); // Define pdfWidth globally for the function
       
       const drawBox = (x, title, value, color) => {
         pdf.setFillColor(245, 245, 245);
@@ -731,7 +732,7 @@ export default function RiskReturnOptimiser() {
         const pieCanvas = await html2canvas(pieSection, { scale: 2 });
         const pieImg = pieCanvas.toDataURL('image/png');
         const imgProps = pdf.getImageProperties(pieImg);
-        const pdfWidth = pageWidth - (margin * 2); // Define pdfWidth here for use in Page 2
+        // Use global pdfWidth
         const pieHeight = (imgProps.height * pdfWidth) / imgProps.width;
         
         addText("Asset Allocation Analysis", 14, 'bold', headingRgb); y += 8;
@@ -1651,17 +1652,23 @@ export default function RiskReturnOptimiser() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <input type="number" step="0.01" className="w-20 border rounded px-2 py-1 text-xs"
-                      disabled={!asset.active}
-                      value={(asset.return * 100).toFixed(2)}
-                      onChange={(e) => setAssets(assets.map(a => a.id === asset.id ? {...a, return: parseFloat(e.target.value)/100} : a))}
-                    />
+                      <input type="number" step="0.01" className="w-20 border rounded px-2 py-1 text-xs"
+                        disabled={!asset.active}
+                        value={(asset.return * 100).toFixed(2)}
+                        onChange={(e) => {
+                           const val = parseFloat(e.target.value);
+                           setAssets(assets.map(a => a.id === asset.id ? {...a, return: isNaN(val) ? 0 : val/100} : a));
+                        }}
+                      />
                   </td>
                   <td className="px-4 py-3">
                     <input type="number" step="0.01" className="w-20 border rounded px-2 py-1 text-xs"
                       disabled={!asset.active}
                       value={(asset.stdev * 100).toFixed(2)}
-                      onChange={(e) => setAssets(assets.map(a => a.id === asset.id ? {...a, stdev: parseFloat(e.target.value)/100} : a))}
+                      onChange={(e) => {
+                           const val = parseFloat(e.target.value);
+                           setAssets(assets.map(a => a.id === asset.id ? {...a, stdev: isNaN(val) ? 0 : val/100} : a));
+                      }}
                     />
                   </td>
                   {/* Removed Income Yield input */}
@@ -1764,7 +1771,10 @@ export default function RiskReturnOptimiser() {
                               }`}
                               value={val.toFixed(6)}
                               disabled={!rowAsset.active || !colAsset.active} 
-                              onChange={(e) => handleCorrelationChange(rowAsset.id, colAsset.id, e.target.value)}
+                              onChange={(e) => {
+                                  const val = parseFloat(e.target.value);
+                                  handleCorrelationChange(rowAsset.id, colAsset.id, isNaN(val) ? 0 : val);
+                              }}
                             />
                           )}
                        </td>
@@ -2871,22 +2881,24 @@ export default function RiskReturnOptimiser() {
                   }}
                 />}
                 
-                {oneOffEvents.map((event, idx) => (
-                    <ReferenceLine 
-                        key={`${event.type}-${idx}`} 
-                        x={event.year} 
-                        stroke={event.type === 'income' ? '#22c55e' : '#ef4444'} 
-                        strokeDasharray="3 3"
-                        label={<CustomEventLabel value={event.label} type={event.type} index={idx} />}
-                    />
-                ))}
-
                 <Area type="monotone" dataKey="p95" stroke="none" fill="url(#confidenceBand)" name="95th Percentile" isAnimationActive={!isExporting} />
                 <Area type="monotone" dataKey="p16" stroke="none" fill="#fff" name="16th Percentile" isAnimationActive={!isExporting} /> 
                 
                 <Line type="monotone" dataKey="p50" stroke="#E03A3E" strokeWidth={3} dot={false} strokeDasharray="5 5" name="Median (50th)" isAnimationActive={!isExporting} />
                 <Line type="monotone" dataKey="p95" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Best Case (95th)" isAnimationActive={!isExporting} />
                 <Line type="monotone" dataKey="p16" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Worst Case (16th)" isAnimationActive={!isExporting} />
+
+                {/* One-Off Event Reference Lines - Rendered last to be on top */}
+                {oneOffEvents.map((event, idx) => (
+                    <ReferenceLine 
+                        key={`${event.type}-${idx}`} 
+                        x={event.year} 
+                        stroke={event.type === 'income' ? '#22c55e' : '#ef4444'} 
+                        strokeDasharray="3 3"
+                        isFront={true}
+                        label={<CustomEventLabel value={event.label} type={event.type} index={idx} />}
+                    />
+                ))}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
