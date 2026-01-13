@@ -2180,10 +2180,14 @@ export default function RiskReturnOptimiser() {
                   </div>
                   <div className="md:col-span-3">
                     <label className="block text-xs font-bold text-gray-500 mb-1">Investable Amount</label>
-                    <NumberInput 
-                       value={struct.value}
-                       onChange={(val) => setStructures(structures.map(s => s.id === struct.id ? {...s, value: val} : s))}
-                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-semibold"
+                    <input 
+                       type="number"
+                       value={struct.value || 0}
+                       onChange={(e) => {
+                         const val = parseFloat(e.target.value) || 0;
+                         setStructures(structures.map(s => s.id === struct.id ? {...s, value: val} : s));
+                       }}
+                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                     />
                   </div>
                   <div className="md:col-span-2">
