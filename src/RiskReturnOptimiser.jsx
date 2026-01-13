@@ -503,6 +503,46 @@ export default function RiskReturnOptimiser() {
   const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
   const formatPercent = (val) => `${(val * 100).toFixed(1)}%`;
 
+  // Calculate constrained weights for a specific entity based on its asset allocation settings
+  // If entity has useAssetAllocation enabled, clamp global weights to entity's min/max constraints
+  // If entity has no allocation, use the global optimal weights unchanged
+  const getEntityConstrainedWeights = useCallback((entity, globalWeights, assetList) => {
+    if (!entity || !globalWeights || !assetList || globalWeights.length === 0) {
+      return globalWeights || [];
+    }
+
+    // If entity doesn't use asset allocation, return global weights unchanged
+    if (!entity.useAssetAllocation || !entity.assetAllocation) {
+      return globalWeights;
+    }
+
+    // Entity has constraints - apply them
+    let constrainedWeights = assetList.map((asset, idx) => {
+      const globalWeight = globalWeights[idx] || 0;
+      const entityAlloc = entity.assetAllocation.find(a => a.id === asset.id);
+      
+      if (!entityAlloc) {
+        // Asset not in entity's allocation list - use global weight (no constraint)
+        return globalWeight;
+      }
+
+      // Apply min/max constraints (stored as 0-100, convert to 0-1)
+      const minWeight = (entityAlloc.min || 0) / 100;
+      const maxWeight = (entityAlloc.max !== undefined ? entityAlloc.max : 100) / 100;
+      
+      // Clamp the weight to constraints
+      return Math.max(minWeight, Math.min(maxWeight, globalWeight));
+    });
+
+    // Renormalize to sum to 1.0 after clamping
+    const totalWeight = constrainedWeights.reduce((sum, w) => sum + w, 0);
+    if (totalWeight > 0 && Math.abs(totalWeight - 1.0) > 0.0001) {
+      constrainedWeights = constrainedWeights.map(w => w / totalWeight);
+    }
+
+    return constrainedWeights;
+  }, []);
+
   // Derived Values
   const totalWealth = useMemo(() => structures.reduce((sum, s) => sum + s.value, 0), [structures]);
   
@@ -2173,7 +2213,12 @@ export default function RiskReturnOptimiser() {
         </h3>
         
         <div className="space-y-4">
-          {structures.map(struct => (
+          {structures.map(struct => {
+                // Get entity-specific constrained weights
+                const globalWeights = selectedPortfolio?.weights || activeAssets.map(a => a.weight);
+                const entityWeights = getEntityConstrainedWeights(struct, globalWeights, optimizationAssets.length > 0 ? optimizationAssets : activeAssets);
+                
+                return (
             <div key={struct.id} className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
               {/* Entity Header Row */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
@@ -2476,7 +2521,12 @@ export default function RiskReturnOptimiser() {
                   className="border border-gray-300 rounded px-3 py-1 text-sm focus:ring-2 focus:ring-fire-accent focus:border-fire-accent"
                 >
                   <option value="all">All Entities</option>
-                  {structures.map(struct => (
+                  {structures.map(struct => {
+                // Get entity-specific constrained weights
+                const globalWeights = selectedPortfolio?.weights || activeAssets.map(a => a.weight);
+                const entityWeights = getEntityConstrainedWeights(struct, globalWeights, optimizationAssets.length > 0 ? optimizationAssets : activeAssets);
+                
+                return (
                     <option key={struct.id} value={struct.id}>{struct.name}</option>
                   ))}
                 </select>
@@ -2862,9 +2912,13 @@ export default function RiskReturnOptimiser() {
               <div id="entity-pies-section" className="flex flex-wrap justify-center gap-4">
                 {/* Per-Entity Pie Charts */}
                 {structures.map(struct => {
-                  const entityAssets = activeAssets.map(asset => ({
+                  // Get entity-specific constrained weights
+                  const globalWeights = selectedPortfolio?.weights || activeAssets.map(a => a.weight);
+                  const entityWeights = getEntityConstrainedWeights(struct, globalWeights, optimizationAssets.length > 0 ? optimizationAssets : activeAssets);
+                  
+                  const entityAssets = activeAssets.map((asset, idx) => ({
                     ...asset,
-                    value: (asset.weight * struct.value / totalWealth) * 100
+                    value: (entityWeights[idx] || 0) * 100
                   })).filter(a => a.value > 0.5);
                   
                   return (
@@ -2920,7 +2974,12 @@ export default function RiskReturnOptimiser() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation by Entity</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-             {structures.map(struct => (
+             {structures.map(struct => {
+                // Get entity-specific constrained weights
+                const globalWeights = selectedPortfolio?.weights || activeAssets.map(a => a.weight);
+                const entityWeights = getEntityConstrainedWeights(struct, globalWeights, optimizationAssets.length > 0 ? optimizationAssets : activeAssets);
+                
+                return (
                <div key={struct.id} className="border border-gray-200 rounded-lg p-3">
                  <div className="font-bold text-sm text-gray-800 mb-2 border-b pb-1">{struct.name}</div>
                  <div className="space-y-1">
