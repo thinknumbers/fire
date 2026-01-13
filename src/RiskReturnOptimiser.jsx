@@ -2213,12 +2213,7 @@ export default function RiskReturnOptimiser() {
         </h3>
         
         <div className="space-y-4">
-          {structures.map(struct => {
-                // Get entity-specific constrained weights
-                const globalWeights = selectedPortfolio?.weights || activeAssets.map(a => a.weight);
-                const entityWeights = getEntityConstrainedWeights(struct, globalWeights, optimizationAssets.length > 0 ? optimizationAssets : activeAssets);
-                
-                return (
+          {structures.map(struct => (
             <div key={struct.id} className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
               {/* Entity Header Row */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
