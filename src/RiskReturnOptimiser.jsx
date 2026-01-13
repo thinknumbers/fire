@@ -692,7 +692,7 @@ export default function RiskReturnOptimiser() {
       setActiveTab('output');
       await new Promise(r => setTimeout(r, 1500));
 
-      const pieSize = 45; // Smaller to give room for labels on all sides
+      const pieSize = 65; // Increased size as requested
       const pieX = (pageWidth - pieSize) / 2;
       const pieContainer = document.getElementById('pie-chart-section');
       if (pieContainer) {
@@ -2667,24 +2667,27 @@ export default function RiskReturnOptimiser() {
               <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation</h4>
               <div className="overflow-y-auto flex-1">
                 <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 sticky top-0">
-                      <th className="px-3 py-1 text-left text-xs font-medium text-gray-500 uppercase">Asset</th>
-                      <th className="px-3 py-1 text-right text-xs font-medium text-gray-500 uppercase">%</th>
+                   <thead>
+                    <tr className="bg-gray-50 sticky top-0 text-[10px]">
+                      <th className="px-3 py-1 text-left font-medium text-gray-500 uppercase">Asset</th>
+                      <th className="px-3 py-1 text-right font-medium text-gray-500 uppercase">$$</th>
+                      <th className="px-3 py-1 text-right font-medium text-gray-500 uppercase">%</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                   <tbody className="divide-y divide-gray-100">
                     {activeAssets.map((asset) => (
                       <tr key={asset.id}>
-                        <td className="px-3 py-1 font-medium flex items-center">
-                          <div className="w-2 h-2 rounded-full mr-2" style={{backgroundColor:asset.color}}/>
+                        <td className="px-3 py-1 font-medium flex items-center whitespace-nowrap overflow-hidden text-ellipsis">
+                          <div className="w-2 h-2 rounded-full mr-2 shrink-0" style={{backgroundColor:asset.color}}/>
                           {asset.name}
                         </td>
-                        <td className="px-3 py-1 text-right text-gray-900 font-mono">{formatPercent(asset.weight)}</td>
+                        <td className="px-3 py-1 text-right text-gray-600 font-mono text-[11px]">{formatCurrency(asset.weight * totalWealth)}</td>
+                        <td className="px-3 py-1 text-right text-gray-900 font-mono text-[11px]">{formatPercent(asset.weight)}</td>
                       </tr>
                     ))}
                     <tr className="bg-gray-50 border-t-2 border-gray-200">
                       <td className="px-3 py-1 text-left text-xs font-bold text-gray-900 uppercase">Total</td>
+                      <td className="px-3 py-1 text-right text-xs font-bold text-gray-900 uppercase font-mono">{formatCurrency(totalWealth)}</td>
                       <td className="px-3 py-1 text-right text-xs font-bold text-gray-900 uppercase">100.0%</td>
                     </tr>
                   </tbody>
@@ -2701,13 +2704,13 @@ export default function RiskReturnOptimiser() {
               
               <div className="flex flex-col items-center border-b border-gray-100 pb-4 mb-4">
                 <h5 className="text-xs font-semibold text-gray-700 mb-1 text-center uppercase tracking-wider">Total Portfolio</h5>
-                <div className="h-[200px] w-full max-w-[300px]">
+                <div className="h-[250px] w-full max-w-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie 
                         data={activeAssets.map((a, i) => ({ ...a, value: selectedPortfolio.weights[optimizationAssets.findIndex(x=>x.id===a.id)] * 100 }))} 
                         cx="50%" cy="50%" 
-                        outerRadius={70} 
+                        outerRadius={85} 
                         paddingAngle={2} 
                         dataKey="value"
                         isAnimationActive={!isExporting}
@@ -2796,20 +2799,30 @@ export default function RiskReturnOptimiser() {
                <div key={struct.id} className="border border-gray-200 rounded-lg p-3">
                  <div className="font-bold text-sm text-gray-800 mb-2 border-b pb-1">{struct.name}</div>
                  <div className="space-y-1">
+                   <div className="grid grid-cols-12 text-[10px] font-bold text-gray-400 uppercase mb-1 border-b pb-1">
+                     <div className="col-span-6">Asset</div>
+                     <div className="col-span-4 text-right">$$</div>
+                     <div className="col-span-2 text-right">%</div>
+                   </div>
                    {activeAssets.map((asset) => {
-                     const structPercent = (asset.weight * struct.value / totalWealth) * 100;
-                     if (structPercent < 0.1) return null; // Skip very small allocations
+                     const dollarVal = asset.weight * struct.value;
+                     const percentVal = asset.weight * 100;
+                     if (percentVal < 0.1) return null; // Skip very small allocations
                      return (
-                       <div key={asset.id} className="flex justify-between text-xs">
-                         <span className="text-gray-500">{asset.name}</span>
-                         <span className="font-mono text-gray-900">{structPercent.toFixed(1)}%</span>
+                       <div key={asset.id} className="grid grid-cols-12 text-xs py-0.5 border-b border-gray-50 last:border-0 items-center">
+                         <div className="col-span-6 text-gray-600 truncate pr-1" title={asset.name}>{asset.name}</div>
+                         <div className="col-span-4 text-right font-mono text-gray-900 text-[10px]">{formatCurrency(dollarVal)}</div>
+                         <div className="col-span-2 text-right font-mono text-gray-900 text-[10px]">{percentVal.toFixed(1)}%</div>
                        </div>
                      )
                    })}
                  </div>
-                 <div className="mt-3 pt-2 border-t-2 border-gray-200 flex justify-between items-center bg-gray-50 -mx-3 -mb-3 p-3 rounded-b-lg">
-                    <span className="text-xs font-bold text-gray-900 uppercase">Total</span>
-                    <span className="text-xs font-bold text-gray-900 uppercase font-mono">{((struct.value / totalWealth) * 100).toFixed(1)}%</span>
+                 <div className="mt-3 pt-2 border-t-2 border-gray-200 bg-gray-50 -mx-3 -mb-3 p-3 rounded-b-lg">
+                    <div className="grid grid-cols-12 text-xs font-bold text-gray-900 uppercase">
+                      <div className="col-span-6">Total</div>
+                      <div className="col-span-4 text-right font-mono">{formatCurrency(struct.value)}</div>
+                      <div className="col-span-2 text-right font-mono">100%</div>
+                    </div>
                  </div>
                </div>
              ))}
