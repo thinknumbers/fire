@@ -489,16 +489,22 @@ export default function RiskReturnOptimiser() {
     setIsSaving(true);
     try {
       // Check if scenario exists
-      const { data: existingData } = await supabase
+      const { data: existingData, error: fetchError } = await supabase
         .from('scenarios')
         .select('id')
         .eq('name', scenarioName)
-        .single();
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error('Error fetching scenario:', fetchError);
+        // We don't throw yet, as we might be inserting a new one
+      }
 
       let shouldSave = true;
       let isUpdate = false;
 
       if (existingData) {
+        console.log('Existing scenario found:', existingData);
         if (saveAsNew) {
              alert(`Scenario "${scenarioName}" already exists. Please choose a different name for "Save As".`);
              setIsSaving(false);
@@ -506,6 +512,8 @@ export default function RiskReturnOptimiser() {
         }
         shouldSave = window.confirm(`Scenario "${scenarioName}" already exists. Do you want to overwrite it?`);
         isUpdate = true;
+      } else {
+        console.log('No existing scenario found with name:', scenarioName);
       }
 
       if (!shouldSave) {
@@ -530,6 +538,8 @@ export default function RiskReturnOptimiser() {
         created_at: new Date().toISOString()
       };
 
+      console.log('Attempting save with payload:', payload);
+
       let error;
       if (isUpdate && !saveAsNew) {
         // Update existing
@@ -548,12 +558,13 @@ export default function RiskReturnOptimiser() {
 
       if (error) throw error;
 
+      console.log('Save successful!');
       setLastSaved(new Date());
       fetchScenarios();
       alert('Scenario saved successfully!');
     } catch (error) {
-      console.error('Error saving scenario:', error);
-      alert('Failed to save scenario. Please check console for details.');
+      console.error('CRITICAL: Error saving scenario:', error);
+      alert(`Failed to save scenario: ${error.message || 'Unknown error'}. Check console for details.`);
     } finally {
       setIsSaving(false);
     }
@@ -1012,7 +1023,14 @@ export default function RiskReturnOptimiser() {
       .eq('id', id)
       .single();
 
+    if (error) {
+      console.error('Error loading scenario:', error);
+      alert('Failed to load scenario');
+      return;
+    }
+
     if (data) {
+      console.log('Loaded scenario data:', data);
       if (data.advice_fee !== undefined) setAdviceFee(data.advice_fee);
       
       // Restore client details
