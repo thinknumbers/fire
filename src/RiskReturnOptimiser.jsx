@@ -278,19 +278,22 @@ const OutcomeCandlestick = (props) => {
 // Custom Label for One-Off Events (Callout Box)
 const CustomEventLabel = (props) => {
   const { viewBox, value, type, index } = props;
-  const { x, y } = viewBox;
+  // Recharts passes 'x' prop for vertical ReferenceLine
+  const xPos = props.x !== undefined ? props.x : (viewBox ? viewBox.x : 0);
+  const chartY = viewBox ? viewBox.y : 0;
   
   // Design:
-  // - Box at top of chart (y=0 or small padding)
+  // - Box at top of chart
   // - Line/Arrow pointing down to the year line (x)
   // - Box color based on type
   
-  const boxY = 10 + (index % 3) * 20; // Stagger vertically to avoid overlap
+  const boxY = chartY + 10 + ((index || 0) % 3) * 20; // Stagger vertically
+
   const boxHeight = 16;
   // Estimate text width roughly (or use specific width)
   const textWidth = value.length * 6 + 10; 
   const boxWidth = Math.max(textWidth, 60);
-  const boxX = x - boxWidth / 2;
+  const boxX = xPos - boxWidth / 2;
   
   const color = type === 'income' ? '#15803d' : '#b91c1c'; // Green-700 / Red-700
   const bgColor = type === 'income' ? '#dcfce7' : '#fee2e2'; // Green-100 / Red-100
@@ -669,6 +672,11 @@ export default function RiskReturnOptimiser() {
       drawBox(startX + boxWidth + 10, "Risk (StdDev)", formatPercent(selectedPortfolio.risk), [220, 38, 38]);
       
       y += boxHeight + 10;
+      
+      // ==================== PAGE 2: ASSET ALLOCATION ====================
+      pdf.addPage();
+      addPageBorder();
+      y = margin;
 
       // Pie Chart
       addText("Target Asset Allocation", 12, 'bold', headingRgb); y += 5;
@@ -761,8 +769,8 @@ export default function RiskReturnOptimiser() {
           // Label fix: Use full label if available
           const rawType = struct.type;
           const typeLabel = entityTypes[rawType]?.label || rawType;
-          // Truncate if too long?
-          pdf.text(struct.name, x + 2, y + 5);
+          // Use typeLabel for column header as requested
+          pdf.text(typeLabel, x + 2, y + 5);
       });
       y += 8;
 
@@ -2171,7 +2179,10 @@ export default function RiskReturnOptimiser() {
                  <input 
                     type="number" 
                     value={projectionYears} 
-                    onChange={(e) => setProjectionYears(parseInt(e.target.value) || 1)}
+                    onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        setProjectionYears(isNaN(val) ? 1 : val);
+                    }}
                     className="w-32 border border-gray-300 rounded px-2 py-1 text-sm text-gray-900"
                  />
                </div>
@@ -2181,7 +2192,10 @@ export default function RiskReturnOptimiser() {
                    <input 
                       type="number" step="0.1"
                       value={Math.round(inflationRate * 1000) / 10} 
-                      onChange={(e) => setInflationRate(parseFloat(e.target.value)/100 || 0)}
+                      onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          setInflationRate(isNaN(val) ? 0 : val/100);
+                      }}
                       className="w-full border border-gray-300 rounded px-2 py-1 text-sm text-gray-900 pr-6"
                    />
                    <span className="absolute right-2 top-1 text-xs text-gray-400">%</span>
@@ -2193,7 +2207,10 @@ export default function RiskReturnOptimiser() {
                    <input 
                       type="number" step="0.01"
                       value={Math.round(adviceFee * 10000) / 100} 
-                      onChange={(e) => setAdviceFee(parseFloat(e.target.value)/100 || 0)}
+                      onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          setAdviceFee(isNaN(val) ? 0 : val/100);
+                      }}
                       className="w-full border border-gray-300 rounded px-2 py-1 text-sm text-gray-900 pr-6"
                    />
                    <span className="absolute right-2 top-1 text-xs text-gray-400">%</span>
@@ -2371,7 +2388,7 @@ export default function RiskReturnOptimiser() {
                   >
                     {efficientFrontier.map((p, i) => (
                       <option key={i+1} value={i+1}>
-                        Model {i+1} - {MODEL_NAMES[i+1] || 'Custom'}
+                        Portfolio {i+1} - {MODEL_NAMES[i+1] || 'Custom'}
                       </option>
                     ))}
                   </select>
@@ -2756,8 +2773,8 @@ export default function RiskReturnOptimiser() {
 
     // Collect active one-off events for chart callouts
     const oneOffEvents = [
-        ...incomeStreams.filter(s => s.active && s.isOneOff),
-        ...expenseStreams.filter(s => s.active && s.isOneOff)
+        ...incomeStreams.filter(s => s.isOneOff),
+        ...expenseStreams.filter(s => s.isOneOff)
     ].map(e => ({
         year: parseInt(e.year),
         label: e.name,
@@ -2812,7 +2829,7 @@ export default function RiskReturnOptimiser() {
                     className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-fire-accent focus:border-fire-accent"
                   >
                     {efficientFrontier.map((p, i) => (
-                      <option key={i+1} value={i+1}>Model {i+1} - {MODEL_NAMES[i+1] || 'Custom'}</option>
+                      <option key={i+1} value={i+1}>Portfolio {i+1} - {MODEL_NAMES[i+1] || 'Custom'}</option>
                     ))}
                   </select>
                </div>
