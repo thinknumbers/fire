@@ -690,7 +690,7 @@ export default function RiskReturnOptimiser() {
       setActiveTab('output');
       await new Promise(r => setTimeout(r, 1500));
 
-      const pieSize = 55; // Smaller to fit with entities
+      const pieSize = 50; // Smaller to give room for labels
       const pieX = (pageWidth - pieSize) / 2;
       const pieContainer = document.getElementById('pie-chart-section');
       if (pieContainer) {
@@ -2803,7 +2803,7 @@ export default function RiskReturnOptimiser() {
             {/* Pie Charts Row: Overall + Per Entity */}
             <div id="pie-chart-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
               <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation by Entity</h4>
-              <div id="entity-pies-section" className="flex flex-wrap justify-center gap-4">
+              <div id="entity-pies-section" className="flex flex-nowrap justify-center gap-2 overflow-x-auto">
                 
                 {/* Per-Entity Pie Charts */}
                 {structures.map(struct => {
