@@ -504,7 +504,7 @@ export default function RiskReturnOptimiser() {
   const formatPercent = (val) => `${(val * 100).toFixed(1)}%`;
 
   // Calculate constrained weights for a specific entity based on its asset allocation settings
-  // If entity has useAssetAllocation enabled, clamp global weights to entity's min/max constraints
+  // Priority: 1) Allocate minimums first, 2) Distribute remaining budget within max constraints
   // If entity has no allocation, use the global optimal weights unchanged
   const getEntityConstrainedWeights = useCallback((entity, globalWeights, assetList) => {
     if (!entity || !globalWeights || !assetList || globalWeights.length === 0) {
@@ -516,31 +516,78 @@ export default function RiskReturnOptimiser() {
       return globalWeights;
     }
 
-    // Entity has constraints - apply them
-    let constrainedWeights = assetList.map((asset, idx) => {
-      const globalWeight = globalWeights[idx] || 0;
-      const entityAlloc = entity.assetAllocation.find(a => a.id === asset.id);
-      
-      if (!entityAlloc) {
-        // Asset not in entity's allocation list - use global weight (no constraint)
-        return globalWeight;
-      }
-
-      // Apply min/max constraints (stored as 0-100, convert to 0-1)
-      const minWeight = (entityAlloc.min || 0) / 100;
-      const maxWeight = (entityAlloc.max !== undefined ? entityAlloc.max : 100) / 100;
-      
-      // Clamp the weight to constraints
-      return Math.max(minWeight, Math.min(maxWeight, globalWeight));
+    const n = assetList.length;
+    
+    // Get min/max constraints for each asset (convert from 0-100 to 0-1)
+    const mins = assetList.map(asset => {
+      const alloc = entity.assetAllocation.find(a => a.id === asset.id);
+      return alloc ? (alloc.min || 0) / 100 : 0;
+    });
+    
+    const maxs = assetList.map(asset => {
+      const alloc = entity.assetAllocation.find(a => a.id === asset.id);
+      return alloc ? (alloc.max !== undefined ? alloc.max : 100) / 100 : 1;
     });
 
-    // Renormalize to sum to 1.0 after clamping
-    const totalWeight = constrainedWeights.reduce((sum, w) => sum + w, 0);
-    if (totalWeight > 0 && Math.abs(totalWeight - 1.0) > 0.0001) {
-      constrainedWeights = constrainedWeights.map(w => w / totalWeight);
+    // Step 1: Start with minimums
+    let weights = [...mins];
+    let minSum = mins.reduce((a, b) => a + b, 0);
+
+    // If minimums exceed 100%, normalize them to fit
+    if (minSum > 1.0) {
+      weights = mins.map(m => m / minSum);
+      return weights; // All budget consumed by minimums
     }
 
-    return constrainedWeights;
+    // Step 2: Calculate remaining budget after minimums
+    let remainingBudget = 1.0 - minSum;
+
+    // Step 3: Distribute remaining budget based on global weights, respecting max constraints
+    // Calculate how much each asset "wants" beyond its minimum, based on global weight proportions
+    const globalTotal = globalWeights.reduce((a, b) => a + b, 0);
+    
+    if (remainingBudget > 0.0001 && globalTotal > 0) {
+      // Calculate room for each asset (max - min) and desired allocation from global weights
+      const rooms = maxs.map((max, i) => Math.max(0, max - mins[i]));
+      
+      // Distribute remaining budget proportionally to global weights, capped by room
+      let iterations = 0;
+      while (remainingBudget > 0.0001 && iterations < 20) {
+        // Calculate proportional shares based on global weights for assets with room
+        const eligibleIndices = [];
+        let eligibleGlobalSum = 0;
+        
+        for (let i = 0; i < n; i++) {
+          const currentRoom = maxs[i] - weights[i];
+          if (currentRoom > 0.0001) {
+            eligibleIndices.push(i);
+            eligibleGlobalSum += globalWeights[i];
+          }
+        }
+        
+        if (eligibleIndices.length === 0 || eligibleGlobalSum === 0) break;
+        
+        let distributed = 0;
+        for (const i of eligibleIndices) {
+          const share = (globalWeights[i] / eligibleGlobalSum) * remainingBudget;
+          const currentRoom = maxs[i] - weights[i];
+          const actualAdd = Math.min(share, currentRoom);
+          weights[i] += actualAdd;
+          distributed += actualAdd;
+        }
+        
+        remainingBudget -= distributed;
+        iterations++;
+      }
+    }
+
+    // Final normalization to handle floating point errors
+    const total = weights.reduce((a, b) => a + b, 0);
+    if (total > 0 && Math.abs(total - 1.0) > 0.0001) {
+      weights = weights.map(w => w / total);
+    }
+
+    return weights;
   }, []);
 
   // Derived Values
