@@ -19,6 +19,37 @@ import fireLogo from '../FIRE_Logo_White.webp';
 import { APP_TITLE, ABN, AFSL } from './constants';
 
 // --- Constants & Defaults ---
+const NumberInput = ({ value, onChange, className, placeholder, prefix = "$" }) => {
+  const format = (val) => {
+      if (val === '' || val === undefined || val === null) return '';
+      return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
+  const handleChange = (e) => {
+      const rawValue = e.target.value.replace(/[^0-9.-]/g, '');
+      if (rawValue === '' || rawValue === '-') {
+          onChange(0); 
+          return;
+      }
+      const numericValue = parseFloat(rawValue);
+      if (!isNaN(numericValue)) {
+          onChange(numericValue);
+      }
+  };
+
+  return (
+      <div className="relative w-full">
+          {prefix && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">{prefix}</span>}
+          <input 
+              type="text" 
+              value={format(value)}
+              onChange={handleChange}
+              className={`${className} ${prefix ? 'pl-7' : ''}`}
+              placeholder={placeholder}
+          />
+      </div>
+  );
+};
 
 const DEFAULT_ASSETS = [
   { id: 'aus_eq', name: 'Australian Equities', return: 0.09, stdev: 0.16, incomeRatio: 0.67, minWeight: 0, maxWeight: 100, color: '#003f5c', active: true, isDefault: true },
@@ -2084,38 +2115,6 @@ export default function RiskReturnOptimiser() {
     </div>
   );
 
-  const NumberInput = ({ value, onChange, className, placeholder, prefix = "$" }) => {
-    const format = (val) => {
-        if (val === '' || val === undefined || val === null) return '';
-        return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    };
-
-    const handleChange = (e) => {
-        const rawValue = e.target.value.replace(/[^0-9.-]/g, '');
-        if (rawValue === '' || rawValue === '-') {
-            onChange(0); 
-            return;
-        }
-        const numericValue = parseFloat(rawValue);
-        if (!isNaN(numericValue)) {
-            onChange(numericValue);
-        }
-    };
-
-    return (
-        <div className="relative w-full">
-            {prefix && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">{prefix}</span>}
-            <input 
-                type="text" 
-                value={format(value)}
-                onChange={handleChange}
-                className={`${className} ${prefix ? 'pl-7' : ''}`} // Add padding if prefix exists
-                placeholder={placeholder}
-            />
-        </div>
-    );
-  };
-    
   const ClientTab = () => (
     <div className="space-y-6 animate-in fade-in">
       {/* Client Details Header */}
@@ -2179,26 +2178,26 @@ export default function RiskReturnOptimiser() {
                        ))}
                      </select>
                   </div>
-                  <div className="md:col-span-3">
-                    <label className="block text-xs font-bold text-gray-500 mb-1">Investable Amount</label>
-                    <div className="relative w-full">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">$</span>
-                      <input 
-                        type="text" 
-                        key={`${struct.id}-${struct.value}`}
-                        defaultValue={(struct.value || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                        onBlur={(e) => {
-                          const rawValue = e.target.value.replace(/[^0-9.-]/g, '');
-                          const val = (rawValue === '' || rawValue === '-') ? 0 : parseFloat(rawValue);
-                          if (!isNaN(val) && val !== struct.value) {
-                            setStructures(structures.map(s => s.id === struct.id ? {...s, value: val} : s));
-                          }
-                        }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-semibold pl-7"
-                      />
-                    </div>
-                  </div>
+                   <div className="md:col-span-3">
+                     <label className="block text-xs font-bold text-gray-500 mb-1">Investable Amount</label>
+                     <div className="relative w-full">
+                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">$</span>
+                       <input 
+                         type="text" 
+                         key={`${struct.id}-${struct.value}`}
+                         defaultValue={(struct.value || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                         onBlur={(e) => {
+                           const rawValue = e.target.value.replace(/[^0-9.-]/g, '');
+                           const val = (rawValue === '' || rawValue === '-') ? 0 : parseFloat(rawValue);
+                           if (!isNaN(val) && val !== struct.value) {
+                             setStructures(structures.map(s => s.id === struct.id ? {...s, value: val} : s));
+                           }
+                         }}
+                         onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-semibold pl-7"
+                       />
+                     </div>
+                   </div>
                   <div className="md:col-span-2">
                        <label className="block text-xs font-bold text-gray-500 mb-1">Tax Treatment</label>
                        <div className="flex items-center space-x-2">
@@ -2474,9 +2473,25 @@ export default function RiskReturnOptimiser() {
                          <input type="text" value={item.name} className="flex-1 border rounded px-2 py-1" placeholder="Name" 
                            onChange={(e) => updateInflow(item.id, 'name', e.target.value)}
                          />
-                         <div className="w-24">
-                             <NumberInput value={item.amount} onChange={(val) => updateInflow(item.id, 'amount', val)} className="w-full border rounded px-2 py-1" prefix="$" />
-                         </div>
+                          <div className="w-24">
+                              <div className="relative w-full">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none">$</span>
+                                <input 
+                                  type="text"
+                                  key={`${item.id}-${item.amount}`}
+                                  defaultValue={(item.amount || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                                  onBlur={(e) => {
+                                    const rawValue = e.target.value.replace(/[^0-9.-]/g, '');
+                                    const val = (rawValue === '' || rawValue === '-') ? 0 : parseFloat(rawValue);
+                                    if (!isNaN(val) && val !== item.amount) {
+                                      updateInflow(item.id, 'amount', val);
+                                    }
+                                  }}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                  className="w-full border rounded px-2 py-1 text-xs pl-4"
+                                />
+                              </div>
+                          </div>
                      </div>
                      <div className="flex flex-wrap items-center gap-2 text-xs">
                          <label className="flex items-center text-gray-600">
@@ -2535,9 +2550,25 @@ export default function RiskReturnOptimiser() {
                          <input type="text" value={item.name} className="flex-1 border rounded px-2 py-1" placeholder="Name" 
                            onChange={(e) => updateOutflow(item.id, 'name', e.target.value)}
                          />
-                         <div className="w-24">
-                             <NumberInput value={item.amount} onChange={(val) => updateOutflow(item.id, 'amount', val)} className="w-full border rounded px-2 py-1 text-red-600" prefix="$" />
-                         </div>
+                          <div className="w-24">
+                              <div className="relative w-full">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none">$</span>
+                                <input 
+                                  type="text"
+                                  key={`${item.id}-${item.amount}`}
+                                  defaultValue={(item.amount || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                                  onBlur={(e) => {
+                                    const rawValue = e.target.value.replace(/[^0-9.-]/g, '');
+                                    const val = (rawValue === '' || rawValue === '-') ? 0 : parseFloat(rawValue);
+                                    if (!isNaN(val) && val !== item.amount) {
+                                      updateOutflow(item.id, 'amount', val);
+                                    }
+                                  }}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                  className="w-full border rounded px-2 py-1 text-xs text-red-600 pl-4"
+                                />
+                              </div>
+                          </div>
                      </div>
                      <div className="flex flex-wrap items-center gap-2 text-xs">
                          <label className="flex items-center text-gray-600">
