@@ -277,31 +277,32 @@ const OutcomeCandlestick = (props) => {
 
 // Custom Label for One-Off Events (Callout Box)
 const CustomEventLabel = (props) => {
-  const { viewBox, value, type, index } = props;
+  const { viewBox, value, type, index, amount } = props;
   const xPos = props.x !== undefined ? props.x : (viewBox ? viewBox.x : 0);
   const chartY = viewBox ? viewBox.y : 0;
   const chartHeight = viewBox ? viewBox.height : 0;
   
-  // Design:
-  // - Box at top of chart
-  // - Line/Arrow pointing down to the year line (x)
-  // - Box color based on type
+  // Format amount in millions
+  const formatAmount = (val) => {
+    if (!val || val === 0) return '';
+    const millions = val / 1000000;
+    return `$${millions.toFixed(1)}m`;
+  };
   
-  const boxY = chartY + 10 + ((index || 0) % 3) * 20; // Stagger vertically
+  const boxY = chartY + 10 + ((index || 0) % 3) * 25; // Increased stagger for 2 lines
 
-  const boxHeight = 16;
-  // Estimate text width roughly (or use specific width)
-  const textWidth = value.length * 6 + 10; 
-  const boxWidth = Math.max(textWidth, 60);
+  const boxHeight = 24; // Taller for 2 lines
+  const textWidth = Math.max(value.length, 6) * 5 + 10; 
+  const boxWidth = Math.max(textWidth, 55);
   const boxX = xPos - boxWidth / 2;
   
-  const color = type === 'income' ? '#15803d' : '#b91c1c'; // Green-700 / Red-700
-  const bgColor = type === 'income' ? '#dcfce7' : '#fee2e2'; // Green-100 / Red-100
-  const borderColor = type === 'income' ? '#86efac' : '#fca5a5'; // Green-300 / Red-300
+  const color = type === 'income' ? '#15803d' : '#b91c1c';
+  const bgColor = type === 'income' ? '#dcfce7' : '#fee2e2';
+  const borderColor = type === 'income' ? '#86efac' : '#fca5a5';
 
   return (
     <g>
-      {/* Line connecting box to the reference line - extending down a bit */}
+      {/* Line connecting box to the reference line */}
       <line x1={xPos} y1={boxY + boxHeight} x2={xPos} y2={chartY + chartHeight} stroke={color} strokeWidth={1} strokeDasharray="2 2" />
       
       {/* Callout Box */}
@@ -316,16 +317,28 @@ const CustomEventLabel = (props) => {
         strokeWidth={1} 
       />
       
-      {/* Text */}
+      {/* Event Name */}
       <text 
         x={xPos} 
-        y={boxY + boxHeight - 4} 
+        y={boxY + 10} 
         textAnchor="middle" 
         fill={color} 
-        fontSize={10} 
+        fontSize={8} 
         fontWeight="bold"
       >
-        {value}
+        {value.length > 10 ? value.substring(0, 10) + '...' : value}
+      </text>
+      
+      {/* Amount */}
+      <text 
+        x={xPos} 
+        y={boxY + 20} 
+        textAnchor="middle" 
+        fill={color} 
+        fontSize={9} 
+        fontWeight="bold"
+      >
+        {formatAmount(amount)}
       </text>
     </g>
   );
@@ -2793,6 +2806,7 @@ export default function RiskReturnOptimiser() {
     ].map(e => ({
         year: parseInt(e.year),
         label: e.name,
+        amount: e.amount || 0,
         type: incomeStreams.includes(e) ? 'income' : 'expense'
     })).filter(e => !isNaN(e.year) && e.year > 0 && e.year <= projectionYears);
 
@@ -2928,7 +2942,7 @@ export default function RiskReturnOptimiser() {
                         stroke={event.type === 'income' ? '#22c55e' : '#ef4444'} 
                         strokeDasharray="3 3"
                         isFront={true}
-                        label={<CustomEventLabel value={event.label} type={event.type} index={idx} />}
+                        label={<CustomEventLabel value={event.label} type={event.type} index={idx} amount={event.amount} />}
                     />
                 ))}
               </ComposedChart>
