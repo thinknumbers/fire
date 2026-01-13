@@ -774,7 +774,7 @@ export default function RiskReturnOptimiser() {
       pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
       const activeOnly = assets.filter(a => a.active);
       const legendCols = 4;
-      const legendItemWidth = 42;
+      const legendItemWidth = 48;
       let lx = (pageWidth - (legendCols * legendItemWidth)) / 2;
       activeOnly.forEach((asset, i) => {
         const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
@@ -786,7 +786,7 @@ export default function RiskReturnOptimiser() {
           pdf.setFillColor(asset.color);
           pdf.rect(itemX, itemY - 2, 2, 2, 'F');
           pdf.setTextColor(0, 0, 0);
-          pdf.text(`${asset.name.substring(0, 12)}: ${formatPercent(weight)}`, itemX + 3, itemY);
+          pdf.text(`${asset.name}: ${formatPercent(weight)}`, itemX + 3, itemY);
         }
       });
       y += Math.ceil(activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.005).length / legendCols) * 5 + 8;
@@ -934,7 +934,7 @@ export default function RiskReturnOptimiser() {
       // 2. Monte Carlo Wealth Projection
       setActiveTab('cashflow');
       await new Promise(r => setTimeout(r, 1500));
-      addText("Monte Carlo Wealth Projection", 14, 'bold', headingRgb); y += 8;
+      addText("Wealth Projection", 14, 'bold', headingRgb); y += 8;
       const wealthImg = await captureChart('wealth-projection-chart');
       if (wealthImg) {
           pdf.addImage(wealthImg, 'PNG', margin, y, pdfWidth, chartH, undefined, 'FAST');
@@ -2702,9 +2702,41 @@ export default function RiskReturnOptimiser() {
           <div className="flex flex-col h-full">
             {/* Pie Charts Row: Overall + Per Entity */}
             <div id="pie-chart-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
-              <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation by Entity</h4>
+              <h4 className="font-semibold text-gray-900 mb-4">Portfolio Asset Allocation</h4>
+              
+              <div className="flex flex-col items-center border-b border-gray-100 pb-4 mb-4">
+                <h5 className="text-xs font-semibold text-gray-700 mb-1 text-center uppercase tracking-wider">Total Portfolio</h5>
+                <div className="h-[200px] w-full max-w-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie 
+                        data={activeAssets.map((a, i) => ({ ...a, value: selectedPortfolio.weights[optimizationAssets.findIndex(x=>x.id===a.id)] * 100 }))} 
+                        cx="50%" cy="50%" 
+                        outerRadius={70} 
+                        paddingAngle={2} 
+                        dataKey="value"
+                        isAnimationActive={!isExporting}
+                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                          const radius = outerRadius + 12;
+                          const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
+                          const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
+                          return percent > 0.03 ? (
+                            <text x={x} y={y} fill="#4b5563" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="9">
+                              {`${(percent * 100).toFixed(0)}%`}
+                            </text>
+                          ) : null;
+                        }}
+                        labelLine={false}
+                      >
+                        {activeAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                      </Pie>
+                      {!isExporting && <Tooltip formatter={(val) => `${val.toFixed(1)}%`} />}
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
               <div id="entity-pies-section" className="flex flex-wrap justify-center gap-4">
-                
                 {/* Per-Entity Pie Charts */}
                 {structures.map(struct => {
                   const entityAssets = activeAssets.map(asset => ({
@@ -2713,19 +2745,28 @@ export default function RiskReturnOptimiser() {
                   })).filter(a => a.value > 0.5);
                   
                   return (
-                    <div key={struct.id} className="flex-shrink-0" style={{ width: `${Math.min(200, 100 / structures.length)}%`, minWidth: '150px', maxWidth: '200px' }}>
-                      <h5 className="text-sm font-semibold text-gray-700 mb-2 text-center">{struct.name}</h5>
-                      <div className="h-[180px]">
+                    <div key={struct.id} className="flex-shrink-0" style={{ width: `${Math.min(200, 100 / structures.length)}%`, minWidth: '130px', maxWidth: '180px' }}>
+                      <h5 className="text-[10px] font-semibold text-gray-500 mb-1 text-center uppercase tracking-tight">{struct.name}</h5>
+                      <div className="h-[150px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie 
                               data={entityAssets} 
                               cx="50%" cy="50%" 
-                              outerRadius={60} 
+                              outerRadius={50} 
                               paddingAngle={2} 
                               dataKey="value"
                               isAnimationActive={!isExporting}
-                              label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : null}
+                              label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                                const radius = outerRadius + 10;
+                                const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
+                                const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
+                                return percent > 0.05 ? (
+                                  <text x={x} y={y} fill="#4b5563" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="9">
+                                    {`${(percent * 100).toFixed(0)}%`}
+                                  </text>
+                                ) : null;
+                              }}
                               labelLine={false}
                             >
                               {entityAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
