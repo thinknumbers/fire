@@ -318,7 +318,7 @@ const CustomEventLabel = (props) => {
       
       {/* Text */}
       <text 
-        x={x} 
+        x={xPos} 
         y={boxY + boxHeight - 4} 
         textAnchor="middle" 
         fill={color} 
