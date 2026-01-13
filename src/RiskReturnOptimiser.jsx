@@ -2179,7 +2179,7 @@ export default function RiskReturnOptimiser() {
                      </select>
                   </div>
                   <div className="md:col-span-3">
-                    <label className="block text-xs font-bold text-gray-500 mb-1">Investable Amount</label>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Investable Amount (Raw)</label>
                     <input 
                        key={struct.id}
                        type="text"
