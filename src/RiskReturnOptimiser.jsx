@@ -2978,10 +2978,10 @@ export default function RiskReturnOptimiser() {
                      <div className="col-span-4 text-right">$$</div>
                      <div className="col-span-2 text-right">%</div>
                    </div>
-                   {activeAssets.map((asset) => {
-                     const dollarVal = asset.weight * struct.value;
-                     const percentVal = asset.weight * 100;
-                     if (percentVal < 0.1) return null; // Skip very small allocations
+                    {activeAssets.map((asset, idx) => {
+                      const entityWeight = entityWeights[idx] || 0;
+                      const dollarVal = entityWeight * struct.value;
+                      const percentVal = entityWeight * 100;
                      return (
                        <div key={asset.id} className="grid grid-cols-12 text-xs py-0.5 border-b border-gray-50 last:border-0 items-center">
                          <div className="col-span-6 text-gray-600 truncate pr-1" title={asset.name}>{asset.name}</div>
