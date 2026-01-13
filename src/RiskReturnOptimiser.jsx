@@ -2181,10 +2181,11 @@ export default function RiskReturnOptimiser() {
                   <div className="md:col-span-3">
                     <label className="block text-xs font-bold text-gray-500 mb-1">Investable Amount</label>
                     <input 
-                       type="number"
-                       value={struct.value || 0}
-                       onChange={(e) => {
-                         const val = parseFloat(e.target.value) || 0;
+                       key={struct.id}
+                       type="text"
+                       defaultValue={struct.value}
+                       onBlur={(e) => {
+                         const val = parseFloat(e.target.value.replace(/[^0-9.]/g, '')) || 0;
                          setStructures(structures.map(s => s.id === struct.id ? {...s, value: val} : s));
                        }}
                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
