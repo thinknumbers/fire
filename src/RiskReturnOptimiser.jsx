@@ -517,6 +517,9 @@ export default function RiskReturnOptimiser() {
         name: scenarioName,
         client_name: clientName,
         client_date: clientDate,
+        correlations,
+        selected_portfolio_id: selectedPortfolioId,
+        simulation_count: simulationCount,
         assets,
         structures,
         income_streams: incomeStreams,
@@ -989,6 +992,9 @@ export default function RiskReturnOptimiser() {
       setProjectionYears(30);
       setInflationRate(0.025);
       setAdviceFee(0.008);
+      setCorrelations(generateFullCorrelationMatrix(DEFAULT_ASSETS));
+      setSelectedPortfolioId(5);
+      setSimulationCount(1000);
       
       // Reset simulation state
       setSimulations([]);
@@ -1021,6 +1027,11 @@ export default function RiskReturnOptimiser() {
       if (data.expense_streams) setExpenseStreams(data.expense_streams);
       if (data.projection_years) setProjectionYears(data.projection_years);
       if (data.inflation_rate) setInflationRate(data.inflation_rate);
+      
+      // Restore new persistence fields
+      if (data.correlations) setCorrelations(data.correlations);
+      if (data.selected_portfolio_id !== undefined) setSelectedPortfolioId(data.selected_portfolio_id);
+      if (data.simulation_count) setSimulationCount(data.simulation_count);
       
       // Reset simulation state
       setSimulations([]);
