@@ -1794,7 +1794,20 @@ export default function RiskReturnOptimiser() {
                                                 className="w-10 h-10 rounded cursor-pointer border-0 p-0 overflow-hidden shadow-sm"
                                             />
                                         </div>
-                                        <span className="text-xs font-mono text-gray-500">{settingsDraft.colors.accent}</span>
+                                        <input 
+                                            type="text"
+                                            key={`accent-${settingsDraft.colors.accent}`}
+                                            defaultValue={settingsDraft.colors.accent}
+                                            onBlur={(e) => {
+                                                let val = e.target.value.trim();
+                                                if (!val.startsWith('#')) val = '#' + val;
+                                                if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                                                    setSettingsDraft(prev => ({ ...prev, colors: { ...prev.colors, accent: val } }));
+                                                }
+                                            }}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                            className="text-xs font-mono text-gray-700 border border-gray-300 rounded px-2 py-1 w-20"
+                                        />
                                     </div>
                                 </div>
                                 <div>
@@ -1808,7 +1821,20 @@ export default function RiskReturnOptimiser() {
                                                 className="w-10 h-10 rounded cursor-pointer border-0 p-0 overflow-hidden shadow-sm"
                                             />
                                         </div>
-                                        <span className="text-xs font-mono text-gray-500">{settingsDraft.colors.heading}</span>
+                                        <input 
+                                            type="text"
+                                            key={`heading-${settingsDraft.colors.heading}`}
+                                            defaultValue={settingsDraft.colors.heading}
+                                            onBlur={(e) => {
+                                                let val = e.target.value.trim();
+                                                if (!val.startsWith('#')) val = '#' + val;
+                                                if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                                                    setSettingsDraft(prev => ({ ...prev, colors: { ...prev.colors, heading: val } }));
+                                                }
+                                            }}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                            className="text-xs font-mono text-gray-700 border border-gray-300 rounded px-2 py-1 w-20"
+                                        />
                                     </div>
                                 </div>
                             </div>
