@@ -634,7 +634,7 @@ export default function RiskReturnOptimiser() {
       addText("Wealth Strategy Report", 22, 'bold', accentRgb, 'center'); y += 10;
       addText(scenarioName, 14, 'normal', textRgb, 'center'); y += 7;
       const modelName = MODEL_NAMES[selectedPortfolio.id] || "Custom";
-      addText(`Selected Model: ${selectedPortfolio.label} ${modelName}`, 12, 'bold', accentRgb, 'center'); y += 7;
+      addText(`Selected Portfolio: ${selectedPortfolio.label} ${modelName}`, 12, 'bold', accentRgb, 'center'); y += 7;
       addText(`Generated: ${new Date().toLocaleDateString()}`, 9, 'italic', [112, 112, 112], 'center'); y += 10;
 
       // Key Assumptions (2 columns)
@@ -656,7 +656,8 @@ export default function RiskReturnOptimiser() {
       pdf.text("Entity Structure", col2X, y); y += 5;
       pdf.setFont('helvetica', 'normal');
       structures.forEach(s => {
-        pdf.text(`${s.name}: ${formatCurrency(s.value)}`, col2X, y);
+        const entityLabel = DEFAULT_ENTITY_TYPES[s.type] ? DEFAULT_ENTITY_TYPES[s.type].label : s.type;
+        pdf.text(`${entityLabel}: ${formatCurrency(s.value)}`, col2X, y);
         y += 4;
       });
 
@@ -739,25 +740,47 @@ export default function RiskReturnOptimiser() {
       });
       y += Math.ceil(activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.005).length / legendCols) * 5 + 8;
 
-      // Entity Pie Charts (smaller, side by side)
+      // Entity Pie Charts - capture from UI
       addText("Allocation by Entity", 10, 'bold', headingRgb); y += 5;
-      const entityPieSize = 35;
-      const entityGap = 5;
-      const entityCount = structures.length;
-      const totalEntityWidth = entityCount * entityPieSize + (entityCount - 1) * entityGap;
-      let entityStartX = (pageWidth - totalEntityWidth) / 2;
-
-      structures.forEach((struct, idx) => {
-        const ex = entityStartX + idx * (entityPieSize + entityGap);
-        // Draw placeholder circle with label
-        pdf.setDrawColor(200, 200, 200);
-        pdf.circle(ex + entityPieSize/2, y + entityPieSize/2, entityPieSize/2 - 2, 'S');
-        pdf.setFontSize(7);
-        pdf.setTextColor(50, 50, 50);
-        const label = struct.name.length > 10 ? struct.name.substring(0, 10) + '...' : struct.name;
-        pdf.text(label, ex + entityPieSize/2, y + entityPieSize + 3, { align: 'center' });
-      });
-      y += entityPieSize + 10;
+      
+      // Capture entity pie charts section from the Output tab
+      const entityPiesSection = document.getElementById('entity-pies-section');
+      if (entityPiesSection) {
+        const entityCanvas = await html2canvas(entityPiesSection, { scale: 2, backgroundColor: '#ffffff' });
+        const entityImg = entityCanvas.toDataURL('image/png');
+        const imgProps = pdf.getImageProperties(entityImg);
+        const maxWidth = pdfWidth;
+        const maxHeight = 45; // Limit height to fit on page
+        let entityWidth = maxWidth;
+        let entityHeight = (imgProps.height * entityWidth) / imgProps.width;
+        if (entityHeight > maxHeight) {
+          entityHeight = maxHeight;
+          entityWidth = (imgProps.width * entityHeight) / imgProps.height;
+        }
+        const entityX = (pageWidth - entityWidth) / 2;
+        pdf.addImage(entityImg, 'PNG', entityX, y, entityWidth, entityHeight, undefined, 'FAST');
+        y += entityHeight + 10;
+      } else {
+        // Fallback: draw placeholder circles with full labels
+        const entityPieSize = 30;
+        const entityGap = 10;
+        const entityCount = structures.length;
+        const totalEntityWidth = entityCount * entityPieSize + (entityCount - 1) * entityGap;
+        let entityStartX = (pageWidth - totalEntityWidth) / 2;
+        
+        structures.forEach((struct, idx) => {
+          const ex = entityStartX + idx * (entityPieSize + entityGap);
+          pdf.setDrawColor(200, 200, 200);
+          pdf.circle(ex + entityPieSize/2, y + entityPieSize/2, entityPieSize/2 - 2, 'S');
+          pdf.setFontSize(6);
+          pdf.setTextColor(50, 50, 50);
+          const typeLabel = DEFAULT_ENTITY_TYPES[struct.type] ? DEFAULT_ENTITY_TYPES[struct.type].label : struct.type;
+          // Wrap long labels
+          const maxLabelWidth = entityPieSize + entityGap;
+          pdf.text(typeLabel, ex + entityPieSize/2, y + entityPieSize + 3, { align: 'center', maxWidth: maxLabelWidth });
+        });
+        y += entityPieSize + 15;
+      }
 
       // ==================== PAGE 2: TABLES ====================
       pdf.addPage();
@@ -2678,7 +2701,7 @@ export default function RiskReturnOptimiser() {
               >
                 {efficientFrontier.map((p, i) => (
                   <option key={i+1} value={i+1}>
-                    Model {i+1} - {MODEL_NAMES[i+1] || 'Custom'}
+                    Portfolio {i+1} - {MODEL_NAMES[i+1] || 'Custom'}
                   </option>
                 ))}
               </select>
@@ -2731,7 +2754,7 @@ export default function RiskReturnOptimiser() {
             {/* Pie Charts Row: Overall + Per Entity */}
             <div id="pie-chart-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
               <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 overflow-y-auto">
+              <div id="entity-pies-section" className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 overflow-y-auto">
                 
                 {/* Per-Entity Pie Charts */}
                 {structures.map(struct => {
