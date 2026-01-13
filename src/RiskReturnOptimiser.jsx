@@ -275,6 +275,59 @@ const OutcomeCandlestick = (props) => {
   );
 };
 
+// Custom Label for One-Off Events (Callout Box)
+const CustomEventLabel = (props) => {
+  const { viewBox, value, type, index } = props;
+  const { x, y } = viewBox;
+  
+  // Design:
+  // - Box at top of chart (y=0 or small padding)
+  // - Line/Arrow pointing down to the year line (x)
+  // - Box color based on type
+  
+  const boxY = 10 + (index % 3) * 20; // Stagger vertically to avoid overlap
+  const boxHeight = 16;
+  // Estimate text width roughly (or use specific width)
+  const textWidth = value.length * 6 + 10; 
+  const boxWidth = Math.max(textWidth, 60);
+  const boxX = x - boxWidth / 2;
+  
+  const color = type === 'income' ? '#15803d' : '#b91c1c'; // Green-700 / Red-700
+  const bgColor = type === 'income' ? '#dcfce7' : '#fee2e2'; // Green-100 / Red-100
+  const borderColor = type === 'income' ? '#86efac' : '#fca5a5'; // Green-300 / Red-300
+
+  return (
+    <g>
+      {/* Line connecting box to the reference line */}
+      <line x1={x} y1={boxY + boxHeight} x2={x} y2={y} stroke={color} strokeWidth={1} strokeDasharray="2 2" />
+      
+      {/* Callout Box */}
+      <rect 
+        x={boxX} 
+        y={boxY} 
+        width={boxWidth} 
+        height={boxHeight} 
+        rx={4} 
+        fill={bgColor} 
+        stroke={borderColor} 
+        strokeWidth={1} 
+      />
+      
+      {/* Text */}
+      <text 
+        x={x} 
+        y={boxY + boxHeight - 4} 
+        textAnchor="middle" 
+        fill={color} 
+        fontSize={10} 
+        fontWeight="bold"
+      >
+        {value}
+      </text>
+    </g>
+  );
+};
+
 export default function RiskReturnOptimiser() {
   const [activeTab, setActiveTab] = useState('data');
   
@@ -667,105 +720,122 @@ export default function RiskReturnOptimiser() {
           pdf.text(`${asset.name.substring(0, 12)}: ${formatPercent(weight)}`, itemX + 3, itemY);
         }
       });
+      setActiveTab('output');
+      await new Promise(r => setTimeout(r, 1500));
+      
+      const pieSection = document.getElementById('pie-chart-section');
+      if (pieSection) {
+        // Temporarily hide the legend to save vertical space if needed? 
+        // No, current request is to fit everything nicely.
+        // Let's capture the pie section.
+        const pieCanvas = await html2canvas(pieSection, { scale: 2 });
+        const pieImg = pieCanvas.toDataURL('image/png');
+        const imgProps = pdf.getImageProperties(pieImg);
+        const pdfWidth = pageWidth - (margin * 2); // Define pdfWidth here for use in Page 2
+        const pieHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        
+        addText("Asset Allocation Analysis", 14, 'bold', headingRgb); y += 8;
+        pdf.addImage(pieImg, 'PNG', margin, y, pdfWidth, pieHeight, undefined, 'FAST');
+        y += pieHeight + 10;
+      }
 
-      // ==================== PAGE 2: DETAILED ALLOCATIONS ====================
-      pdf.addPage();
-      addPageBorder();
-      y = margin;
-
-      addText("Detailed Asset Allocation", 14, 'bold', headingRgb); y += 8;
-
+      // Asset Allocation by Entity Table (New addition to Page 2)
+      // We render a simple table manually here
+      addText("Asset Allocation by Entity", 12, 'bold', headingRgb); y += 6;
+      
       // Table Header
+      const tableStartX = margin;
+      const colWidth = (pageWidth - (margin * 2)) / (structures.length + 1);
+      
       pdf.setFillColor(245, 245, 245);
-      pdf.rect(margin, y, pageWidth - (margin*2), 7, 'F');
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(...headingRgb);
-      pdf.text("Asset Class", margin + 5, y + 5);
-      pdf.text("Weight", pageWidth - margin - 45, y + 5, { align: 'right' });
-      pdf.text("Value", pageWidth - margin - 5, y + 5, { align: 'right' });
-      y += 10;
+      pdf.rect(tableStartX, y, pageWidth - (margin * 2), 8, 'F');
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
+      
+      // First Col: Asset Class
+      pdf.text("Asset Class", tableStartX + 2, y + 5);
+      
+      // Entity Cols
+      structures.forEach((struct, i) => {
+          const x = tableStartX + colWidth * (i + 1);
+          // Label fix: Use full label if available
+          const rawType = struct.type;
+          const typeLabel = entityTypes[rawType]?.label || rawType;
+          // Truncate if too long?
+          pdf.text(struct.name, x + 2, y + 5);
+      });
+      y += 8;
 
       // Table Rows
-      pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0, 0, 0); pdf.setFontSize(9);
-      activeOnly.forEach((asset) => {
-        const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
-        if (weight > 0.005) {
-          pdf.setFillColor(asset.color);
-          pdf.rect(margin + 2, y - 2, 3, 3, 'F');
-          pdf.text(asset.name, margin + 8, y);
-          pdf.text(formatPercent(weight), pageWidth - margin - 45, y, { align: 'right' });
-          pdf.text(formatCurrency(weight * totalWealth), pageWidth - margin - 5, y, { align: 'right' });
-          pdf.setDrawColor(240, 240, 240);
-          pdf.line(margin, y + 2, pageWidth - margin, y + 2);
-          y += 6;
-        }
+      pdf.setFont('helvetica', 'normal');
+      activeOnly.forEach((asset, idx) => { // Use activeOnly defined earlier
+         const isEven = idx % 2 === 0;
+         if (!isEven) {
+             pdf.setFillColor(250, 250, 250);
+             pdf.rect(tableStartX, y, pageWidth - (margin * 2), 6, 'F');
+         }
+         
+         pdf.setTextColor(0, 0, 0);
+         pdf.text(asset.name, tableStartX + 2, y + 4);
+         
+         structures.forEach((struct, i) => {
+             const x = tableStartX + colWidth * (i + 1);
+             // Let's just display the Global Weight string since it's uniform.
+             pdf.text(formatPercent(selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0), x + 2, y + 4);
+         });
+         y += 6;
       });
+      y += 10;
       
-      // Total
-      pdf.setDrawColor(180, 180, 180);
-      pdf.line(margin, y - 2, pageWidth - margin, y - 2);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text("Total", margin + 8, y + 3);
-      pdf.text("100.0%", pageWidth - margin - 45, y + 3, { align: 'right' });
-      pdf.text(formatCurrency(totalWealth), pageWidth - margin - 5, y + 3, { align: 'right' });
-      y += 15;
-
-      // Model Portfolios Summary Table removed as requested
-
-
-      // Estimating Outcomes Table removed as requested
-
-
+      
       // ==================== PAGE 3: PROJECTIONS ====================
       pdf.addPage();
       addPageBorder();
       y = margin;
 
-      // A4: 210mm x 297mm. Safe printable area with margins and footer.
-      const footerSpace = 15;
-      const titleHeight = 8;
-      const chartSpacing = 10;
-      const pdfWidth = pageWidth - (margin * 2);
+      // 3 Charts Vertical: Efficient Frontier, Wealth Projection, Estimating Outcomes
+      // Available height ~250mm. Each chart ~80mm.
+      const chartH = 75; 
       
-      // Each chart gets half the available vertical space (minus titles and spacing)
-      const totalAvailableHeight = pageHeight - margin - footerSpace;
-      const maxChartHeight = (totalAvailableHeight - (titleHeight * 2) - chartSpacing) / 2;
-
-      // Efficient Frontier
-      addText("Efficient Frontier Analysis", 14, 'bold', headingRgb); y += titleHeight;
+      // 1. Efficient Frontier
+      addText("Efficient Frontier Analysis", 14, 'bold', headingRgb); y += 8;
       setActiveTab('optimization');
-      await new Promise(r => setTimeout(r, 1500));
-      
+      await new Promise(r => setTimeout(r, 1000));
       const frontierEl = document.getElementById('optimization-tab-content')?.querySelector('.h-\\[500px\\]');
       if (frontierEl) {
-        const originalId = frontierEl.id;
-        frontierEl.id = 'temp-frontier-chart';
-        const frontierImg = await captureChart('temp-frontier-chart');
-        frontierEl.id = originalId;
-        if (frontierImg) {
-          const imgProps = pdf.getImageProperties(frontierImg);
-          // Calculate height preserving aspect ratio, capped at max
-          const aspectRatio = imgProps.height / imgProps.width;
-          const naturalHeight = pdfWidth * aspectRatio;
-          const displayHeight = Math.min(naturalHeight, maxChartHeight);
-          pdf.addImage(frontierImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
-          y += displayHeight + chartSpacing;
-        }
+         // Create generic capture function or logic?
+         const originalId = frontierEl.id;
+         frontierEl.id = 'temp-frontier-chart';
+         const img = await captureChart('temp-frontier-chart');
+         frontierEl.id = originalId;
+         if (img) {
+            pdf.addImage(img, 'PNG', margin, y, pdfWidth, chartH, undefined, 'FAST');
+            y += chartH + 10;
+         }
+      } else {
+         y += chartH + 10; // Placeholder space
       }
 
-      // Wealth Projection
-      addText("Monte Carlo Wealth Projection", 14, 'bold', headingRgb); y += titleHeight;
+      // Projections Tab Charts
       setActiveTab('cashflow');
       await new Promise(r => setTimeout(r, 1500));
+
+      // 2. Monte Carlo Wealth Projection
+      addText("Monte Carlo Wealth Projection", 14, 'bold', headingRgb); y += 8;
+      // We need to target the specific charts. 
+      // The code structure has them in `cashflow-tab-content`. 
+      // I need to add IDs to the specific chart containers in the JSX to capture them individually.
+      // Assuming I'll add 'wealth-projection-chart' and 'estimating-outcomes-chart' IDs.
+      const wealthImg = await captureChart('wealth-projection-chart');
+      if (wealthImg) {
+          pdf.addImage(wealthImg, 'PNG', margin, y, pdfWidth, chartH, undefined, 'FAST');
+          y += chartH + 10;
+      }
       
-      const projectionImg = await captureChart('cashflow-tab-content');
-      if (projectionImg) {
-        const imgProps = pdf.getImageProperties(projectionImg);
-        // Calculate height preserving aspect ratio, capped at remaining space
-        const aspectRatio = imgProps.height / imgProps.width;
-        const naturalHeight = pdfWidth * aspectRatio;
-        const remainingSpace = pageHeight - footerSpace - y;
-        const displayHeight = Math.min(naturalHeight, remainingSpace);
-        pdf.addImage(projectionImg, 'PNG', margin, y, pdfWidth, displayHeight, undefined, 'FAST');
+      // 3. Estimating Outcomes (moved from Page 2 to Page 3)
+      addText("Estimated Outcomes", 14, 'bold', headingRgb); y += 8;
+      const outcomesImg = await captureChart('estimating-outcomes-chart');
+      if (outcomesImg) {
+          pdf.addImage(outcomesImg, 'PNG', margin, y, pdfWidth, chartH, undefined, 'FAST');
       }
 
       // Footer on each page
@@ -1538,8 +1608,8 @@ export default function RiskReturnOptimiser() {
           <Activity className="w-5 h-5 mr-2 text-fire-accent" />
           Capital Market Estimates
         </h3>
-        {/* Removed descriptive text "Select applicable asset classes..." */}
-        
+        {/* Defensive check */}
+        {!assets ? <div>Loading assets...</div> : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-xs"> {/* Reduced font size to text-xs */}
             <thead>
@@ -1644,6 +1714,7 @@ export default function RiskReturnOptimiser() {
             </button>
           </div>
         </div>
+        )}
       </div>
 
       {/* Correlation Matrix Section */}
@@ -2760,7 +2831,7 @@ export default function RiskReturnOptimiser() {
             </div>
           </div>
           
-          <div className="h-[400px] w-full">
+          <div id="wealth-projection-chart" className="h-[400px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={cfSimulationResults} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                 <defs>
@@ -2800,14 +2871,13 @@ export default function RiskReturnOptimiser() {
                   }}
                 />}
                 
-                {/* One-Off Event Reference Lines */}
                 {oneOffEvents.map((event, idx) => (
                     <ReferenceLine 
                         key={`${event.type}-${idx}`} 
                         x={event.year} 
                         stroke={event.type === 'income' ? '#22c55e' : '#ef4444'} 
                         strokeDasharray="3 3"
-                        label={{ value: event.label, position: 'top', fill: event.type === 'income' ? '#15803d' : '#b91c1c', fontSize: 10 }}
+                        label={<CustomEventLabel value={event.label} type={event.type} index={idx} />}
                     />
                 ))}
 
@@ -2827,7 +2897,7 @@ export default function RiskReturnOptimiser() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             {/* Estimating Outcomes Chart */}
             <h4 className="font-semibold text-gray-900 mb-4">Estimating Outcomes</h4>
-            <div className="h-[400px] w-full">
+            <div id="estimating-outcomes-chart" className="h-[400px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart 
                   data={adjustedOutcomes}
