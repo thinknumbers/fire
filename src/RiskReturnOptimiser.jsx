@@ -678,75 +678,8 @@ export default function RiskReturnOptimiser() {
       addPageBorder();
       y = margin;
 
-      // Pie Chart
-      addText("Target Asset Allocation", 12, 'bold', headingRgb); y += 5;
-      setActiveTab('output');
-      await new Promise(r => setTimeout(r, 1500));
+      // Note: Pie Charts removed as requested ("revert back... before pie charts were added")
 
-      const pieSize = 80;
-      const pieX = (pageWidth - pieSize) / 2;
-      const pieContainer = document.getElementById('pie-chart-section');
-      if (pieContainer) {
-        const svg = pieContainer.querySelector('svg');
-        if (svg) {
-          const clone = svg.cloneNode(true);
-          if (!clone.getAttribute('viewBox')) {
-            const w = parseInt(clone.getAttribute('width')) || 300;
-            const h = parseInt(clone.getAttribute('height')) || 300;
-            clone.setAttribute('viewBox', `0 0 ${w} ${h}`);
-          }
-          clone.setAttribute('width', pieSize);
-          clone.setAttribute('height', pieSize);
-          const tempDiv = document.createElement('div');
-          tempDiv.style.position = 'absolute';
-          tempDiv.style.left = '-9999px';
-          tempDiv.appendChild(clone);
-          document.body.appendChild(tempDiv);
-          try {
-            await pdf.svg(clone, { x: pieX, y: y, width: pieSize, height: pieSize });
-          } catch (err) { console.error("SVG Pie Error", err); }
-          finally { document.body.removeChild(tempDiv); }
-        }
-      }
-      y += pieSize + 5;
-
-      // Legend
-      pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
-      const activeOnly = assets.filter(a => a.active);
-      const legendCols = 4;
-      const legendItemWidth = 42;
-      let lx = (pageWidth - (legendCols * legendItemWidth)) / 2;
-      activeOnly.forEach((asset, i) => {
-        const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
-        if (weight > 0.005) {
-          const col = i % legendCols;
-          const row = Math.floor(i / legendCols);
-          const itemX = lx + (col * legendItemWidth);
-          const itemY = y + (row * 5);
-          pdf.setFillColor(asset.color);
-          pdf.rect(itemX, itemY - 2, 2, 2, 'F');
-          pdf.setTextColor(0, 0, 0);
-          pdf.text(`${asset.name.substring(0, 12)}: ${formatPercent(weight)}`, itemX + 3, itemY);
-        }
-      });
-      setActiveTab('output');
-      await new Promise(r => setTimeout(r, 1500));
-      
-      const pieSection = document.getElementById('pie-chart-section');
-      if (pieSection) {
-        // Temporarily hide the legend to save vertical space if needed? 
-        // No, current request is to fit everything nicely.
-        // Let's capture the pie section.
-        const pieCanvas = await html2canvas(pieSection, { scale: 2 });
-        const pieImg = pieCanvas.toDataURL('image/png');
-        const imgProps = pdf.getImageProperties(pieImg);
-        // Use global pdfWidth
-        const pieHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        
-        addText("Asset Allocation Analysis", 14, 'bold', headingRgb); y += 8;
-        pdf.addImage(pieImg, 'PNG', margin, y, pdfWidth, pieHeight, undefined, 'FAST');
-        y += pieHeight + 10;
-      }
 
       // Asset Allocation by Entity Table (New addition to Page 2)
       // We render a simple table manually here
@@ -768,8 +701,9 @@ export default function RiskReturnOptimiser() {
           const x = tableStartX + colWidth * (i + 1);
           // Label fix: Use full label if available
           const rawType = struct.type;
-          const typeLabel = entityTypes[rawType]?.label || rawType;
-          // Use typeLabel for column header as requested
+          // Use ENTITY_TYPES constant
+          const typeLabel = ENTITY_TYPES[rawType]?.label || rawType;
+          // Use typeLabel for column header
           pdf.text(typeLabel, x + 2, y + 5);
       });
       y += 8;
