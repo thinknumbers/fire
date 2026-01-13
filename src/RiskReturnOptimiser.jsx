@@ -2181,16 +2181,16 @@ export default function RiskReturnOptimiser() {
                   </div>
                   <div className="md:col-span-3">
                     <label className="block text-xs font-bold text-gray-500 mb-1">Investable Amount</label>
-                    <div className="relative w-full">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">$</span>
+                    <div className="flex items-center border border-gray-300 rounded-md bg-white px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-fire-accent/50 transition-all">
+                      <span className="text-gray-400 text-sm font-medium mr-1">$</span>
                       <input 
-                        type="number" 
+                        type="text" 
                         value={struct.value || 0}
                         onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          setStructures(structures.map(s => s.id === struct.id ? {...s, value: isNaN(val) ? 0 : val} : s));
+                          const val = parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0;
+                          setStructures(structures.map(s => s.id === struct.id ? {...s, value: val} : s));
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-semibold pl-7"
+                        className="w-full text-sm font-semibold text-gray-900 outline-none p-0 border-0"
                       />
                     </div>
                   </div>
