@@ -2804,8 +2804,8 @@ export default function RiskReturnOptimiser() {
           <div className="flex flex-col h-full">
             {/* Pie Charts Row: Overall + Per Entity */}
             <div id="pie-chart-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
-              <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation</h4>
-              <div id="entity-pies-section" className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 overflow-y-auto">
+              <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation by Entity</h4>
+              <div id="entity-pies-section" className="flex flex-wrap justify-center gap-4">
                 
                 {/* Per-Entity Pie Charts */}
                 {structures.map(struct => {
@@ -2815,15 +2815,15 @@ export default function RiskReturnOptimiser() {
                   })).filter(a => a.value > 0.5);
                   
                   return (
-                    <div key={struct.id}>
+                    <div key={struct.id} className="flex-shrink-0" style={{ width: `${Math.min(200, 100 / structures.length)}%`, minWidth: '150px', maxWidth: '200px' }}>
                       <h5 className="text-sm font-semibold text-gray-700 mb-2 text-center">{struct.name}</h5>
-                      <div className="h-[250px]">
+                      <div className="h-[180px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie 
                               data={entityAssets} 
                               cx="50%" cy="50%" 
-                              outerRadius={80} 
+                              outerRadius={60} 
                               paddingAngle={2} 
                               dataKey="value"
                               isAnimationActive={!isExporting}
@@ -2839,30 +2839,6 @@ export default function RiskReturnOptimiser() {
                     </div>
                   );
                 })}
-
-                {/* Overall Pie Chart - Moved to Bottom and Centered */}
-                <div className="col-span-1 sm:col-span-2 flex flex-col items-center border-t border-gray-100 pt-4 mt-4">
-                  <h5 className="text-sm font-semibold text-gray-700 mb-2 text-center">Total Portfolio</h5>
-                  <div className="h-[250px] w-full max-w-[350px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie 
-                          data={activeAssets.map((a, i) => ({ ...a, value: selectedPortfolio.weights[assets.filter(x=>x.active).findIndex(x=>x.id===a.id)] * 100 }))} 
-                          cx="50%" cy="50%" 
-                          outerRadius={80} 
-                          paddingAngle={2} 
-                          dataKey="value"
-                          isAnimationActive={!isExporting}
-                          label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : null}
-                          labelLine={false}
-                        >
-                          {activeAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                        </Pie>
-                        {!isExporting && <Tooltip formatter={(val) => `${val.toFixed(1)}%`} />}
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
               </div>
 
               {/* Shared Legend Below Pie Charts - Left Aligned */}
