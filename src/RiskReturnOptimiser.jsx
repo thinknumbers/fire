@@ -228,16 +228,16 @@ const createSeededRandom = (seed) => {
 
 const OutcomeCandlestick = (props) => {
   const { x, y, width, height, payload, index } = props;
-  const { p16, p50, p95 } = payload;
+  const { p02, p50, p84 } = payload;
   
-  // Recharts Bar passed us the box for the range (p16 to p95).
-  // y is the top (p95), height is the distance to bottom (p16).
+  // Recharts Bar passed us the box for the range (p02 to p84).
+  // y is the top (p84), height is the distance to bottom (p02).
   // We can draw the box and the specific lines within it.
   
   // Using specific colors from request
-  const color95 = "#fbbf24"; // Amber 400 (Top)
+  const color84 = "#fbbf24"; // Amber 400 (Top)
   const color50 = "#ea580c"; // Orange 600 (Median)
-  const color16 = "#ce2029"; // Red 700 (Bottom)
+  const color02 = "#ce2029"; // Red 700 (Bottom)
   const boxFill = "#ffedd5"; // Orange 100
 
   // Calculate pixel position for median
@@ -252,10 +252,10 @@ const OutcomeCandlestick = (props) => {
   // Top of bar (y) corresponds to max value (p95).
   // Bottom of bar (y + height) corresponds to min value (p16).
   
-  const range = p95 - p16;
+  const range = p84 - p02;
   if(range === 0) return null;
   
-  const medianRatio = (p95 - p50) / range; // Distance from top
+  const medianRatio = (p84 - p50) / range; // Distance from top
   const medianY = y + (height * medianRatio);
 
   return (
@@ -263,14 +263,14 @@ const OutcomeCandlestick = (props) => {
       {/* Box */}
       <rect x={x} y={y} width={width} height={height} fill={boxFill} stroke="none" />
       
-      {/* 95th Line (Top) */}
-      <line x1={x} y1={y} x2={x+width} y2={y} stroke={color95} strokeWidth={3} />
+      {/* 84.1st Line (Top) */}
+      <line x1={x} y1={y} x2={x+width} y2={y} stroke={color84} strokeWidth={3} />
       
       {/* Median Line */}
       <line x1={x} y1={medianY} x2={x+width} y2={medianY} stroke={color50} strokeWidth={3} />
       
-      {/* 16th Line (Bottom) */}
-      <line x1={x} y1={y+height} x2={x+width} y2={y+height} stroke={color16} strokeWidth={3} />
+      {/* 2.3rd Line (Bottom) */}
+      <line x1={x} y1={y+height} x2={x+width} y2={y+height} stroke={color02} strokeWidth={3} />
     </g>
   );
 };
@@ -880,9 +880,9 @@ export default function RiskReturnOptimiser() {
       pdf.rect(margin, y, pdfWidth, 7, 'F');
       pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
       pdf.text("Year", margin + 2, y + 5);
-      pdf.text("Best (95th)", margin + pdfWidth * 0.3, y + 5);
+      pdf.text("Upside (1 SD)", margin + pdfWidth * 0.3, y + 5);
       pdf.text("Median (50th)", margin + pdfWidth * 0.55, y + 5);
-      pdf.text("Worst (16th)", margin + pdfWidth * 0.8, y + 5);
+      pdf.text("Downside (2 SD)", margin + pdfWidth * 0.8, y + 5);
       y += 7;
 
       pdf.setFont('helvetica', 'normal');
@@ -898,11 +898,11 @@ export default function RiskReturnOptimiser() {
         
         pdf.setTextColor(0, 0, 0);
         pdf.text(`${yr} Year`, margin + 2, y + 4);
-        pdf.text(formatCurrency(res.p95), margin + pdfWidth * 0.3, y + 4);
+        pdf.text(formatCurrency(res.p84), margin + pdfWidth * 0.3, y + 4);
         pdf.setFont('helvetica', 'bold');
         pdf.text(formatCurrency(res.p50), margin + pdfWidth * 0.55, y + 4);
         pdf.setFont('helvetica', 'normal');
-        pdf.text(formatCurrency(res.p16), margin + pdfWidth * 0.8, y + 4);
+        pdf.text(formatCurrency(res.p02), margin + pdfWidth * 0.8, y + 4);
         y += 5;
       });
 
@@ -1540,10 +1540,9 @@ export default function RiskReturnOptimiser() {
 
     const finalData = results.map(r => ({
       year: r.year,
-      p05: calculatePercentile(r.paths, 5), // Keep p05 for safety/legacy checks
-      p16: calculatePercentile(r.paths, 16),
+      p02: calculatePercentile(r.paths, 2.3),
       p50: calculatePercentile(r.paths, 50),
-      p95: calculatePercentile(r.paths, 95)
+      p84: calculatePercentile(r.paths, 84.1)
     }));
 
     setCfSimulationResults(finalData);
@@ -2867,10 +2866,10 @@ export default function RiskReturnOptimiser() {
         
         return {
           year: `${yr} Year`,
-          p16: res.p16 * inflationFactor,
+          p02: res.p02 * inflationFactor,
           p50: res.p50 * inflationFactor,
-          p95: res.p95 * inflationFactor,
-          range: [res.p16 * inflationFactor, res.p95 * inflationFactor]
+          p84: res.p84 * inflationFactor,
+          range: [res.p02 * inflationFactor, res.p84 * inflationFactor]
         };
       }).filter(Boolean);
     };
@@ -2946,16 +2945,16 @@ export default function RiskReturnOptimiser() {
                           <p className="font-bold mb-2 text-gray-900">Year {label}</p>
                           <div className="space-y-1">
                             <div className="flex justify-between gap-4">
-                              <span className="text-gray-500">Best Case (95th):</span>
-                              <span className="font-mono font-medium text-red-400">{formatCurrency(data.p95)}</span>
+                              <span className="text-gray-500">Upside (1 SD / 84th):</span>
+                              <span className="font-mono font-medium text-red-400">{formatCurrency(data.p84)}</span>
                             </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-gray-500">Median (50th):</span>
                               <span className="font-mono font-bold text-fire-accent">{formatCurrency(data.p50)}</span>
                             </div>
                             <div className="flex justify-between gap-4">
-                              <span className="text-gray-500">Worst Case (16th):</span>
-                              <span className="font-mono font-medium text-red-400">{formatCurrency(data.p16)}</span>
+                              <span className="text-gray-500">Downside (2 SD / 2.3rd):</span>
+                              <span className="font-mono font-medium text-red-400">{formatCurrency(data.p02)}</span>
                             </div>
                           </div>
                         </div>
@@ -2965,12 +2964,12 @@ export default function RiskReturnOptimiser() {
                   }}
                 />}
                 
-                <Area type="monotone" dataKey="p95" stroke="none" fill="url(#confidenceBand)" name="95th Percentile" isAnimationActive={!isExporting} />
-                <Area type="monotone" dataKey="p16" stroke="none" fill="#fff" name="16th Percentile" isAnimationActive={!isExporting} /> 
+                <Area type="monotone" dataKey="p84" stroke="none" fill="url(#confidenceBand)" name="Upside (1 SD / 84th)" isAnimationActive={!isExporting} />
+                <Area type="monotone" dataKey="p02" stroke="none" fill="#fff" name="Downside (2 SD / 2.3rd)" isAnimationActive={!isExporting} /> 
                 
                 <Line type="monotone" dataKey="p50" stroke="#E03A3E" strokeWidth={3} dot={false} strokeDasharray="5 5" name="Median (50th)" isAnimationActive={!isExporting} />
-                <Line type="monotone" dataKey="p95" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Best Case (95th)" isAnimationActive={!isExporting} />
-                <Line type="monotone" dataKey="p16" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Worst Case (16th)" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p84" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Upside (1 SD / 84th)" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p02" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Downside (2 SD / 2.3rd)" isAnimationActive={!isExporting} />
 
                 {/* One-Off Event Reference Lines - Rendered last to be on top */}
                 {oneOffEvents.map((event, idx) => (
@@ -3012,16 +3011,16 @@ export default function RiskReturnOptimiser() {
                                    <p className="font-bold mb-2 text-gray-900">{label}</p>
                                    <div className="space-y-1">
                                      <div className="flex justify-between gap-4">
-                                       <span className="text-gray-500">95th Percentile:</span>
-                                       <span className="font-mono font-bold text-amber-400">{formatCurrency(data.p95)}</span>
+                                       <span className="text-gray-500">Upside (1 SD):</span>
+                                       <span className="font-mono font-bold text-amber-400">{formatCurrency(data.p84)}</span>
                                      </div>
                                      <div className="flex justify-between gap-4">
                                        <span className="text-gray-500">Median (50th):</span>
                                        <span className="font-mono font-bold text-orange-600">{formatCurrency(data.p50)}</span>
                                      </div>
                                      <div className="flex justify-between gap-4">
-                                       <span className="text-gray-500">16th Percentile:</span>
-                                       <span className="font-mono font-bold text-red-700">{formatCurrency(data.p16)}</span>
+                                       <span className="text-gray-500">Downside (2 SD):</span>
+                                       <span className="font-mono font-bold text-red-700">{formatCurrency(data.p02)}</span>
                                      </div>
                                    </div>
                                  </div>
@@ -3033,9 +3032,9 @@ export default function RiskReturnOptimiser() {
                   <Bar dataKey="range" barSize={60} shape={<OutcomeCandlestick />} isAnimationActive={!isExporting} />
                   <Legend 
                      payload={[
-                       { value: '95th Percentile (Best)', type: 'line', color: '#fbbf24' },
+                       { value: 'Upside (1 SD)', type: 'line', color: '#fbbf24' },
                        { value: 'Median (50th)', type: 'line', color: '#ea580c' },
-                       { value: '16th Percentile (Worst)', type: 'line', color: '#ce2029' },
+                       { value: 'Downside (2 SD)', type: 'line', color: '#ce2029' },
                      ]}
                   />
                 </ComposedChart>
@@ -3047,18 +3046,18 @@ export default function RiskReturnOptimiser() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Year</th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Best (95th)</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Downside (2 SD)</th>
                     <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Median (50th)</th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Worst (16th)</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Upside (1 SD)</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {adjustedOutcomes.map((item, idx) => (
                     <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.year}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-gray-900">{formatCurrency(item.p95)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-gray-900">{formatCurrency(item.p02)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-gray-900">{formatCurrency(item.p50)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-gray-900">{formatCurrency(item.p16)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-gray-900">{formatCurrency(item.p84)}</td>
                     </tr>
                   ))}
                 </tbody>
