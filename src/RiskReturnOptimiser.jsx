@@ -2516,12 +2516,7 @@ export default function RiskReturnOptimiser() {
                   className="border border-gray-300 rounded px-3 py-1 text-sm focus:ring-2 focus:ring-fire-accent focus:border-fire-accent"
                 >
                   <option value="all">All Entities</option>
-                  {structures.map(struct => {
-                // Get entity-specific constrained weights
-                const globalWeights = selectedPortfolio?.weights || activeAssets.map(a => a.weight);
-                const entityWeights = getEntityConstrainedWeights(struct, globalWeights, optimizationAssets.length > 0 ? optimizationAssets : activeAssets);
-                
-                return (
+                  {structures.map(struct => (
                     <option key={struct.id} value={struct.id}>{struct.name}</option>
                   ))}
                 </select>
