@@ -1562,7 +1562,6 @@ export default function RiskReturnOptimiser() {
   const Navigation = () => (
     <div className="flex flex-col md:flex-row gap-2 mb-6 border-b border-gray-200 pb-4 overflow-x-auto">
       {[
-        { id: 'data', label: 'Capital Market Estimates', icon: Activity },
         { id: 'client', label: 'Client details', icon: User },
         { id: 'projections', label: 'Projections Input', icon: TrendingUp },
         { id: 'optimization', label: 'Optimisation', icon: Calculator },
@@ -1924,11 +1923,7 @@ export default function RiskReturnOptimiser() {
                               step="0.000001"
                               min="-1"
                               max="1"
-                              className={`w-16 border rounded px-1 py-1 text-center text-xs focus:ring-1 focus:ring-fire-accent focus:border-fire-accent ${
-                                  (val > 0.5) ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                  (val < -0.1) ? 'bg-orange-50 text-orange-700 border-orange-200' : 
-                                  'border-gray-200'
-                              }`}
+                              className="w-16 border border-gray-200 rounded px-1 py-1 text-center text-xs focus:ring-1 focus:ring-fire-accent focus:border-fire-accent"
                               value={val.toFixed(6)}
                               disabled={!rowAsset.active || !colAsset.active} 
                               onChange={(e) => {
@@ -3165,6 +3160,18 @@ export default function RiskReturnOptimiser() {
             >
                <FileText className="w-4 h-4 mr-2"/> Export PDF
             </button>
+             <button 
+              onClick={() => setActiveTab('data')}
+              className={`flex items-center px-3 py-2 border rounded text-sm font-medium shadow-sm transition-colors ${
+                activeTab === 'data' 
+                  ? 'bg-fire-accent text-white border-red-700' 
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+              title="Capital Market Estimates"
+            >
+               <Activity className="w-4 h-4"/>
+            </button>
+
             <button 
               onClick={() => {
                   setSettingsDraft(appSettings); // Init draft with current settings
