@@ -292,8 +292,8 @@ const CustomEventLabel = (props) => {
   const boxY = chartY + 10 + ((index || 0) % 3) * 25; // Increased stagger for 2 lines
 
   const boxHeight = 24; // Taller for 2 lines
-  const textWidth = Math.max(value.length, 6) * 5 + 10; 
-  const boxWidth = Math.max(textWidth, 55);
+  const textWidth = Math.max(value.length, 8) * 6 + 15; 
+  const boxWidth = Math.max(textWidth, 70);
   const boxX = xPos - boxWidth / 2;
   
   const color = type === 'income' ? '#15803d' : '#b91c1c';
