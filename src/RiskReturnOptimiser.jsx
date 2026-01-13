@@ -278,9 +278,9 @@ const OutcomeCandlestick = (props) => {
 // Custom Label for One-Off Events (Callout Box)
 const CustomEventLabel = (props) => {
   const { viewBox, value, type, index } = props;
-  // Recharts passes 'x' prop for vertical ReferenceLine
   const xPos = props.x !== undefined ? props.x : (viewBox ? viewBox.x : 0);
   const chartY = viewBox ? viewBox.y : 0;
+  const chartHeight = viewBox ? viewBox.height : 0;
   
   // Design:
   // - Box at top of chart
@@ -301,8 +301,8 @@ const CustomEventLabel = (props) => {
 
   return (
     <g>
-      {/* Line connecting box to the reference line */}
-      <line x1={x} y1={boxY + boxHeight} x2={x} y2={y} stroke={color} strokeWidth={1} strokeDasharray="2 2" />
+      {/* Line connecting box to the reference line - extending down a bit */}
+      <line x1={xPos} y1={boxY + boxHeight} x2={xPos} y2={chartY + chartHeight} stroke={color} strokeWidth={1} strokeDasharray="2 2" />
       
       {/* Callout Box */}
       <rect 
