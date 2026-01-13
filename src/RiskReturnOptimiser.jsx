@@ -292,8 +292,8 @@ const CustomEventLabel = (props) => {
   const boxY = chartY + 10 + ((index || 0) % 3) * 25; // Increased stagger for 2 lines
 
   const boxHeight = 24; // Taller for 2 lines
-  const textWidth = Math.max(value.length, 10) * 7 + 20; 
-  const boxWidth = Math.max(textWidth, 90);
+  const textWidth = value.length * 6 + 30; 
+  const boxWidth = Math.max(textWidth, 100);
   const boxX = xPos - boxWidth / 2;
   
   const color = type === 'income' ? '#15803d' : '#b91c1c';
@@ -317,7 +317,7 @@ const CustomEventLabel = (props) => {
         strokeWidth={1} 
       />
       
-      {/* Event Name */}
+      {/* Event Name - Full text, no truncation */}
       <text 
         x={xPos} 
         y={boxY + 10} 
@@ -326,7 +326,7 @@ const CustomEventLabel = (props) => {
         fontSize={8} 
         fontWeight="bold"
       >
-        {value.length > 10 ? value.substring(0, 10) + '...' : value}
+        {value}
       </text>
       
       {/* Amount */}
