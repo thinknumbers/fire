@@ -1275,16 +1275,16 @@ export default function RiskReturnOptimiser() {
   };
 
   // Calculate effective global constraints by aggregating per-entity allocations
-  // Entities without useAssetAllocation enabled are treated as 100% Cash
+  // Entities without useAssetAllocation enabled use default constraints (0-100%) - optimizer allocates freely
   const calculateEffectiveConstraints = (assetList, structuresList) => {
     const totalValue = structuresList.reduce((sum, s) => sum + (s.value || 0), 0);
     if (totalValue === 0) return assetList;
 
-    // Process ALL entities: those with custom allocation AND those without (treated as 100% Cash)
+    // Process ALL entities: those with custom allocation use their constraints, 
+    // those without use default (0-100% for all assets)
     return assetList.map(asset => {
       let weightedMin = 0;
       let weightedMax = 0;
-      const isCashAsset = asset.id === 'cash';
 
       structuresList.forEach(entity => {
         if (!entity.value) return;
@@ -1297,17 +1297,14 @@ export default function RiskReturnOptimiser() {
             weightedMin += (alloc.min || 0) * entityProportion;
             weightedMax += (alloc.max !== undefined ? alloc.max : 100) * entityProportion;
           } else {
-            // Asset not in entity's allocation list - use defaults
+            // Asset not in entity's allocation list - use defaults (0-100)
             weightedMax += 100 * entityProportion;
           }
         } else {
-          // Entity without allocation enabled: treat as 100% Cash
-          if (isCashAsset) {
-            weightedMin += 100 * entityProportion;
-            weightedMax += 100 * entityProportion;
-          }
-          // For non-Cash assets, min and max stay 0 (already initialized), 
-          // effectively preventing any allocation from this entity's funds
+          // Entity without allocation enabled: no constraints - optimizer can allocate freely
+          // Use default bounds: min 0%, max 100% for ALL asset classes
+          weightedMin += 0 * entityProportion;  // No minimum requirement
+          weightedMax += 100 * entityProportion; // Can allocate up to 100% of entity's funds
         }
       });
 
