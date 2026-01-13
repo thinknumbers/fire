@@ -719,33 +719,18 @@ export default function RiskReturnOptimiser() {
       }
       y += pieSize + 5;
 
-      // Legend
-      pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
-      const activeOnly = assets.filter(a => a.active);
-      const legendCols = 4;
-      const legendItemWidth = 42;
-      let lx = (pageWidth - (legendCols * legendItemWidth)) / 2;
-      activeOnly.forEach((asset, i) => {
-        const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
-        if (weight > 0.005) {
-          const col = i % legendCols;
-          const row = Math.floor(i / legendCols);
-          const itemX = lx + (col * legendItemWidth);
-          const itemY = y + (row * 5);
-          pdf.setFillColor(asset.color);
-          pdf.rect(itemX, itemY - 2, 2, 2, 'F');
-          pdf.setTextColor(0, 0, 0);
-          pdf.text(`${asset.name.substring(0, 12)}: ${formatPercent(weight)}`, itemX + 3, itemY);
-        }
-      });
-      y += Math.ceil(activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.005).length / legendCols) * 5 + 8;
-
       // Entity Pie Charts - capture from UI
       addText("Allocation by Entity", 10, 'bold', headingRgb); y += 5;
       
       // Capture entity pie charts section from the Output tab
       const entityPiesSection = document.getElementById('entity-pies-section');
       if (entityPiesSection) {
+        // Temporarily force single row for PDF capture
+        const originalStyle = entityPiesSection.style.cssText;
+        entityPiesSection.style.flexWrap = 'nowrap';
+        entityPiesSection.style.overflowX = 'visible';
+        await new Promise(r => setTimeout(r, 100)); // Let layout update
+        
         const entityCanvas = await html2canvas(entityPiesSection, { scale: 2, backgroundColor: '#ffffff' });
         const entityImg = entityCanvas.toDataURL('image/png');
         const imgProps = pdf.getImageProperties(entityImg);
@@ -760,6 +745,9 @@ export default function RiskReturnOptimiser() {
         const entityX = (pageWidth - entityWidth) / 2;
         pdf.addImage(entityImg, 'PNG', entityX, y, entityWidth, entityHeight, undefined, 'FAST');
         y += entityHeight + 10;
+        
+        // Restore original style
+        entityPiesSection.style.cssText = originalStyle;
       } else {
         // Fallback: draw placeholder circles with full labels
         const entityPieSize = 30;
@@ -781,6 +769,27 @@ export default function RiskReturnOptimiser() {
         });
         y += entityPieSize + 15;
       }
+
+      // Legend - Moved to underneath Allocation by Entity
+      pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
+      const activeOnly = assets.filter(a => a.active);
+      const legendCols = 4;
+      const legendItemWidth = 42;
+      let lx = (pageWidth - (legendCols * legendItemWidth)) / 2;
+      activeOnly.forEach((asset, i) => {
+        const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
+        if (weight > 0.005) {
+          const col = i % legendCols;
+          const row = Math.floor(i / legendCols);
+          const itemX = lx + (col * legendItemWidth);
+          const itemY = y + (row * 5);
+          pdf.setFillColor(asset.color);
+          pdf.rect(itemX, itemY - 2, 2, 2, 'F');
+          pdf.setTextColor(0, 0, 0);
+          pdf.text(`${asset.name.substring(0, 12)}: ${formatPercent(weight)}`, itemX + 3, itemY);
+        }
+      });
+      y += Math.ceil(activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.005).length / legendCols) * 5 + 8;
 
       // ==================== PAGE 2: TABLES ====================
       pdf.addPage();
@@ -2694,7 +2703,7 @@ export default function RiskReturnOptimiser() {
             {/* Pie Charts Row: Overall + Per Entity */}
             <div id="pie-chart-section" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
               <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation by Entity</h4>
-              <div id="entity-pies-section" className="flex flex-nowrap justify-center gap-2 overflow-x-auto">
+              <div id="entity-pies-section" className="flex flex-wrap justify-center gap-4">
                 
                 {/* Per-Entity Pie Charts */}
                 {structures.map(struct => {
