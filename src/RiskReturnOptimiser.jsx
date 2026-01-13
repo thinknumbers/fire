@@ -2999,7 +2999,7 @@ export default function RiskReturnOptimiser() {
                     </div>
                  </div>
                </div>
-             ))}
+              )})}
           </div>
         </div>
 
