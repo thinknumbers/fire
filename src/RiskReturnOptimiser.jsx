@@ -2834,10 +2834,23 @@ export default function RiskReturnOptimiser() {
   const OutputTab = () => {
     if (efficientFrontier.length === 0) return <div className="p-8 text-center text-gray-500">Please run the optimization first.</div>;
 
+    // Calculate blended allocation weights from all entity-constrained allocations
+    // This ensures Total Portfolio matches sum of per-entity allocations
+    const globalWeights = selectedPortfolio.weights;
+    const blendedWeights = optimizationAssets.map((asset, assetIdx) => {
+      let totalWeightedAllocation = 0;
+      structures.forEach(struct => {
+        const entityWeights = getEntityConstrainedWeights(struct, globalWeights, optimizationAssets);
+        const entityWeight = entityWeights[assetIdx] || 0;
+        totalWeightedAllocation += entityWeight * (struct.value / totalWealth);
+      });
+      return totalWeightedAllocation;
+    });
+
     const activeAssets = optimizationAssets.map((asset, idx) => ({
       ...asset,
-      weight: selectedPortfolio.weights[idx],
-      value: selectedPortfolio.weights[idx] * 100
+      weight: blendedWeights[idx],
+      value: blendedWeights[idx] * 100
     })).filter(a => a.weight > 0.005); 
 
     return (
