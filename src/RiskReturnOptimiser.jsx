@@ -409,6 +409,7 @@ export default function RiskReturnOptimiser() {
      root.style.setProperty('--font-main', AVAILABLE_FONTS.find(f => f.id === appSettings.font)?.family || 'Calibri, sans-serif');
   }, [appSettings]);
   const [optimizationAssets, setOptimizationAssets] = useState([]);
+  const [scenarioName, setScenarioName] = useState('My Scenario');
   
   // Cashflow Result State
   const [cfSimulationResults, setCfSimulationResults] = useState([]);
@@ -418,10 +419,9 @@ export default function RiskReturnOptimiser() {
   const [showBeforeTax, setShowBeforeTax] = useState(false); // false = after tax, true = before tax
   const [showNominal, setShowNominal] = useState(true); // true = nominal, false = real (inflation-adjusted)
   
-  // Supabase State
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
-  const [scenarioName, setScenarioName] = useState('');
+
   const [savedScenarios, setSavedScenarios] = useState([]);
   const [showLoadMenu, setShowLoadMenu] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -969,6 +969,34 @@ export default function RiskReturnOptimiser() {
       setActiveTab(originalTab);
       setIsSaving(false);
       setIsExporting(false);
+    }
+  };
+
+  const handleNewScenario = () => {
+    if (window.confirm('Are you sure you want to create a new scenario? All unsaved changes will be lost.')) {
+      setScenarioName('My Scenario');
+      setClientName('');
+      setClientDate(new Date().toISOString().split('T')[0]);
+      setAssets(DEFAULT_ASSETS);
+      setStructures(DEFAULT_STRUCTURES.map(s => ({
+        ...s,
+        useAssetAllocation: false,
+        useCustomTax: false,
+        customTax: { incomeTax: 0.47, ltCgt: 0.235, stCgt: 0.47 },
+        assetAllocation: DEFAULT_ASSETS.map(a => ({ id: a.id, weight: 0, min: 0, max: 100 }))
+      })));
+      setIncomeStreams(DEFAULT_INCOME_STREAMS);
+      setExpenseStreams(DEFAULT_EXPENSE_STREAMS);
+      setProjectionYears(30);
+      setInflationRate(0.025);
+      setAdviceFee(0.008);
+      
+      // Reset simulation state
+      setSimulations([]);
+      setEfficientFrontier([]);
+      setCfSimulationResults([]);
+      setActiveTab('client');
+      setShowLoadMenu(false);
     }
   };
 
@@ -3106,6 +3134,14 @@ export default function RiskReturnOptimiser() {
                 placeholder="Scenario Name"
               />
             </div>
+
+            <button 
+              onClick={handleNewScenario}
+              className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium text-gray-700"
+              title="New Scenario"
+            >
+              <Plus className="w-4 h-4 mr-1"/> New
+            </button>
 
             <div className="relative">
               <button 
