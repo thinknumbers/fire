@@ -656,8 +656,7 @@ export default function RiskReturnOptimiser() {
       pdf.text("Entity Structure", col2X, y); y += 5;
       pdf.setFont('helvetica', 'normal');
       structures.forEach(s => {
-        const entityLabel = DEFAULT_ENTITY_TYPES[s.type] ? DEFAULT_ENTITY_TYPES[s.type].label : s.type;
-        pdf.text(`${s.name} (${entityLabel}): ${formatCurrency(s.value)}`, col2X, y);
+        pdf.text(`${s.name}: ${formatCurrency(s.value)}`, col2X, y);
         y += 4;
       });
 
@@ -874,6 +873,48 @@ export default function RiskReturnOptimiser() {
         pdf.text(formatCurrency(res.p16), margin + pdfWidth * 0.8, y + 4);
         y += 5;
       });
+
+      // ==================== PAGE 3: CHARTS ====================
+      pdf.addPage();
+      addPageBorder();
+      y = margin;
+
+      const chartH = 75;
+
+      // 1. Efficient Frontier
+      addText("Efficient Frontier Analysis", 14, 'bold', headingRgb); y += 8;
+      setActiveTab('optimization');
+      await new Promise(r => setTimeout(r, 1000));
+      const frontierEl = document.getElementById('optimization-tab-content')?.querySelector('.h-\\[500px\\]');
+      if (frontierEl) {
+         const originalId = frontierEl.id;
+         frontierEl.id = 'temp-frontier-chart';
+         const img = await captureChart('temp-frontier-chart');
+         frontierEl.id = originalId;
+         if (img) {
+            pdf.addImage(img, 'PNG', margin, y, pdfWidth, chartH, undefined, 'FAST');
+            y += chartH + 10;
+         }
+      } else {
+         y += chartH + 10;
+      }
+
+      // 2. Monte Carlo Wealth Projection
+      setActiveTab('cashflow');
+      await new Promise(r => setTimeout(r, 1500));
+      addText("Monte Carlo Wealth Projection", 14, 'bold', headingRgb); y += 8;
+      const wealthImg = await captureChart('wealth-projection-chart');
+      if (wealthImg) {
+          pdf.addImage(wealthImg, 'PNG', margin, y, pdfWidth, chartH, undefined, 'FAST');
+          y += chartH + 10;
+      }
+      
+      // 3. Estimating Outcomes Chart
+      addText("Estimated Outcomes", 14, 'bold', headingRgb); y += 8;
+      const outcomesImg = await captureChart('estimating-outcomes-chart');
+      if (outcomesImg) {
+          pdf.addImage(outcomesImg, 'PNG', margin, y, pdfWidth, chartH, undefined, 'FAST');
+      }
 
       // Footer on each page
       const totalPages = pdf.internal.getNumberOfPages();
