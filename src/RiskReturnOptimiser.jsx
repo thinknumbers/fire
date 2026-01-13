@@ -692,7 +692,7 @@ export default function RiskReturnOptimiser() {
       setActiveTab('output');
       await new Promise(r => setTimeout(r, 1500));
 
-      const pieSize = 50; // Smaller to give room for labels
+      const pieSize = 45; // Smaller to give room for labels on all sides
       const pieX = (pageWidth - pieSize) / 2;
       const pieContainer = document.getElementById('pie-chart-section');
       if (pieContainer) {
@@ -750,7 +750,7 @@ export default function RiskReturnOptimiser() {
         const entityImg = entityCanvas.toDataURL('image/png');
         const imgProps = pdf.getImageProperties(entityImg);
         const maxWidth = pdfWidth;
-        const maxHeight = 45; // Limit height to fit on page
+        const maxHeight = 60; // Increased height for 4-5 entity charts
         let entityWidth = maxWidth;
         let entityHeight = (imgProps.height * entityWidth) / imgProps.width;
         if (entityHeight > maxHeight) {
