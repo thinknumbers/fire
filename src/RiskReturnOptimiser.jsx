@@ -1171,9 +1171,60 @@ export default function RiskReturnOptimiser() {
     return results;
   };
 
+  // Calculate effective global constraints by aggregating per-entity allocations
+  const calculateEffectiveConstraints = (assetList, structuresList) => {
+    const totalValue = structuresList.reduce((sum, s) => sum + (s.value || 0), 0);
+    if (totalValue === 0) return assetList;
+
+    // Get entities that have custom allocation enabled
+    const customEntities = structuresList.filter(s => s.useAssetAllocation && s.assetAllocation);
+    
+    if (customEntities.length === 0) {
+      // No custom allocation, use global constraints
+      return assetList;
+    }
+
+    // Calculate the weight of custom entities
+    const customTotalValue = customEntities.reduce((sum, s) => sum + (s.value || 0), 0);
+    const customWeight = customTotalValue / totalValue;
+
+    // Calculate weighted min/max for each asset
+    return assetList.map(asset => {
+      let weightedMin = 0;
+      let weightedMax = 0;
+
+      customEntities.forEach(entity => {
+        const alloc = entity.assetAllocation.find(a => a.id === asset.id);
+        if (alloc && entity.value) {
+          const entityWeight = entity.value / customTotalValue;
+          weightedMin += (alloc.min || 0) * entityWeight;
+          weightedMax += (alloc.max !== undefined ? alloc.max : 100) * entityWeight;
+        }
+      });
+
+      // If custom entities don't cover 100% of value, blend with global constraints
+      if (customWeight < 1) {
+        const remainingWeight = 1 - customWeight;
+        const globalMin = asset.minWeight || 0;
+        const globalMax = asset.maxWeight || 100;
+        weightedMin = weightedMin * customWeight + globalMin * remainingWeight;
+        weightedMax = weightedMax * customWeight + globalMax * remainingWeight;
+      }
+
+      return {
+        ...asset,
+        minWeight: Math.max(0, Math.round(weightedMin)),
+        maxWeight: Math.min(100, Math.round(weightedMax))
+      };
+    });
+  };
+
   const handleRunOptimization = () => {
+    // Apply per-entity constraints to get effective global constraints
+    const effectiveAssets = calculateEffectiveConstraints(assets, structures);
+    
     // Validation
-    const activeAssets = assets.filter(a => a.active);
+    const activeAssets = effectiveAssets.filter(a => a.active);
     if (activeAssets.length < 2) {
       alert("Please select at least 2 active assets to optimize.");
       return;
