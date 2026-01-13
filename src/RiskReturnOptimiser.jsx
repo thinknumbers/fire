@@ -1275,44 +1275,41 @@ export default function RiskReturnOptimiser() {
   };
 
   // Calculate effective global constraints by aggregating per-entity allocations
+  // Entities without useAssetAllocation enabled are treated as 100% Cash
   const calculateEffectiveConstraints = (assetList, structuresList) => {
     const totalValue = structuresList.reduce((sum, s) => sum + (s.value || 0), 0);
     if (totalValue === 0) return assetList;
 
-    // Get entities that have custom allocation enabled
-    const customEntities = structuresList.filter(s => s.useAssetAllocation && s.assetAllocation);
-    
-    if (customEntities.length === 0) {
-      // No custom allocation, use global constraints
-      return assetList;
-    }
-
-    // Calculate the weight of custom entities
-    const customTotalValue = customEntities.reduce((sum, s) => sum + (s.value || 0), 0);
-    const customWeight = customTotalValue / totalValue;
-
-    // Calculate weighted min/max for each asset
+    // Process ALL entities: those with custom allocation AND those without (treated as 100% Cash)
     return assetList.map(asset => {
       let weightedMin = 0;
       let weightedMax = 0;
+      const isCashAsset = asset.id === 'cash';
 
-      customEntities.forEach(entity => {
-        const alloc = entity.assetAllocation.find(a => a.id === asset.id);
-        if (alloc && entity.value) {
-          const entityWeight = entity.value / customTotalValue;
-          weightedMin += (alloc.min || 0) * entityWeight;
-          weightedMax += (alloc.max !== undefined ? alloc.max : 100) * entityWeight;
+      structuresList.forEach(entity => {
+        if (!entity.value) return;
+        const entityProportion = entity.value / totalValue;
+
+        if (entity.useAssetAllocation && entity.assetAllocation) {
+          // Use custom allocation constraints from entity
+          const alloc = entity.assetAllocation.find(a => a.id === asset.id);
+          if (alloc) {
+            weightedMin += (alloc.min || 0) * entityProportion;
+            weightedMax += (alloc.max !== undefined ? alloc.max : 100) * entityProportion;
+          } else {
+            // Asset not in entity's allocation list - use defaults
+            weightedMax += 100 * entityProportion;
+          }
+        } else {
+          // Entity without allocation enabled: treat as 100% Cash
+          if (isCashAsset) {
+            weightedMin += 100 * entityProportion;
+            weightedMax += 100 * entityProportion;
+          }
+          // For non-Cash assets, min and max stay 0 (already initialized), 
+          // effectively preventing any allocation from this entity's funds
         }
       });
-
-      // If custom entities don't cover 100% of value, blend with global constraints
-      if (customWeight < 1) {
-        const remainingWeight = 1 - customWeight;
-        const globalMin = asset.minWeight || 0;
-        const globalMax = asset.maxWeight || 100;
-        weightedMin = weightedMin * customWeight + globalMin * remainingWeight;
-        weightedMax = weightedMax * customWeight + globalMax * remainingWeight;
-      }
 
       return {
         ...asset,
