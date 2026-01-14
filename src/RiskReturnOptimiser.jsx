@@ -977,7 +977,7 @@ export default function RiskReturnOptimiser() {
       y += 6;
 
       // Table Rows
-      pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
       let totalValue = 0;
       activeOnly.forEach((asset, idx) => {
         const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
@@ -992,10 +992,10 @@ export default function RiskReturnOptimiser() {
         pdf.setFillColor(asset.color);
         pdf.rect(margin + 2, y + 1, 2, 3, 'F');
         pdf.setTextColor(0, 72, 118);
-        pdf.text(asset.name, margin + 6, y + 3.5);
-        pdf.text(formatPercent(weight), margin + pdfWidth * 0.6, y + 3.5);
-        pdf.text(formatCurrency(value), margin + pdfWidth * 0.8, y + 3.5);
-        y += 5;
+        pdf.text(asset.name, margin + 6, y + 3);
+        pdf.text(formatPercent(weight), margin + pdfWidth * 0.6, y + 3);
+        pdf.text(formatCurrency(value), margin + pdfWidth * 0.8, y + 3);
+        y += 4;
       });
       
       // Total Row
@@ -1033,11 +1033,11 @@ export default function RiskReturnOptimiser() {
         }
         
         pdf.setTextColor(0, 72, 118);
-        pdf.text(String(port.id || idx + 1), margin + 2, y + 3.5);
-        pdf.text(MODEL_NAMES[port.id] || 'Custom', margin + 25, y + 3.5);
-        pdf.text(formatPercent(port.return), margin + pdfWidth * 0.65, y + 3.5);
-        pdf.text(formatPercent(port.risk), margin + pdfWidth * 0.85, y + 3.5);
-        y += 5;
+        pdf.text(String(port.id || idx + 1), margin + 2, y + 3);
+        pdf.text(MODEL_NAMES[port.id] || 'Custom', margin + 25, y + 3);
+        pdf.text(formatPercent(port.return), margin + pdfWidth * 0.65, y + 3);
+        pdf.text(formatPercent(port.risk), margin + pdfWidth * 0.85, y + 3);
+        y += 4;
       });
       y += 10;
 
@@ -1065,13 +1065,13 @@ export default function RiskReturnOptimiser() {
         }
         
         pdf.setTextColor(0, 72, 118);
-        pdf.text(`${yr} Year`, margin + 2, y + 3.5);
-        pdf.text(formatCurrency(res.p84), margin + pdfWidth * 0.3, y + 3.5);
+        pdf.text(`${yr} Year`, margin + 2, y + 3);
+        pdf.text(formatCurrency(res.p84), margin + pdfWidth * 0.3, y + 3);
         pdf.setFont('helvetica', 'bold');
-        pdf.text(formatCurrency(res.p50), margin + pdfWidth * 0.55, y + 3.5);
+        pdf.text(formatCurrency(res.p50), margin + pdfWidth * 0.55, y + 3);
         pdf.setFont('helvetica', 'normal');
-        pdf.text(formatCurrency(res.p02), margin + pdfWidth * 0.8, y + 3.5);
-        y += 5;
+        pdf.text(formatCurrency(res.p02), margin + pdfWidth * 0.8, y + 3);
+        y += 4;
       });
       y += 8;
 
@@ -1085,7 +1085,7 @@ export default function RiskReturnOptimiser() {
          try {
              // Clone node to strip shadows/borders if needed? Or just capture as is.
              // We'll capture as is.
-             const tableCanvas = await html2canvas(entityTableEl, { scale: 1.5, windowWidth: 1400 }); 
+             const tableCanvas = await html2canvas(entityTableEl, { scale: 2, windowWidth: 1600 }); 
              const tableImg = tableCanvas.toDataURL('image/png');
              const tProps = pdf.getImageProperties(tableImg);
              const pdfTableWidth = pdfWidth; 
@@ -3270,7 +3270,7 @@ export default function RiskReturnOptimiser() {
 
                      return (
                        <div key={asset.id} className="grid grid-cols-12 text-xs py-0.5 border-b border-gray-50 last:border-0 items-center">
-                         <div className="col-span-4 text-gray-600 truncate pr-1" title={asset.name}>{asset.name}</div>
+                          <div className="col-span-4 text-gray-600 text-[8px] leading-tight" style={{wordBreak: 'break-word'}}>{asset.name}</div>
                          <div className="col-span-2 text-center font-mono text-gray-900 text-[10px]">{formatCurrency(currVal)}</div>
                          <div className="col-span-2 text-center font-mono text-gray-900 text-[10px]">{currPct.toFixed(1)}%</div>
                          <div className="col-span-2 text-center font-mono text-gray-900 text-[10px]">{formatCurrency(recVal)}</div>
@@ -3547,7 +3547,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.180</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.181</span>
              </div>
           </div>
         </div>
