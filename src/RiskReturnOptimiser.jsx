@@ -3531,7 +3531,7 @@ export default function RiskReturnOptimiser() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans text-slate-800" style={{ fontFamily: 'var(--font-main)' }}>
+    <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans" style={{ fontFamily: 'var(--font-main)', color: '#004876' }}>
       <div className="max-w-7xl mx-auto">
         <div id="app-header" className="bg-fire-accent -mx-4 -mt-4 mb-8 md:-mx-8 md:-mt-8 p-6 shadow-md text-white">
           <div className="flex justify-between items-center max-w-7xl mx-auto">
@@ -3543,7 +3543,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.177</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.178</span>
              </div>
           </div>
         </div>
