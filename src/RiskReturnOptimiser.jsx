@@ -565,11 +565,14 @@ export default function RiskReturnOptimiser() {
           }
         }
         
-        if (eligibleIndices.length === 0 || eligibleGlobalSum === 0) break;
+        if (eligibleIndices.length === 0) break;
         
         let distributed = 0;
         for (const i of eligibleIndices) {
-          const share = (globalWeights[i] / eligibleGlobalSum) * remainingBudget;
+          // If global weights are all zero for eligible assets, distribute equally
+          const share = eligibleGlobalSum > 0 
+            ? (globalWeights[i] / eligibleGlobalSum) * remainingBudget
+            : remainingBudget / eligibleIndices.length;
           const currentRoom = maxs[i] - weights[i];
           const actualAdd = Math.min(share, currentRoom);
           weights[i] += actualAdd;
