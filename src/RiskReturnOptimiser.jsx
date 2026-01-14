@@ -819,7 +819,7 @@ export default function RiskReturnOptimiser() {
         y += 4;
       });
 
-      y = Math.max(y, startY + 25) + 2;
+      y = Math.max(y, startY + 25) + 5;
       addLine();
 
       // Portfolio Analysis Boxes
@@ -842,7 +842,7 @@ export default function RiskReturnOptimiser() {
       drawBox(startX, "Expected Return", formatPercent(selectedPortfolio.return), [22, 163, 74]);
       drawBox(startX + boxWidth + 10, "Risk (StdDev)", formatPercent(selectedPortfolio.risk), [220, 38, 38]);
       
-      y += boxHeight + 5;
+      y += boxHeight + 8;
 
       // ==================== PAGE 1: PIE CHARTS ====================
       // Overall Pie Chart
@@ -883,7 +883,7 @@ export default function RiskReturnOptimiser() {
       y += pieSize - 12; // Aggressively reduced gap (Net -17mm spacing shift)
 
       // Entity Pie Charts - capture from UI
-      addText("Allocation by Entity", 10, 'bold', headingRgb); y += 4; // Reduced gap
+      addText("Allocation by Entity", 12, 'bold', headingRgb); y += 4; // Reduced gap
       
       // Capture entity pie charts section from the Output tab
       const entityPiesSection = document.getElementById('entity-pies-section');
@@ -960,7 +960,7 @@ export default function RiskReturnOptimiser() {
       y = margin;
 
       // 1. Detailed Asset Allocation Table
-      addText("Detailed Asset Allocation", 14, 'bold', headingRgb); y += 6;
+      addText("Detailed Asset Allocation", 12, 'bold', headingRgb); y += 6;
       
       // Table Header
       pdf.setFillColor(245, 245, 245);
@@ -1000,10 +1000,10 @@ export default function RiskReturnOptimiser() {
       pdf.text("Total", margin + 6, y + 4);
       pdf.text("100.0%", margin + pdfWidth * 0.6, y + 4);
       pdf.text(formatCurrency(totalWealth), margin + pdfWidth * 0.8, y + 4);
-      y += 12;
+      y += 15;
 
       // 2. Model Portfolios Summary
-      addText("Model Portfolios Summary", 14, 'bold', headingRgb); y += 6;
+      addText("Model Portfolios Summary", 12, 'bold', headingRgb); y += 6;
       
       pdf.setFillColor(245, 245, 245);
       pdf.rect(margin, y, pdfWidth, 7, 'F');
@@ -1037,7 +1037,7 @@ export default function RiskReturnOptimiser() {
       y += 10;
 
       // 3. Estimated Outcomes Table
-      addText("Estimated Outcomes", 14, 'bold', headingRgb); y += 6;
+      addText("Estimated Outcomes", 12, 'bold', headingRgb); y += 6;
       
       pdf.setFillColor(245, 245, 245);
       pdf.rect(margin, y, pdfWidth, 7, 'F');
@@ -1079,7 +1079,7 @@ export default function RiskReturnOptimiser() {
       const displayWidth = pageWidth - (displayMargin * 2);
 
       // 1. Efficient Frontier
-      addText("Efficient Frontier Analysis", 14, 'bold', headingRgb); y += 8;
+      addText("Efficient Frontier Analysis", 12, 'bold', headingRgb); y += 8;
       setActiveTab('optimization');
       await new Promise(r => setTimeout(r, 1000));
       const frontierEl = document.getElementById('optimization-tab-content')?.querySelector('.h-\\[500px\\]');
@@ -1099,7 +1099,7 @@ export default function RiskReturnOptimiser() {
       // 2. Monte Carlo Wealth Projection
       setActiveTab('cashflow');
       await new Promise(r => setTimeout(r, 1500));
-      addText("Wealth Projection", 14, 'bold', headingRgb); y += 8;
+      addText("Wealth Projection", 12, 'bold', headingRgb); y += 8;
       const wealthImg = await captureChart('wealth-projection-chart');
       if (wealthImg) {
           pdf.addImage(wealthImg, 'PNG', displayMargin, y, displayWidth, chartH, undefined, 'FAST');
@@ -1107,7 +1107,7 @@ export default function RiskReturnOptimiser() {
       }
       
       // 3. Estimating Outcomes Chart
-      addText("Estimated Outcomes", 14, 'bold', headingRgb); y += 8;
+      addText("Estimated Outcomes", 12, 'bold', headingRgb); y += 8;
       const outcomesImg = await captureChart('estimating-outcomes-chart');
       if (outcomesImg) {
           pdf.addImage(outcomesImg, 'PNG', displayMargin, y, displayWidth, chartH, undefined, 'FAST');
@@ -3355,7 +3355,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.154</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.159</span>
              </div>
           </div>
         </div>
