@@ -964,20 +964,23 @@ export default function RiskReturnOptimiser() {
       addPageBorder();
       y = margin;
 
+      // Calculate spacing: 3 sections need to be evenly distributed over ~250mm (280 - 2*margin)
+      const sectionGap = 15; // Gap between sections
+
       // 1. Detailed Asset Allocation Table
-      addText("Detailed Asset Allocation", 10, 'bold', headingRgb); y += 5;
+      addText("Detailed Asset Allocation", 12, 'bold', headingRgb); y += 8;
       
       // Table Header
       pdf.setFillColor(245, 245, 245);
-      pdf.rect(margin, y, pdfWidth, 6, 'F');
+      pdf.rect(margin, y, pdfWidth, 7, 'F');
       pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
-      pdf.text("Asset Class", margin + 2, y + 4);
-      pdf.text("Weight", margin + pdfWidth * 0.6, y + 4);
-      pdf.text("Value", margin + pdfWidth * 0.8, y + 4);
-      y += 6;
+      pdf.text("Asset Class", margin + 2, y + 5);
+      pdf.text("Weight", margin + pdfWidth * 0.6, y + 5);
+      pdf.text("Value", margin + pdfWidth * 0.8, y + 5);
+      y += 7;
 
       // Table Rows
-      pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
       let totalValue = 0;
       activeOnly.forEach((asset, idx) => {
         const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
@@ -986,74 +989,74 @@ export default function RiskReturnOptimiser() {
         
         if (idx % 2 === 1) {
           pdf.setFillColor(250, 250, 250);
-          pdf.rect(margin, y, pdfWidth, 5, 'F');
+          pdf.rect(margin, y, pdfWidth, 6, 'F');
         }
         
         pdf.setFillColor(asset.color);
-        pdf.rect(margin + 2, y + 1, 2, 3, 'F');
+        pdf.rect(margin + 2, y + 1.5, 3, 3, 'F');
         pdf.setTextColor(0, 72, 118);
-        pdf.text(asset.name, margin + 6, y + 3);
-        pdf.text(formatPercent(weight), margin + pdfWidth * 0.6, y + 3);
-        pdf.text(formatCurrency(value), margin + pdfWidth * 0.8, y + 3);
-        y += 4;
+        pdf.text(asset.name, margin + 7, y + 4);
+        pdf.text(formatPercent(weight), margin + pdfWidth * 0.6, y + 4);
+        pdf.text(formatCurrency(value), margin + pdfWidth * 0.8, y + 4);
+        y += 6;
       });
       
       // Total Row
       pdf.setFillColor(240, 240, 240);
-      pdf.rect(margin, y, pdfWidth, 6, 'F');
+      pdf.rect(margin, y, pdfWidth, 7, 'F');
       pdf.setFont('helvetica', 'bold');
-      pdf.text("Total", margin + 6, y + 4);
-      pdf.text("100.0%", margin + pdfWidth * 0.6, y + 4);
-      pdf.text(formatCurrency(totalWealth), margin + pdfWidth * 0.8, y + 4);
-      y += 10;
+      pdf.text("Total", margin + 7, y + 5);
+      pdf.text("100.0%", margin + pdfWidth * 0.6, y + 5);
+      pdf.text(formatCurrency(totalWealth), margin + pdfWidth * 0.8, y + 5);
+      y += sectionGap;
 
       // 2. Model Portfolios Summary
-      addText("Model Portfolios Summary", 10, 'bold', headingRgb); y += 5;
+      addText("Model Portfolios Summary", 12, 'bold', headingRgb); y += 8;
       
       pdf.setFillColor(245, 245, 245);
-      pdf.rect(margin, y, pdfWidth, 6, 'F');
+      pdf.rect(margin, y, pdfWidth, 7, 'F');
       pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
-      pdf.text("Model", margin + 2, y + 4);
-      pdf.text("Name", margin + 25, y + 4);
-      pdf.text("Return", margin + pdfWidth * 0.65, y + 4);
-      pdf.text("Risk", margin + pdfWidth * 0.85, y + 4);
-      y += 6;
+      pdf.text("Model", margin + 2, y + 5);
+      pdf.text("Name", margin + 25, y + 5);
+      pdf.text("Return", margin + pdfWidth * 0.65, y + 5);
+      pdf.text("Risk", margin + pdfWidth * 0.85, y + 5);
+      y += 7;
 
-      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
       efficientFrontier.forEach((port, idx) => {
         if (idx % 2 === 1) {
           pdf.setFillColor(250, 250, 250);
-          pdf.rect(margin, y, pdfWidth, 5, 'F');
+          pdf.rect(margin, y, pdfWidth, 6, 'F');
         }
         
         const isSelected = port.id === selectedPortfolio.id;
         if (isSelected) {
           pdf.setFillColor(255, 240, 220);
-          pdf.rect(margin, y, pdfWidth, 5, 'F');
+          pdf.rect(margin, y, pdfWidth, 6, 'F');
         }
         
         pdf.setTextColor(0, 72, 118);
-        pdf.text(String(port.id || idx + 1), margin + 2, y + 3);
-        pdf.text(MODEL_NAMES[port.id] || 'Custom', margin + 25, y + 3);
-        pdf.text(formatPercent(port.return), margin + pdfWidth * 0.65, y + 3);
-        pdf.text(formatPercent(port.risk), margin + pdfWidth * 0.85, y + 3);
-        y += 4;
+        pdf.text(String(port.id || idx + 1), margin + 2, y + 4);
+        pdf.text(MODEL_NAMES[port.id] || 'Custom', margin + 25, y + 4);
+        pdf.text(formatPercent(port.return), margin + pdfWidth * 0.65, y + 4);
+        pdf.text(formatPercent(port.risk), margin + pdfWidth * 0.85, y + 4);
+        y += 6;
       });
-      y += 10;
+      y += sectionGap;
 
       // 3. Estimated Outcomes Table
-      addText("Estimated Outcomes", 10, 'bold', headingRgb); y += 5;
+      addText("Estimated Outcomes", 12, 'bold', headingRgb); y += 8;
       
       pdf.setFillColor(245, 245, 245);
-      pdf.rect(margin, y, pdfWidth, 6, 'F');
+      pdf.rect(margin, y, pdfWidth, 7, 'F');
       pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
-      pdf.text("Year", margin + 2, y + 4);
-      pdf.text("Upside", margin + pdfWidth * 0.3, y + 4);
-      pdf.text("Median", margin + pdfWidth * 0.55, y + 4);
-      pdf.text("Downside", margin + pdfWidth * 0.8, y + 4);
-      y += 6;
+      pdf.text("Year", margin + 2, y + 5);
+      pdf.text("Upside", margin + pdfWidth * 0.3, y + 5);
+      pdf.text("Median", margin + pdfWidth * 0.55, y + 5);
+      pdf.text("Downside", margin + pdfWidth * 0.8, y + 5);
+      y += 7;
 
-      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
       const outcomeYears = [1, 3, 5, 10, 20];
       outcomeYears.forEach((yr, idx) => {
         const res = cfSimulationResults[yr];
@@ -1061,19 +1064,20 @@ export default function RiskReturnOptimiser() {
         
         if (idx % 2 === 1) {
           pdf.setFillColor(250, 250, 250);
-          pdf.rect(margin, y, pdfWidth, 5, 'F');
+          pdf.rect(margin, y, pdfWidth, 6, 'F');
         }
         
         pdf.setTextColor(0, 72, 118);
-        pdf.text(`${yr} Year`, margin + 2, y + 3);
-        pdf.text(formatCurrency(res.p84), margin + pdfWidth * 0.3, y + 3);
+        pdf.text(`${yr} Year`, margin + 2, y + 4);
+        pdf.text(formatCurrency(res.p84), margin + pdfWidth * 0.3, y + 4);
         pdf.setFont('helvetica', 'bold');
-        pdf.text(formatCurrency(res.p50), margin + pdfWidth * 0.55, y + 3);
+        pdf.text(formatCurrency(res.p50), margin + pdfWidth * 0.55, y + 4);
         pdf.setFont('helvetica', 'normal');
-        pdf.text(formatCurrency(res.p02), margin + pdfWidth * 0.8, y + 3);
-        y += 4;
+        pdf.text(formatCurrency(res.p02), margin + pdfWidth * 0.8, y + 4);
+        y += 6;
       });
-      y += 8;
+      y += 10;
+
 
       // ==================== PAGE 3: ASSET ALLOCATION BY ENTITY ====================
       pdf.addPage();
@@ -3639,7 +3643,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.182</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.183</span>
              </div>
           </div>
         </div>
