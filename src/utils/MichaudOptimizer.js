@@ -12,8 +12,9 @@ function solveMarkowitz(mean, cov, targetReturn, minWeights, maxWeights) {
     let w = new Array(n).fill(1/n); 
     
     // Hyperparameters
-    const LR = 0.01;
-    const MAX_ITER = 500;
+    // Hyperparameters
+    const LR = 0.5; // Increased from 0.01 for decimal inputs
+    const MAX_ITER = 1000;
     
     // Simple Gradient Descent with Projection
     for(let iter=0; iter<MAX_ITER; iter++) {
@@ -86,7 +87,10 @@ function projectConstraints(w, mean, targetRet, minW, maxW) {
           const currentRet = dot(proj, mean);
           const muNormSq = dot(mean, mean) || 1e-9;
           const lambda = (currentRet - targetRet) / muNormSq;
-          for(let i=0; i<n; i++) proj[i] -= lambda * mean[i];
+          
+          // Limit step size to avoid instability? No, projection is exact.
+          const step = mean.map(m => lambda * m); 
+          for(let i=0; i<n; i++) proj[i] -= step[i];
       }
   }
   return proj;
