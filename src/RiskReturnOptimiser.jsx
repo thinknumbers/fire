@@ -521,7 +521,9 @@ export default function RiskReturnOptimiser() {
     // Get min/max constraints for each asset (convert from 0-100 to 0-1)
     const mins = assetList.map(asset => {
       const alloc = entity.assetAllocation.find(a => a.id === asset.id);
-      return alloc ? (alloc.min || 0) / 100 : 0;
+      const minVal = alloc ? (alloc.min || 0) / 100 : 0;
+      if (minVal > 0) console.log(`[Constraint Debug] Entity: ${entity.name}, Asset: ${asset.name} (${asset.id}), Min: ${minVal * 100}%`);
+      return minVal;
     });
     
     const maxs = assetList.map(asset => {
@@ -532,6 +534,7 @@ export default function RiskReturnOptimiser() {
     // Step 1: Start with minimums
     let weights = [...mins];
     let minSum = mins.reduce((a, b) => a + b, 0);
+    console.log(`[Constraint Debug] Entity: ${entity.name}, MinSum: ${minSum * 100}%, Remaining: ${(1 - minSum) * 100}%`);
 
     // If minimums exceed 100%, normalize them to fit
     if (minSum > 1.0) {
