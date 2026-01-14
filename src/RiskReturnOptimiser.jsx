@@ -5,6 +5,7 @@ import {
   ScatterChart, Scatter, PieChart, Pie, Cell, AreaChart, Area, ReferenceLine,
   BarChart, Bar, ComposedChart
 } from 'recharts';
+import { runResampledOptimization } from './utils/MichaudOptimizer';
 import { 
   Settings, User, Activity, PieChart as PieIcon, TrendingUp, 
   ChevronRight, Save, Calculator, ArrowRight, DollarSign, Plus, Trash2, Calendar,
@@ -1495,77 +1496,67 @@ export default function RiskReturnOptimiser() {
 
     const afterTaxReturns = calculateClientTaxAdjustedReturns(activeAssets, structures, entityTypes);
     
-    // Simulation Configuration from User Input
-    const TOTAL_SIMS = simulationCount;
-    // Adaptive batch size: aim for ~50 updates total for smooth animation
-    // e.g. 20,000 sims -> 400 batch size. Min 100 to avoid too much overhead.
-    const BATCH_SIZE = Math.max(100, Math.floor(TOTAL_SIMS / 50));
-    
-    let completedSims = 0;
-    let allResults = [];
+    // Simulation Configuration
+    const forecastConfidence = 50; // Medium (T=50) - Could be a state variable
+    const numSimulations = 50;     // N=50 resampled histories
 
-    // Recursive Batch Runner
-    const runBatch = () => {
-      // Calculate how many to run in this batch (don't over-run total)
-      const currentBatchSize = Math.min(BATCH_SIZE, TOTAL_SIMS - completedSims);
-      
-      const batchResults = runSingleBatchSimulation(activeAssets, afterTaxReturns, activeCorrelations, currentBatchSize);
-      allResults = [...allResults, ...batchResults];
-      completedSims += currentBatchSize;
-      
-      // Update Progress
-      // Percentage logic: 0 to 100
-      const newProgress = Math.floor((completedSims / TOTAL_SIMS) * 100);
-      setProgress(newProgress);
+    // Run Optimization Async to avoid blocking UI
+    setTimeout(() => {
+        // Collect Constraints
+        const constraints = {
+            minWeights: activeAssets.map(a => (a.minWeight || 0)/100),
+            maxWeights: activeAssets.map(a => (a.maxWeight || 100)/100)
+        };
+        
+        // Use After-Tax returns for optimization
+        const optAssets = activeAssets.map((a, i) => ({
+            ...a,
+            return: afterTaxReturns[i]/100, // Convert to decimal
+            stdev: (a.risk || 0)/100
+        }));
 
-      if (completedSims < TOTAL_SIMS) {
-        // Schedule next batch with small delay to allow UI paint
-        setTimeout(runBatch, 20);
-      } else {
-        // Finished - call finishOptimization which will set progress to 100%
-        setTimeout(() => finishOptimization(allResults, activeAssets), 100);
-      }
-    };
+        try {
+            const result = runResampledOptimization(optAssets, activeCorrelations, constraints, forecastConfidence, numSimulations);
+            
+            // Convert results back to percentage format for UI
+            const finalFrontier = result.frontier.map(p => ({
+                ...p,
+                return: p.return * 100,
+                risk: p.risk * 100,
+                weights: p.weights // Keep decimal for internal calc, UI converts to %
+            }));
+            
+            // Flatten simulations for the cloud visualization (optional, heavyweight)
+            const cloud = []; 
+            result.simulations.forEach(simFrontier => {
+                simFrontier.forEach(p => {
+                    cloud.push({
+                        return: p.return * 100,
+                        risk: p.risk * 100
+                    });
+                });
+            });
 
-    // Start first batch
-    setTimeout(runBatch, 100);
+            finishOptimization(cloud, finalFrontier, activeAssets);
+            
+        } catch (err) {
+            console.error("Optimization Failed", err);
+            alert("Optimization failed: " + err.message);
+            setIsSimulating(false);
+        }
+    }, 100);
   };
 
-  const finishOptimization = (sims, activeAssets) => {
-    // 4. Find Efficient Frontier (Bins)
-    sims.sort((a, b) => a.risk - b.risk);
-    
-    if (sims.length === 0) {
-      setIsSimulating(false);
-      return;
-    }
-
-    const minRisk = sims[0].risk;
-    const maxRisk = sims[sims.length-1].risk;
-    const step = (maxRisk - minRisk) / 9; // 10 steps
-
-    const frontier = [];
-    for(let i=0; i<10; i++) {
-      const lower = minRisk + (i * step) - (step/2);
-      const upper = minRisk + (i * step) + (step/2);
-      const bin = sims.filter(p => p.risk >= lower && p.risk <= upper);
-      
-      if (bin.length > 0) {
-        // Maximize Return in this risk bucket
-        const best = bin.reduce((prev, curr) => prev.return > curr.return ? prev : curr);
-        frontier.push({ ...best, id: i+1, label: `Model ${i+1}` });
-      }
-    }
-
-    // Fallback if bins empty
-    while(frontier.length < 10 && sims.length > 0) {
-      frontier.push({ ...sims[Math.floor(Math.random()*sims.length)], id: frontier.length+1, label: `Model ${frontier.length+1}` });
-    }
-
+  const finishOptimization = (sims, frontier, activeAssets) => {
+    // 4. Set State
     setOptimizationAssets(activeAssets);
-    setSimulations(sims);
-    setEfficientFrontier(frontier.sort((a,b) => a.risk - b.risk).map((p,i) => ({...p, id: i+1, label: `Model ${i+1}`})));
-    setSelectedPortfolioId(5);
+    setSimulations(sims); // The Cloud
+    setEfficientFrontier(frontier); // The Resampled Curve
+    
+    // Default to middle risk portfolio
+    // Michaud frontier typically has 20-50 points. Pick middle index.
+    const middleIdx = Math.floor(frontier.length / 2);
+    setSelectedPortfolioId(frontier[middleIdx]?.id || 1);
 
     setIsSimulating(false);
     setProgress(100); // Show 100% only after all processing is complete
@@ -2888,6 +2879,54 @@ export default function RiskReturnOptimiser() {
             <p className="text-gray-500 font-medium">No simulation data generated yet.</p>
             <p className="text-gray-400 text-sm">Click "Optimise" to start.</p>
           </div>
+        )}
+
+        {/* Portfolio Composition Map (Area Chart) */}
+        {efficientFrontier.length > 0 && (
+            <div className="mt-8 pt-6 border-t border-gray-100">
+                <h3 className="font-bold text-gray-800 mb-4 text-sm">Portfolio Composition Map (Michaud)</h3>
+                <div className="h-[250px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={efficientFrontier} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                            <YAxis tickFormatter={(val) => `${(val*100).toFixed(0)}%`} tick={{ fontSize: 10 }} domain={[0, 1]} />
+                            <Tooltip content={({ active, payload, label }) => {
+                                if (active && payload && payload.length) {
+                                  return (
+                                    <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-xs z-50">
+                                      <p className="font-bold mb-2 text-gray-900">{label}</p>
+                                      {payload.map((entry, idx) => (
+                                        <div key={idx} className="flex justify-between gap-4 text-gray-600">
+                                            <span style={{ color: entry.color }}>{entry.name}:</span>
+                                            <span className="font-mono">{formatPercent(entry.value)}</span>
+                                        </div>
+                                      )).reverse()}
+                                    </div>
+                                  );
+                                }
+                                return null;
+                            }} />
+                            <Legend wrapperStyle={{ fontSize: '10px' }} />
+                            {optimizationAssets.map((asset, idx) => (
+                                <Area 
+                                    key={asset.id}
+                                    type="monotone" 
+                                    dataKey={(data) => data.weights ? data.weights[idx] : 0}
+                                    name={asset.name}
+                                    stackId="1"
+                                    stroke={asset.color}
+                                    fill={asset.color}
+                                    fillOpacity={0.8}
+                                />
+                            ))}
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+                <p className="text-xs text-gray-500 mt-2 italic text-center">
+                    Shows the evolution of optimal asset weights as risk increases (Standard vs Resampled).
+                </p>
+            </div>
         )}
       </div>
     </div>
