@@ -3101,10 +3101,10 @@ export default function RiskReturnOptimiser() {
                  <div className="space-y-1">
                    <div className="grid grid-cols-12 text-[10px] font-bold text-gray-400 uppercase mb-1 border-b pb-1">
                      <div className="col-span-4">Asset</div>
-                     <div className="col-span-2 text-right">Current</div>
-                     <div className="col-span-1 text-right">%</div>
-                     <div className="col-span-3 text-right">Recommended</div>
-                     <div className="col-span-2 text-right">%</div>
+                     <div className="col-span-2 text-center">Current</div>
+                     <div className="col-span-2 text-center">%</div>
+                     <div className="col-span-2 text-center">Recommended</div>
+                     <div className="col-span-2 text-center">%</div>
                    </div>
                     {activeAssets.map((asset) => {
                       // Find the correct index in the full optimizationAssets array by asset ID
@@ -3128,10 +3128,10 @@ export default function RiskReturnOptimiser() {
                      return (
                        <div key={asset.id} className="grid grid-cols-12 text-xs py-0.5 border-b border-gray-50 last:border-0 items-center">
                          <div className="col-span-4 text-gray-600 truncate pr-1" title={asset.name}>{asset.name}</div>
-                         <div className="col-span-2 text-right font-mono text-gray-900 text-[10px]">{formatCurrency(currVal)}</div>
-                         <div className="col-span-1 text-right font-mono text-gray-900 text-[10px]">{currPct.toFixed(1)}%</div>
-                         <div className="col-span-3 text-right font-mono text-gray-900 text-[10px]">{formatCurrency(recVal)}</div>
-                         <div className="col-span-2 text-right font-mono text-gray-900 text-[10px]">{recPct.toFixed(1)}%</div>
+                         <div className="col-span-2 text-center font-mono text-gray-900 text-[10px]">{formatCurrency(currVal)}</div>
+                         <div className="col-span-2 text-center font-mono text-gray-900 text-[10px]">{currPct.toFixed(1)}%</div>
+                         <div className="col-span-2 text-center font-mono text-gray-900 text-[10px]">{formatCurrency(recVal)}</div>
+                         <div className="col-span-2 text-center font-mono text-gray-900 text-[10px]">{recPct.toFixed(1)}%</div>
                        </div>
                      )
                    })}
@@ -3139,10 +3139,10 @@ export default function RiskReturnOptimiser() {
                  <div className="mt-3 pt-2 border-t-2 border-gray-200 bg-gray-50 -mx-3 -mb-3 p-3 rounded-b-lg">
                     <div className="grid grid-cols-12 text-xs font-bold text-gray-900 uppercase">
                       <div className="col-span-4">Total</div>
-                      <div className="col-span-2 text-right font-mono">{formatCurrency(struct.value)}</div>
-                      <div className="col-span-1 text-right font-mono">100%</div>
-                      <div className="col-span-3 text-right font-mono">{formatCurrency(struct.value)}</div>
-                      <div className="col-span-2 text-right font-mono">100%</div>
+                      <div className="col-span-2 text-center font-mono">{formatCurrency(struct.value)}</div>
+                      <div className="col-span-2 text-center font-mono">100%</div>
+                      <div className="col-span-2 text-center font-mono">{formatCurrency(struct.value)}</div>
+                      <div className="col-span-2 text-center font-mono">100%</div>
                     </div>
                  </div>
                </div>
@@ -3404,7 +3404,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.160</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.162</span>
              </div>
           </div>
         </div>
