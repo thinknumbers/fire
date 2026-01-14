@@ -412,7 +412,7 @@ export default function RiskReturnOptimiser() {
 
 
   const [selectedPortfolioId, setSelectedPortfolioId] = useState(5);
-  const [forecastConfidenceLevel, setForecastConfidenceLevel] = useState(2); // 1=Low, 2=Med, 3=High
+  const [forecastConfidenceLevel, setForecastConfidenceLevel] = useState(3); // 1=Low, 2=Med, 3=High
   const [showPreTaxFrontier, setShowPreTaxFrontier] = useState(false); // Toggle for optimization chart
 
   // --- Settings State ---
@@ -3543,7 +3543,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.175</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.176</span>
              </div>
           </div>
         </div>
