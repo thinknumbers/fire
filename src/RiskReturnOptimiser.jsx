@@ -2837,6 +2837,7 @@ export default function RiskReturnOptimiser() {
         </div>
     </div>
   );
+  };
 
 
   const OptimizationTab = () => {
@@ -3728,7 +3729,7 @@ export default function RiskReturnOptimiser() {
     </div>
   );
 }
-}
+
 
 
 
