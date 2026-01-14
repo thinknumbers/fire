@@ -1084,7 +1084,7 @@ export default function RiskReturnOptimiser() {
       addPageBorder();
       y = margin;
       
-      addText("Asset Allocation by Entity", 10, 'bold', headingRgb); y += 6;
+      addText("Asset Allocation by Entity", 12, 'bold', headingRgb); y += 8;
       
       // Render 2 entity boxes per row
       const entityBoxWidth = (pdfWidth - 6) / 2; // 2 boxes per row with 6mm gap
@@ -1108,28 +1108,28 @@ export default function RiskReturnOptimiser() {
           pdf.addPage();
           addPageBorder();
           y = margin;
-          addText("Asset Allocation by Entity (continued)", 10, 'bold', headingRgb); y += 6;
+          addText("Asset Allocation by Entity (continued)", 12, 'bold', headingRgb); y += 8;
         }
         
         const boxStartY = y;
         
-        // Entity Header
-        pdf.setFillColor(245, 245, 245);
+        // Entity Header - use same heading color as other pages
+        pdf.setFillColor(headingRgb[0], headingRgb[1], headingRgb[2]);
         pdf.rect(boxX, boxStartY, entityBoxWidth, headerHeight, 'F');
-        pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
+        pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(255, 255, 255);
         pdf.text(struct.name, boxX + boxPadding, boxStartY + 5.5);
         
         let rowY = boxStartY + headerHeight;
         
-        // Column Headers
+        // Column Headers - adjusted positions for better alignment
         pdf.setFillColor(250, 250, 250);
         pdf.rect(boxX, rowY, entityBoxWidth, 5, 'F');
-        pdf.setFontSize(6); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(100, 100, 100);
+        pdf.setFontSize(6); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
         pdf.text("Asset", boxX + boxPadding, rowY + 3.5);
-        pdf.text("Current", boxX + entityBoxWidth * 0.4, rowY + 3.5);
-        pdf.text("%", boxX + entityBoxWidth * 0.55, rowY + 3.5);
-        pdf.text("Recom.", boxX + entityBoxWidth * 0.7, rowY + 3.5);
-        pdf.text("%", boxX + entityBoxWidth * 0.88, rowY + 3.5);
+        pdf.text("Current", boxX + entityBoxWidth * 0.38, rowY + 3.5);
+        pdf.text("%", boxX + entityBoxWidth * 0.54, rowY + 3.5);
+        pdf.text("Recom.", boxX + entityBoxWidth * 0.68, rowY + 3.5);
+        pdf.text("%", boxX + entityBoxWidth * 0.86, rowY + 3.5);
         rowY += 5;
         
         // Asset Rows
@@ -1161,16 +1161,17 @@ export default function RiskReturnOptimiser() {
             pdf.rect(boxX, rowY, entityBoxWidth, 4, 'F');
           }
           
-          // Truncate long asset names
-          const maxNameLen = 18;
-          const displayName = asset.name.length > maxNameLen ? asset.name.substring(0, maxNameLen) + '...' : asset.name;
+          // Asset names - allow longer names (no truncation for most)
+          const maxNameLen = 22;
+          const displayName = asset.name.length > maxNameLen ? asset.name.substring(0, maxNameLen - 2) + '..' : asset.name;
           
           pdf.setTextColor(0, 72, 118);
           pdf.text(displayName, boxX + boxPadding, rowY + 3);
-          pdf.text(formatCurrency(currVal), boxX + entityBoxWidth * 0.35, rowY + 3);
-          pdf.text(currPct.toFixed(1) + '%', boxX + entityBoxWidth * 0.55, rowY + 3);
-          pdf.text(formatCurrency(recVal), boxX + entityBoxWidth * 0.68, rowY + 3);
-          pdf.text(recPct.toFixed(1) + '%', boxX + entityBoxWidth * 0.88, rowY + 3);
+          // Center values under headers
+          pdf.text(formatCurrency(currVal), boxX + entityBoxWidth * 0.33, rowY + 3);
+          pdf.text(currPct.toFixed(1) + '%', boxX + entityBoxWidth * 0.52, rowY + 3);
+          pdf.text(formatCurrency(recVal), boxX + entityBoxWidth * 0.66, rowY + 3);
+          pdf.text(recPct.toFixed(1) + '%', boxX + entityBoxWidth * 0.84, rowY + 3);
           rowY += 4;
         });
         
@@ -1179,10 +1180,10 @@ export default function RiskReturnOptimiser() {
         pdf.rect(boxX, rowY, entityBoxWidth, 5, 'F');
         pdf.setFontSize(6); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
         pdf.text("Total", boxX + boxPadding, rowY + 3.5);
-        pdf.text(formatCurrency(struct.value), boxX + entityBoxWidth * 0.35, rowY + 3.5);
-        pdf.text("100%", boxX + entityBoxWidth * 0.55, rowY + 3.5);
-        pdf.text(formatCurrency(struct.value), boxX + entityBoxWidth * 0.68, rowY + 3.5);
-        pdf.text("100%", boxX + entityBoxWidth * 0.88, rowY + 3.5);
+        pdf.text(formatCurrency(struct.value), boxX + entityBoxWidth * 0.33, rowY + 3.5);
+        pdf.text("100%", boxX + entityBoxWidth * 0.52, rowY + 3.5);
+        pdf.text(formatCurrency(struct.value), boxX + entityBoxWidth * 0.66, rowY + 3.5);
+        pdf.text("100%", boxX + entityBoxWidth * 0.84, rowY + 3.5);
         rowY += 5;
         
         // Box border
@@ -3643,7 +3644,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.183</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.184</span>
              </div>
           </div>
         </div>
