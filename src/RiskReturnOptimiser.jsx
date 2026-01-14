@@ -2953,7 +2953,7 @@ export default function RiskReturnOptimiser() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie 
-                        data={activeAssets.map((a, i) => ({ ...a, value: selectedPortfolio.weights[optimizationAssets.findIndex(x=>x.id===a.id)] * 100 }))} 
+                        data={activeAssets} 
                         cx="50%" cy="50%" 
                         outerRadius={85} 
                         paddingAngle={2} 
