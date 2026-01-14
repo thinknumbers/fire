@@ -1126,10 +1126,10 @@ export default function RiskReturnOptimiser() {
         pdf.rect(boxX, rowY, entityBoxWidth, 5, 'F');
         pdf.setFontSize(6); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
         pdf.text("Asset", boxX + boxPadding, rowY + 3.5);
-        pdf.text("Current", boxX + entityBoxWidth * 0.42, rowY + 3.5);
-        pdf.text("%", boxX + entityBoxWidth * 0.57, rowY + 3.5);
-        pdf.text("Recommend", boxX + entityBoxWidth * 0.70, rowY + 3.5);
-        pdf.text("%", boxX + entityBoxWidth * 0.92, rowY + 3.5);
+        pdf.text("Current", boxX + entityBoxWidth * 0.45, rowY + 3.5, { align: 'center' });
+        pdf.text("%", boxX + entityBoxWidth * 0.58, rowY + 3.5, { align: 'center' });
+        pdf.text("Recommend", boxX + entityBoxWidth * 0.74, rowY + 3.5, { align: 'center' });
+        pdf.text("%", boxX + entityBoxWidth * 0.92, rowY + 3.5, { align: 'center' });
         rowY += 5;
         
         // Asset Rows
@@ -1167,11 +1167,11 @@ export default function RiskReturnOptimiser() {
           
           pdf.setTextColor(0, 72, 118);
           pdf.text(displayName, boxX + boxPadding, rowY + 3);
-          // Center values under headers - columns start at 40%
-          pdf.text(formatCurrency(currVal), boxX + entityBoxWidth * 0.40, rowY + 3);
-          pdf.text(currPct.toFixed(1) + '%', boxX + entityBoxWidth * 0.55, rowY + 3);
-          pdf.text(formatCurrency(recVal), boxX + entityBoxWidth * 0.70, rowY + 3);
-          pdf.text(recPct.toFixed(1) + '%', boxX + entityBoxWidth * 0.90, rowY + 3);
+          // Center all values
+          pdf.text(formatCurrency(currVal), boxX + entityBoxWidth * 0.45, rowY + 3, { align: 'center' });
+          pdf.text(currPct.toFixed(1) + '%', boxX + entityBoxWidth * 0.58, rowY + 3, { align: 'center' });
+          pdf.text(formatCurrency(recVal), boxX + entityBoxWidth * 0.74, rowY + 3, { align: 'center' });
+          pdf.text(recPct.toFixed(1) + '%', boxX + entityBoxWidth * 0.92, rowY + 3, { align: 'center' });
           rowY += 4;
         });
         
@@ -1180,10 +1180,10 @@ export default function RiskReturnOptimiser() {
         pdf.rect(boxX, rowY, entityBoxWidth, 5, 'F');
         pdf.setFontSize(6); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
         pdf.text("Total", boxX + boxPadding, rowY + 3.5);
-        pdf.text(formatCurrency(struct.value), boxX + entityBoxWidth * 0.40, rowY + 3.5);
-        pdf.text("100%", boxX + entityBoxWidth * 0.55, rowY + 3.5);
-        pdf.text(formatCurrency(struct.value), boxX + entityBoxWidth * 0.70, rowY + 3.5);
-        pdf.text("100%", boxX + entityBoxWidth * 0.90, rowY + 3.5);
+        pdf.text(formatCurrency(struct.value), boxX + entityBoxWidth * 0.45, rowY + 3.5, { align: 'center' });
+        pdf.text("100%", boxX + entityBoxWidth * 0.58, rowY + 3.5, { align: 'center' });
+        pdf.text(formatCurrency(struct.value), boxX + entityBoxWidth * 0.74, rowY + 3.5, { align: 'center' });
+        pdf.text("100%", boxX + entityBoxWidth * 0.92, rowY + 3.5, { align: 'center' });
         rowY += 5;
         
         // Box border
@@ -3644,7 +3644,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.188</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.189</span>
              </div>
           </div>
         </div>
