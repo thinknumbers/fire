@@ -875,12 +875,12 @@ export default function RiskReturnOptimiser() {
           tempDiv.appendChild(clone);
           document.body.appendChild(tempDiv);
           try {
-            await pdf.svg(clone, { x: pieX, y: y, width: pieSize, height: pieSize });
+            await pdf.svg(clone, { x: pieX, y: y - 5, width: pieSize, height: pieSize });
           } catch (err) { console.error("SVG Pie Error", err); }
           finally { document.body.removeChild(tempDiv); }
         }
       }
-      y += pieSize + 2; // Reduced gap
+      y += pieSize - 12; // Aggressively reduced gap (Net -17mm spacing shift)
 
       // Entity Pie Charts - capture from UI
       addText("Allocation by Entity", 10, 'bold', headingRgb); y += 4; // Reduced gap
