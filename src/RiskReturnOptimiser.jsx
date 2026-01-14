@@ -518,18 +518,10 @@ export default function RiskReturnOptimiser() {
 
     const n = assetList.length;
     
-    // Debug: Log what assets we're working with
-    console.log(`[Constraint Debug] Entity: ${entity.name}, useAssetAllocation: ${entity.useAssetAllocation}`);
-    console.log(`[Constraint Debug] AssetList IDs: ${assetList.map(a => a.id).join(', ')}`);
-    console.log(`[Constraint Debug] Entity allocation IDs: ${entity.assetAllocation ? entity.assetAllocation.map(a => a.id).join(', ') : 'none'}`);
-    console.log(`[Constraint Debug] Cash constraint: ${entity.assetAllocation?.find(a => a.id === 'cash')?.min || 'not found'}`);
-    
     // Get min/max constraints for each asset (convert from 0-100 to 0-1)
     const mins = assetList.map(asset => {
       const alloc = entity.assetAllocation.find(a => a.id === asset.id);
-      const minVal = alloc ? (alloc.min || 0) / 100 : 0;
-      if (minVal > 0) console.log(`[Constraint Debug] Entity: ${entity.name}, Asset: ${asset.name} (${asset.id}), Min: ${minVal * 100}%`);
-      return minVal;
+      return alloc ? (alloc.min || 0) / 100 : 0;
     });
     
     const maxs = assetList.map(asset => {
@@ -540,7 +532,6 @@ export default function RiskReturnOptimiser() {
     // Step 1: Start with minimums
     let weights = [...mins];
     let minSum = mins.reduce((a, b) => a + b, 0);
-    console.log(`[Constraint Debug] Entity: ${entity.name}, MinSum: ${minSum * 100}%, Remaining: ${(1 - minSum) * 100}%`);
 
     // If minimums exceed 100%, normalize them to fit
     if (minSum > 1.0) {
@@ -3050,8 +3041,10 @@ export default function RiskReturnOptimiser() {
                      <div className="col-span-4 text-right">$$</div>
                      <div className="col-span-2 text-right">%</div>
                    </div>
-                    {activeAssets.map((asset, idx) => {
-                      const entityWeight = entityWeights[idx] || 0;
+                    {activeAssets.map((asset) => {
+                      // Find the correct index in the full optimizationAssets array by asset ID
+                      const fullIdx = optimizationAssets.findIndex(a => a.id === asset.id);
+                      const entityWeight = fullIdx >= 0 ? (entityWeights[fullIdx] || 0) : 0;
                       const dollarVal = entityWeight * struct.value;
                       const percentVal = entityWeight * 100;
                      return (
