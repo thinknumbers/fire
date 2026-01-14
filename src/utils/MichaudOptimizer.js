@@ -13,7 +13,7 @@ function solveMarkowitz(mean, cov, targetReturn, minWeights, maxWeights) {
     
     // Hyperparameters
     // Hyperparameters
-    const LR = 0.5; // Increased from 0.01 for decimal inputs
+    const LR = 0.2; // Balanced for decimal inputs
     const MAX_ITER = 1000;
     
     // Simple Gradient Descent with Projection

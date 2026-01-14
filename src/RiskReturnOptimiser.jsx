@@ -1511,8 +1511,8 @@ export default function RiskReturnOptimiser() {
         // Use After-Tax returns for optimization
         const optAssets = activeAssets.map((a, i) => ({
             ...a,
-            return: afterTaxReturns[i]/100, // Convert to decimal
-            stdev: (a.risk || 0)/100
+            return: afterTaxReturns[i], // Already decimal (e.g. 0.08 for 8%)
+            stdev: a.stdev || 0         // Already decimal (e.g. 0.15 for 15%)
         }));
 
         try {
