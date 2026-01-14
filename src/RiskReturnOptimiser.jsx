@@ -319,11 +319,13 @@ const CustomEventLabel = (props) => {
     return `$${millions.toFixed(1)}m`;
   };
   
-  const boxY = chartY + 10 + ((index || 0) % 3) * 25; // Increased stagger for 2 lines
+  const boxY = chartY + 10 + ((index || 0) % 3) * 40; // Increased stagger for taller boxes
 
-  const boxHeight = 24; // Taller for 2 lines
-  const textWidth = value.length * 6 + 30; 
-  const boxWidth = Math.max(textWidth, 100);
+  const boxHeight = 36; // Increased height (was 24)
+  // Calculate width based on larger font size (approx 8px per char)
+  const textWidth = value.length * 8 + 20; 
+  const amountWidth = 60; 
+  const boxWidth = Math.max(textWidth, amountWidth, 70);
   const boxX = xPos - boxWidth / 2;
   
   const color = type === 'income' ? '#15803d' : '#b91c1c';
@@ -350,10 +352,10 @@ const CustomEventLabel = (props) => {
       {/* Event Name - Full text, no truncation */}
       <text 
         x={xPos} 
-        y={boxY + 10} 
+        y={boxY + 14} 
         textAnchor="middle" 
         fill={color} 
-        fontSize={8} 
+        fontSize={11} // Increased from 8
         fontWeight="bold"
       >
         {value}
@@ -362,10 +364,10 @@ const CustomEventLabel = (props) => {
       {/* Amount */}
       <text 
         x={xPos} 
-        y={boxY + 20} 
+        y={boxY + 28} 
         textAnchor="middle" 
         fill={color} 
-        fontSize={9} 
+        fontSize={12} // Increased from 9
         fontWeight="bold"
       >
         {formatAmount(amount)}
@@ -375,7 +377,7 @@ const CustomEventLabel = (props) => {
 };
 
 export default function RiskReturnOptimiser() {
-  const [activeTab, setActiveTab] = useState('data');
+  const [activeTab, setActiveTab] = useState('client');
   
   // Data State
   const [clientName, setClientName] = useState('');
@@ -644,12 +646,15 @@ export default function RiskReturnOptimiser() {
       if (existingData) {
         console.log('Existing scenario found:', existingData);
         if (saveAsNew) {
-             alert(`Scenario "${scenarioName}" already exists. Please choose a different name for "Save As".`);
-             setIsSaving(false);
-             return;
+             if (!window.confirm(`Scenario "${scenarioName}" already exists. Do you want to overwrite it?`)) {
+                 setIsSaving(false);
+                 return;
+             }
+             isUpdate = true; // Proceed as update since user confirmed overwrite
+        } else {
+             shouldSave = window.confirm(`Scenario "${scenarioName}" already exists. Do you want to overwrite it?`);
+             isUpdate = true;
         }
-        shouldSave = window.confirm(`Scenario "${scenarioName}" already exists. Do you want to overwrite it?`);
-        isUpdate = true;
       } else {
         console.log('No existing scenario found with name:', scenarioName);
       }
@@ -845,8 +850,13 @@ export default function RiskReturnOptimiser() {
       setActiveTab('output');
       await new Promise(r => setTimeout(r, 1500));
 
-      const pieSize = 65; // Increased size as requested
+      const pieSize = 35; // Reduced size to match entity charts (approx)
       const pieX = (pageWidth - pieSize) / 2;
+      
+      // Add Title for the Total Pie
+      addText("Total Portfolio", 9, 'bold', [80, 80, 80], 'center');
+      y += 4;
+
       const pieContainer = document.getElementById('pie-chart-section');
       if (pieContainer) {
         const svg = pieContainer.querySelector('svg');
@@ -870,7 +880,7 @@ export default function RiskReturnOptimiser() {
           finally { document.body.removeChild(tempDiv); }
         }
       }
-      y += pieSize + 5;
+      y += pieSize + 10; // Reduced gap
 
       // Entity Pie Charts - capture from UI
       addText("Allocation by Entity", 10, 'bold', headingRgb); y += 5;
@@ -3202,7 +3212,7 @@ export default function RiskReturnOptimiser() {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
                       return (
-                        <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-xs z-50">
+                        <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-sm z-50">
                           <p className="font-bold mb-2 text-gray-900">Year {label}</p>
                           <div className="space-y-1">
                             <div className="flex justify-between gap-4">
