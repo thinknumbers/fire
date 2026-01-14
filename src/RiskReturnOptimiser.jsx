@@ -584,10 +584,27 @@ export default function RiskReturnOptimiser() {
       }
     }
 
-    // Final normalization to handle floating point errors
+    // Final normalization - if we didn't use all budget, proportionally scale up
+    // but respect max constraints
     const total = weights.reduce((a, b) => a + b, 0);
-    if (total > 0 && Math.abs(total - 1.0) > 0.0001) {
-      weights = weights.map(w => w / total);
+    if (total > 0 && total < 0.9999) {
+      // Need to scale up - but respect max constraints
+      const scaleFactor = 1.0 / total;
+      weights = weights.map((w, i) => Math.min(w * scaleFactor, maxs[i]));
+      
+      // Re-normalize if we hit any max constraints during scaling
+      const newTotal = weights.reduce((a, b) => a + b, 0);
+      if (newTotal < 0.9999) {
+        // Still under 100%, scale proportionally for assets not at max
+        const deficit = 1.0 - newTotal;
+        const assetsWithRoom = weights.map((w, i) => maxs[i] - w > 0.0001 ? i : -1).filter(i => i >= 0);
+        if (assetsWithRoom.length > 0) {
+          const addEach = deficit / assetsWithRoom.length;
+          assetsWithRoom.forEach(i => {
+            weights[i] = Math.min(weights[i] + addEach, maxs[i]);
+          });
+        }
+      }
     }
 
     return weights;
