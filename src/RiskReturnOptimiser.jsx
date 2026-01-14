@@ -1075,34 +1075,126 @@ export default function RiskReturnOptimiser() {
       });
       y += 8;
 
-      // 4. Asset Allocation by Entity (Table Capture)
-      setActiveTab('output');
-      await new Promise(r => setTimeout(r, 100));
-      const entityTableEl = document.getElementById('entity-allocation-details');
-      if (entityTableEl) {
-         addText("Asset Allocation by Entity", 12, 'bold', headingRgb); y += 6;
-         // Capture with enforced desktop width
-         try {
-             // Clone node to strip shadows/borders if needed? Or just capture as is.
-             // We'll capture as is.
-             const tableCanvas = await html2canvas(entityTableEl, { scale: 2, windowWidth: 1600 }); 
-             const tableImg = tableCanvas.toDataURL('image/png');
-             const tProps = pdf.getImageProperties(tableImg);
-             const pdfTableWidth = pdfWidth; 
-             const pdfTableHeight = (tProps.height * pdfTableWidth) / tProps.width;
-             
-             // Check if fits on page
-             if (y + pdfTableHeight > 280) {
-                 pdf.addPage(); 
-                 addPageBorder(); 
-                 y = margin;
-                 addText("Asset Allocation by Entity", 12, 'bold', headingRgb); y += 6;
-             }
-             
-             pdf.addImage(tableImg, 'PNG', margin, y, pdfTableWidth, pdfTableHeight);
-             y += pdfTableHeight + 10;
-         } catch (e) { console.error("Entity Table Capture Error", e); }
-      }
+      // ==================== PAGE 3: ASSET ALLOCATION BY ENTITY ====================
+      pdf.addPage();
+      addPageBorder();
+      y = margin;
+      
+      addText("Asset Allocation by Entity", 10, 'bold', headingRgb); y += 6;
+      
+      // Render 2 entity boxes per row
+      const entityBoxWidth = (pdfWidth - 6) / 2; // 2 boxes per row with 6mm gap
+      const rowHeight = 7; // Row height for each asset
+      const headerHeight = 8;
+      const boxPadding = 3;
+      
+      structures.forEach((struct, sIdx) => {
+        // Determine position: left (even) or right (odd) in the row
+        const isLeft = sIdx % 2 === 0;
+        const boxX = isLeft ? margin : margin + entityBoxWidth + 6;
+        
+        // Start new row if this is a left box (and not the first)
+        if (isLeft && sIdx > 0) {
+          y += 10; // Gap between rows
+        }
+        
+        // Check if we need a new page
+        const estimatedBoxHeight = headerHeight + (activeOnly.length * rowHeight) + 15;
+        if (y + estimatedBoxHeight > 280) {
+          pdf.addPage();
+          addPageBorder();
+          y = margin;
+          addText("Asset Allocation by Entity (continued)", 10, 'bold', headingRgb); y += 6;
+        }
+        
+        const boxStartY = y;
+        
+        // Entity Header
+        pdf.setFillColor(245, 245, 245);
+        pdf.rect(boxX, boxStartY, entityBoxWidth, headerHeight, 'F');
+        pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
+        pdf.text(struct.name, boxX + boxPadding, boxStartY + 5.5);
+        
+        let rowY = boxStartY + headerHeight;
+        
+        // Column Headers
+        pdf.setFillColor(250, 250, 250);
+        pdf.rect(boxX, rowY, entityBoxWidth, 5, 'F');
+        pdf.setFontSize(6); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(100, 100, 100);
+        pdf.text("Asset", boxX + boxPadding, rowY + 3.5);
+        pdf.text("Current", boxX + entityBoxWidth * 0.4, rowY + 3.5);
+        pdf.text("%", boxX + entityBoxWidth * 0.55, rowY + 3.5);
+        pdf.text("Recom.", boxX + entityBoxWidth * 0.7, rowY + 3.5);
+        pdf.text("%", boxX + entityBoxWidth * 0.88, rowY + 3.5);
+        rowY += 5;
+        
+        // Asset Rows
+        pdf.setFontSize(6); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0, 72, 118);
+        
+        const globalWeights = selectedPortfolio?.weights || [];
+        const entityWeights = getEntityConstrainedWeights(struct, globalWeights, activeOnly);
+        
+        activeOnly.forEach((asset, aIdx) => {
+          // Recommended
+          const recWeight = entityWeights[aIdx] || 0;
+          const recVal = recWeight * struct.value;
+          const recPct = recWeight * 100;
+          
+          // Current
+          let currWeight = 0;
+          if (struct.useAssetAllocation && struct.assetAllocation) {
+            const alloc = struct.assetAllocation.find(a => a.id === asset.id);
+            currWeight = alloc ? alloc.weight / 100 : 0;
+          } else if (asset.id === 'cash') {
+            currWeight = 1.0;
+          }
+          const currVal = currWeight * struct.value;
+          const currPct = currWeight * 100;
+          
+          // Alternate row background
+          if (aIdx % 2 === 1) {
+            pdf.setFillColor(252, 252, 252);
+            pdf.rect(boxX, rowY, entityBoxWidth, 4, 'F');
+          }
+          
+          // Truncate long asset names
+          const maxNameLen = 18;
+          const displayName = asset.name.length > maxNameLen ? asset.name.substring(0, maxNameLen) + '...' : asset.name;
+          
+          pdf.setTextColor(0, 72, 118);
+          pdf.text(displayName, boxX + boxPadding, rowY + 3);
+          pdf.text(formatCurrency(currVal), boxX + entityBoxWidth * 0.35, rowY + 3);
+          pdf.text(currPct.toFixed(1) + '%', boxX + entityBoxWidth * 0.55, rowY + 3);
+          pdf.text(formatCurrency(recVal), boxX + entityBoxWidth * 0.68, rowY + 3);
+          pdf.text(recPct.toFixed(1) + '%', boxX + entityBoxWidth * 0.88, rowY + 3);
+          rowY += 4;
+        });
+        
+        // Total Row
+        pdf.setFillColor(240, 240, 240);
+        pdf.rect(boxX, rowY, entityBoxWidth, 5, 'F');
+        pdf.setFontSize(6); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
+        pdf.text("Total", boxX + boxPadding, rowY + 3.5);
+        pdf.text(formatCurrency(struct.value), boxX + entityBoxWidth * 0.35, rowY + 3.5);
+        pdf.text("100%", boxX + entityBoxWidth * 0.55, rowY + 3.5);
+        pdf.text(formatCurrency(struct.value), boxX + entityBoxWidth * 0.68, rowY + 3.5);
+        pdf.text("100%", boxX + entityBoxWidth * 0.88, rowY + 3.5);
+        rowY += 5;
+        
+        // Box border
+        pdf.setDrawColor(200, 200, 200);
+        pdf.rect(boxX, boxStartY, entityBoxWidth, rowY - boxStartY, 'S');
+        
+        // Update y position if this was a right box
+        if (!isLeft) {
+          y = Math.max(y, rowY);
+        } else if (sIdx === structures.length - 1) {
+          // Last entity and it's on the left
+          y = rowY;
+        }
+      });
+      
+      y += 10;
 
       // ==================== PAGE 3: CHARTS ====================
       pdf.addPage();
@@ -3547,7 +3639,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.181</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.182</span>
              </div>
           </div>
         </div>
