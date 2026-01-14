@@ -53,19 +53,19 @@ const NumberInput = ({ value, onChange, className, placeholder, prefix = "$" }) 
 };
 
 const DEFAULT_ASSETS = [
-  { id: 'aus_eq', name: 'Australian Equities', return: 0.09, stdev: 0.16, incomeRatio: 0.67, minWeight: 0, maxWeight: 100, color: '#003f5c', active: true, isDefault: true },
-  { id: 'us_large', name: 'US Large Cap Equities', return: 0.10, stdev: 0.15, incomeRatio: 0.35, minWeight: 0, maxWeight: 100, color: '#2f4b7c', active: true, isDefault: true },
-  { id: 'us_small', name: 'US Small Cap Equities', return: 0.11, stdev: 0.20, incomeRatio: 0.40, minWeight: 0, maxWeight: 100, color: '#665191', active: true, isDefault: true },
-  { id: 'dev_world', name: 'Developed World Equities', return: 0.095, stdev: 0.16, incomeRatio: 0.49, minWeight: 0, maxWeight: 100, color: '#a05195', active: true, isDefault: true },
-  { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.12, stdev: 0.22, incomeRatio: 0.44, minWeight: 0, maxWeight: 100, color: '#d45087', active: true, isDefault: true },
-  { id: 'reits', name: 'Global REITs', return: 0.08, stdev: 0.14, incomeRatio: 0.63, minWeight: 0, maxWeight: 100, color: '#f95d6a', active: true, isDefault: true },
-  { id: 'hedge', name: 'Hedge Fund', return: 0.07, stdev: 0.10, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#ff7c43', active: true, isDefault: true },
-  { id: 'comm', name: 'Commodities', return: 0.04, stdev: 0.18, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#ffa600', active: true, isDefault: true },
-  { id: 'aus_bond', name: 'Australian Bonds', return: 0.045, stdev: 0.05, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#0088FE', active: true, isDefault: true },
-  { id: 'gl_bond', name: 'Global Bonds', return: 0.04, stdev: 0.05, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#00C49F', active: true, isDefault: true },
-  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.065, stdev: 0.10, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#FFBB28', active: true, isDefault: true },
-  { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.07, stdev: 0.12, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#FF8042', active: true, isDefault: true },
-  { id: 'cash', name: 'Cash', return: 0.03, stdev: 0.01, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#8884d8', active: true, isDefault: true },
+  { id: 'aus_eq', name: 'Australian Equities', return: 0.087, stdev: 0.1742, incomeRatio: 0.67, minWeight: 0, maxWeight: 100, color: '#003f5c', active: true, isDefault: true },
+  { id: 'us_large', name: 'US Large Cap Equities', return: 0.084, stdev: 0.1711, incomeRatio: 0.35, minWeight: 0, maxWeight: 100, color: '#2f4b7c', active: true, isDefault: true },
+  { id: 'us_small', name: 'US Small Cap Equities', return: 0.077, stdev: 0.2081, incomeRatio: 0.40, minWeight: 0, maxWeight: 100, color: '#665191', active: true, isDefault: true },
+  { id: 'dev_world', name: 'Developed World Equities', return: 0.07, stdev: 0.1673, incomeRatio: 0.49, minWeight: 0, maxWeight: 100, color: '#a05195', active: true, isDefault: true },
+  { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.083, stdev: 0.20, incomeRatio: 0.44, minWeight: 0, maxWeight: 100, color: '#d45087', active: true, isDefault: true },
+  { id: 'reits', name: 'Global REITs', return: 0.06, stdev: 0.1519, incomeRatio: 0.63, minWeight: 0, maxWeight: 100, color: '#f95d6a', active: true, isDefault: true },
+  { id: 'hedge', name: 'Hedge Fund', return: 0.052, stdev: 0.1171, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#ff7c43', active: true, isDefault: true },
+  { id: 'comm', name: 'Commodities', return: 0.042, stdev: 0.2084, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#ffa600', active: true, isDefault: true },
+  { id: 'aus_bond', name: 'Australian Bonds', return: 0.038, stdev: 0.0394, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#0088FE', active: true, isDefault: true },
+  { id: 'gl_bond', name: 'Global Bonds', return: 0.036, stdev: 0.0358, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#00C49F', active: true, isDefault: true },
+  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054, stdev: 0.1112, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#FFBB28', active: true, isDefault: true },
+  { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.067, stdev: 0.1262, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#FF8042', active: true, isDefault: true },
+  { id: 'cash', name: 'Cash', return: 0.029, stdev: 0.0061, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#8884d8', active: true, isDefault: true },
 ];
 
 const INITIAL_CORRELATIONS_DATA = {
@@ -3085,7 +3085,7 @@ export default function RiskReturnOptimiser() {
       ...asset,
       weight: blendedWeights[idx],
       value: blendedWeights[idx] * 100
-    })).filter(a => a.weight > 0.005); 
+    })).filter(a => a.id === 'cash' || a.weight > 0.005); 
 
     return (
       <div className="space-y-6 animate-in fade-in h-4/5">
@@ -3728,3 +3728,5 @@ export default function RiskReturnOptimiser() {
     </div>
   );
 }
+
+export default RiskReturnOptimiser;
