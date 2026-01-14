@@ -850,7 +850,7 @@ export default function RiskReturnOptimiser() {
       setActiveTab('output');
       await new Promise(r => setTimeout(r, 1500));
 
-      const pieSize = 35; // Reduced size to match entity charts (approx)
+      const pieSize = 55; // Increased size to match entity charts (approx 55mm)
       const pieX = (pageWidth - pieSize) / 2;
       
       // Add Title for the Total Pie
@@ -880,10 +880,10 @@ export default function RiskReturnOptimiser() {
           finally { document.body.removeChild(tempDiv); }
         }
       }
-      y += pieSize + 10; // Reduced gap
+      y += pieSize + 5; // Reduced gap
 
       // Entity Pie Charts - capture from UI
-      addText("Allocation by Entity", 10, 'bold', headingRgb); y += 5;
+      addText("Allocation by Entity", 10, 'bold', headingRgb); y += 4; // Reduced gap
       
       // Capture entity pie charts section from the Output tab
       const entityPiesSection = document.getElementById('entity-pies-section');
@@ -1074,7 +1074,7 @@ export default function RiskReturnOptimiser() {
       addPageBorder();
       y = margin;
 
-      const chartH = 75;
+      const chartH = 65;
 
       // 1. Efficient Frontier
       addText("Efficient Frontier Analysis", 14, 'bold', headingRgb); y += 8;
@@ -2974,7 +2974,7 @@ export default function RiskReturnOptimiser() {
                           const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
                           const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
                           return percent > 0.03 ? (
-                            <text x={x} y={y} fill="#4b5563" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="9">
+                            <text x={x} y={y} fill="#4b5563" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={isExporting ? 14 : 9} fontWeight={isExporting ? "bold" : "normal"}>
                               {`${(percent * 100).toFixed(0)}%`}
                             </text>
                           ) : null;
@@ -3353,7 +3353,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.2</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.154</span>
              </div>
           </div>
         </div>
