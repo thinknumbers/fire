@@ -2841,43 +2841,9 @@ export default function RiskReturnOptimiser() {
 
 
   const OptimizationTab = () => {
-    // Helper to calculate Pre-Tax Return for a portfolio
-    const getPreTaxReturn = (weights) => {
-       if (!weights) return 0;
-       return weights.reduce((sum, w, i) => {
-           const asset = optimizationAssets[i] || assets.find(a => a.id === activeAssets[i]?.id);
-           const r = asset ? asset.return : 0; 
-           // Note: optimizationAssets might have 'return' as After-Tax if valid.
-           // We need the RAW Pre-Tax return from the 'assets' state (DEFAULT_ASSETS).
-           // optimizationAssets are snapshots of activeAssets.
-           // activeAssets' return property might be modified? No, activeAssets in handleRunOpt had after-tax injeced.
-           // Let's look up by ID from main 'assets' list which implies Pre-Tax defaults.
-           const rawAsset = assets.find(a => a.id === (asset?.id));
-           return sum + (w * (rawAsset?.return || 0));
-       }, 0);
-    };
-
-    const chartData = useMemo(() => {
-        if (!showPreTaxFrontier) return efficientFrontier;
-        return efficientFrontier.map(p => ({
-            ...p,
-            return: getPreTaxReturn(p.weights)
-        }));
-    }, [efficientFrontier, showPreTaxFrontier, assets, optimizationAssets]);
-
-    const simulationData = useMemo(() => {
-        if (!showPreTaxFrontier) return simulations;
-         // Note: Simulations cloud is huge. Mapping it might be slow.
-         // For now, let's keep cloud as is (After Tax) or hide it? 
-         // Or try to map it roughly? Simulations don't store weights usually to save memory?
-         // Michaud logic returns {weights} for frontier but maybe not for allSims?
-         // My MichaudOptimizer returns {weights} for frontier. 
-         // For Cloud, it returned {return, risk} only.
-         // So we CANNOT easily convert Cloud to Pre-Tax without weights.
-         // Strategy: Only show Frontier in Pre-Tax mode? Or show Cloud in After-Tax (faded)?
-         // Better: Warn user Cloud is After-Tax.
-         return simulations;
-    }, [simulations, showPreTaxFrontier]);
+    // Pre-Tax mode is disabled for now to avoid hook issues
+    const chartData = efficientFrontier;
+    const simulationData = simulations;
 
     return (
     <div className="space-y-6 animate-in fade-in">
@@ -3577,7 +3543,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.168</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.175</span>
              </div>
           </div>
         </div>
