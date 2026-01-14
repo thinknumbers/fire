@@ -2931,6 +2931,7 @@ export default function RiskReturnOptimiser() {
              </div>
 
 
+
         {/* Chart */}
         {isSimulating ? (
                 <div className="w-48">
@@ -3062,6 +3063,7 @@ export default function RiskReturnOptimiser() {
       </div>
     </div>
   );
+  };
 
   const OutputTab = () => {
     if (efficientFrontier.length === 0) return <div className="p-8 text-center text-gray-500">Please run the optimization first.</div>;
