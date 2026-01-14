@@ -3729,4 +3729,4 @@ export default function RiskReturnOptimiser() {
   );
 }
 
-export default RiskReturnOptimiser;
+
