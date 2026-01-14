@@ -1068,6 +1068,36 @@ export default function RiskReturnOptimiser() {
         pdf.text(formatCurrency(res.p02), margin + pdfWidth * 0.8, y + 4);
         y += 5;
       });
+      y += 10;
+
+      // 4. Asset Allocation by Entity (Table Capture)
+      setActiveTab('output');
+      await new Promise(r => setTimeout(r, 100));
+      const entityTableEl = document.getElementById('entity-allocation-details');
+      if (entityTableEl) {
+         addText("Asset Allocation by Entity", 12, 'bold', headingRgb); y += 6;
+         // Capture with enforced desktop width
+         try {
+             // Clone node to strip shadows/borders if needed? Or just capture as is.
+             // We'll capture as is.
+             const tableCanvas = await html2canvas(entityTableEl, { scale: 1.5, windowWidth: 1400 }); 
+             const tableImg = tableCanvas.toDataURL('image/png');
+             const tProps = pdf.getImageProperties(tableImg);
+             const pdfTableWidth = pdfWidth; 
+             const pdfTableHeight = (tProps.height * pdfTableWidth) / tProps.width;
+             
+             // Check if fits on page
+             if (y + pdfTableHeight > 280) {
+                 pdf.addPage(); 
+                 addPageBorder(); 
+                 y = margin;
+                 addText("Asset Allocation by Entity", 12, 'bold', headingRgb); y += 6;
+             }
+             
+             pdf.addImage(tableImg, 'PNG', margin, y, pdfTableWidth, pdfTableHeight);
+             y += pdfTableHeight + 10;
+         } catch (e) { console.error("Entity Table Capture Error", e); }
+      }
 
       // ==================== PAGE 3: CHARTS ====================
       pdf.addPage();
@@ -3057,7 +3087,7 @@ export default function RiskReturnOptimiser() {
         </div>
 
         {/* Entity-Specific Allocations */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <div id="entity-allocation-details" className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation by Entity</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
              {structures.map(struct => {
