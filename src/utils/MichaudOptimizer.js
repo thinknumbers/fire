@@ -134,7 +134,7 @@ export function runResampledOptimization(assets, correlations, constraints, fore
     // Michaud bins by RANK (1 to M). "1" = Min Var, "M" = Max Return.
     // We calculate the 51 portfolios for each history.
     
-    const M_POINTS = 20; // Number of points on frontier
+    const M_POINTS = 50; // Higher resolution for better binning
     let allFrontiers = []; // Array of [ {w, r, sig} ... M_POINTS ]
     
     for(let sim=0; sim<numSimulations; sim++) {

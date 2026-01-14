@@ -1548,15 +1548,60 @@ export default function RiskReturnOptimiser() {
   };
 
   const finishOptimization = (sims, frontier, activeAssets) => {
-    // 4. Set State
+    // 4. Map Efficient Frontier to 10 Named Buckets (User Requested)
+    // Labels: Defensive, Conservative, Moderate Conservative, Moderate, Balanced,
+    // Balanced Growth, Growth, High Growth, Aggressive, High Aggressive
+    
+    const BUCKET_LABELS = [
+        "Defensive",
+        "Conservative", 
+        "Moderate Conservative",
+        "Moderate",
+        "Balanced",
+        "Balanced Growth",
+        "Growth",
+        "High Growth",
+        "Aggressive",
+        "High Aggressive"
+    ];
+
+    // Find Global Min/Max Risk from the full frontier
+    if (frontier.length === 0) { setIsSimulating(false); return; }
+    
+    const minRisk = frontier[0].risk;
+    const maxRisk = frontier[frontier.length - 1].risk;
+    
+    // We want 10 points distributed by Risk
+    const mappedFrontier = [];
+    const step = (maxRisk - minRisk) / (BUCKET_LABELS.length - 1 || 1);
+
+    BUCKET_LABELS.forEach((label, idx) => {
+        const targetRisk = minRisk + (idx * step);
+        // Find portfolio in frontier with closest risk
+        let closest = frontier[0];
+        let minDiff = Math.abs(frontier[0].risk - targetRisk);
+        
+        for (let p of frontier) {
+            const diff = Math.abs(p.risk - targetRisk);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closest = p;
+            }
+        }
+        
+        mappedFrontier.push({
+            ...closest,
+            id: idx + 1,
+            label: `Portfolio ${idx + 1} - ${label}`
+        });
+    });
+
     setOptimizationAssets(activeAssets);
     setSimulations(sims); // The Cloud
-    setEfficientFrontier(frontier); // The Resampled Curve
+    setEfficientFrontier(mappedFrontier); // The 10 Named Buckets
     
-    // Default to middle risk portfolio
-    // Michaud frontier typically has 20-50 points. Pick middle index.
-    const middleIdx = Math.floor(frontier.length / 2);
-    setSelectedPortfolioId(frontier[middleIdx]?.id || 1);
+    // Default to "Balanced" (Index 4 => ID 5)
+    setSelectedPortfolioId(5);
 
     setIsSimulating(false);
     setProgress(100); // Show 100% only after all processing is complete
@@ -3443,7 +3488,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.162</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.164</span>
              </div>
           </div>
         </div>
