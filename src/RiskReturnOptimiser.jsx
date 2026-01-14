@@ -2929,8 +2929,7 @@ export default function RiskReturnOptimiser() {
                      <span className={`text-xs ${showPreTaxFrontier ? 'font-bold text-gray-800' : 'text-gray-500'}`}>Pre-Tax</span>
                  </div>
              </div>
-          </div>
-        </div>
+
 
         {/* Chart */}
         {isSimulating ? (
