@@ -965,16 +965,16 @@ export default function RiskReturnOptimiser() {
       y = margin;
 
       // 1. Detailed Asset Allocation Table
-      addText("Detailed Asset Allocation", 12, 'bold', headingRgb); y += 6;
+      addText("Detailed Asset Allocation", 10, 'bold', headingRgb); y += 5;
       
       // Table Header
       pdf.setFillColor(245, 245, 245);
-      pdf.rect(margin, y, pdfWidth, 7, 'F');
-      pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
-      pdf.text("Asset Class", margin + 2, y + 5);
-      pdf.text("Weight", margin + pdfWidth * 0.6, y + 5);
-      pdf.text("Value", margin + pdfWidth * 0.8, y + 5);
-      y += 7;
+      pdf.rect(margin, y, pdfWidth, 6, 'F');
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
+      pdf.text("Asset Class", margin + 2, y + 4);
+      pdf.text("Weight", margin + pdfWidth * 0.6, y + 4);
+      pdf.text("Value", margin + pdfWidth * 0.8, y + 4);
+      y += 6;
 
       // Table Rows
       pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
@@ -991,11 +991,11 @@ export default function RiskReturnOptimiser() {
         
         pdf.setFillColor(asset.color);
         pdf.rect(margin + 2, y + 1, 2, 3, 'F');
-        pdf.setTextColor(0, 0, 0);
-        pdf.text(asset.name, margin + 6, y + 4);
-        pdf.text(formatPercent(weight), margin + pdfWidth * 0.6, y + 4);
-        pdf.text(formatCurrency(value), margin + pdfWidth * 0.8, y + 4);
-        y += 4;
+        pdf.setTextColor(0, 72, 118);
+        pdf.text(asset.name, margin + 6, y + 3.5);
+        pdf.text(formatPercent(weight), margin + pdfWidth * 0.6, y + 3.5);
+        pdf.text(formatCurrency(value), margin + pdfWidth * 0.8, y + 3.5);
+        y += 5;
       });
       
       // Total Row
@@ -1008,16 +1008,16 @@ export default function RiskReturnOptimiser() {
       y += 10;
 
       // 2. Model Portfolios Summary
-      addText("Model Portfolios Summary", 12, 'bold', headingRgb); y += 6;
+      addText("Model Portfolios Summary", 10, 'bold', headingRgb); y += 5;
       
       pdf.setFillColor(245, 245, 245);
-      pdf.rect(margin, y, pdfWidth, 7, 'F');
-      pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
-      pdf.text("Model", margin + 2, y + 5);
-      pdf.text("Name", margin + 25, y + 5);
-      pdf.text("Return", margin + pdfWidth * 0.65, y + 5);
-      pdf.text("Risk", margin + pdfWidth * 0.85, y + 5);
-      y += 7;
+      pdf.rect(margin, y, pdfWidth, 6, 'F');
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
+      pdf.text("Model", margin + 2, y + 4);
+      pdf.text("Name", margin + 25, y + 4);
+      pdf.text("Return", margin + pdfWidth * 0.65, y + 4);
+      pdf.text("Risk", margin + pdfWidth * 0.85, y + 4);
+      y += 6;
 
       pdf.setFont('helvetica', 'normal');
       efficientFrontier.forEach((port, idx) => {
@@ -1032,26 +1032,26 @@ export default function RiskReturnOptimiser() {
           pdf.rect(margin, y, pdfWidth, 5, 'F');
         }
         
-        pdf.setTextColor(0, 0, 0);
-        pdf.text(String(port.id || idx + 1), margin + 2, y + 4);
-        pdf.text(MODEL_NAMES[port.id] || 'Custom', margin + 25, y + 4);
-        pdf.text(formatPercent(port.return), margin + pdfWidth * 0.65, y + 4);
-        pdf.text(formatPercent(port.risk), margin + pdfWidth * 0.85, y + 4);
-        y += 4;
+        pdf.setTextColor(0, 72, 118);
+        pdf.text(String(port.id || idx + 1), margin + 2, y + 3.5);
+        pdf.text(MODEL_NAMES[port.id] || 'Custom', margin + 25, y + 3.5);
+        pdf.text(formatPercent(port.return), margin + pdfWidth * 0.65, y + 3.5);
+        pdf.text(formatPercent(port.risk), margin + pdfWidth * 0.85, y + 3.5);
+        y += 5;
       });
       y += 10;
 
       // 3. Estimated Outcomes Table
-      addText("Estimated Outcomes", 12, 'bold', headingRgb); y += 6;
+      addText("Estimated Outcomes", 10, 'bold', headingRgb); y += 5;
       
       pdf.setFillColor(245, 245, 245);
-      pdf.rect(margin, y, pdfWidth, 7, 'F');
-      pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
-      pdf.text("Year", margin + 2, y + 5);
-      pdf.text("Upside", margin + pdfWidth * 0.3, y + 5);
-      pdf.text("Median", margin + pdfWidth * 0.55, y + 5);
-      pdf.text("Downside", margin + pdfWidth * 0.8, y + 5);
-      y += 7;
+      pdf.rect(margin, y, pdfWidth, 6, 'F');
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
+      pdf.text("Year", margin + 2, y + 4);
+      pdf.text("Upside", margin + pdfWidth * 0.3, y + 4);
+      pdf.text("Median", margin + pdfWidth * 0.55, y + 4);
+      pdf.text("Downside", margin + pdfWidth * 0.8, y + 4);
+      y += 6;
 
       pdf.setFont('helvetica', 'normal');
       const outcomeYears = [1, 3, 5, 10, 20];
@@ -1064,16 +1064,16 @@ export default function RiskReturnOptimiser() {
           pdf.rect(margin, y, pdfWidth, 5, 'F');
         }
         
-        pdf.setTextColor(0, 0, 0);
-        pdf.text(`${yr} Year`, margin + 2, y + 4);
-        pdf.text(formatCurrency(res.p84), margin + pdfWidth * 0.3, y + 4);
+        pdf.setTextColor(0, 72, 118);
+        pdf.text(`${yr} Year`, margin + 2, y + 3.5);
+        pdf.text(formatCurrency(res.p84), margin + pdfWidth * 0.3, y + 3.5);
         pdf.setFont('helvetica', 'bold');
-        pdf.text(formatCurrency(res.p50), margin + pdfWidth * 0.55, y + 4);
+        pdf.text(formatCurrency(res.p50), margin + pdfWidth * 0.55, y + 3.5);
         pdf.setFont('helvetica', 'normal');
-        pdf.text(formatCurrency(res.p02), margin + pdfWidth * 0.8, y + 4);
-        y += 4;
+        pdf.text(formatCurrency(res.p02), margin + pdfWidth * 0.8, y + 3.5);
+        y += 5;
       });
-      y += 10;
+      y += 8;
 
       // 4. Asset Allocation by Entity (Table Capture)
       setActiveTab('output');
@@ -3547,7 +3547,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.179</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.180</span>
              </div>
           </div>
         </div>
