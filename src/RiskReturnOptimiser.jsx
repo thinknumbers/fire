@@ -518,6 +518,12 @@ export default function RiskReturnOptimiser() {
 
     const n = assetList.length;
     
+    // Debug: Log what assets we're working with
+    console.log(`[Constraint Debug] Entity: ${entity.name}, useAssetAllocation: ${entity.useAssetAllocation}`);
+    console.log(`[Constraint Debug] AssetList IDs: ${assetList.map(a => a.id).join(', ')}`);
+    console.log(`[Constraint Debug] Entity allocation IDs: ${entity.assetAllocation ? entity.assetAllocation.map(a => a.id).join(', ') : 'none'}`);
+    console.log(`[Constraint Debug] Cash constraint: ${entity.assetAllocation?.find(a => a.id === 'cash')?.min || 'not found'}`);
+    
     // Get min/max constraints for each asset (convert from 0-100 to 0-1)
     const mins = assetList.map(asset => {
       const alloc = entity.assetAllocation.find(a => a.id === asset.id);
