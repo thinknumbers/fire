@@ -796,8 +796,8 @@ export default function RiskReturnOptimiser() {
       // Title Block
       addText("Wealth Strategy Report", 22, 'bold', accentRgb, 'center'); y += 10;
       addText(scenarioName, 14, 'normal', textRgb, 'center'); y += 7;
-      const modelName = MODEL_NAMES[selectedPortfolio.id] || "Custom";
-      addText(`Selected Portfolio: ${selectedPortfolio.label} ${modelName}`, 12, 'bold', accentRgb, 'center'); y += 7;
+      const modelName = MODEL_NAMES[selectedPortfolio.id] || "";
+      addText(`Selected Portfolio: Portfolio ${selectedPortfolio.id}${modelName ? ' - ' + modelName : ''}`, 12, 'bold', accentRgb, 'center'); y += 7;
       addText(`Generated: ${new Date().toLocaleDateString()}`, 9, 'italic', [112, 112, 112], 'center'); y += 10;
 
       // Key Assumptions (2 columns)
@@ -1126,10 +1126,10 @@ export default function RiskReturnOptimiser() {
         pdf.rect(boxX, rowY, entityBoxWidth, 5, 'F');
         pdf.setFontSize(6); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
         pdf.text("Asset", boxX + boxPadding, rowY + 3.5);
-        pdf.text("Current", boxX + entityBoxWidth * 0.38, rowY + 3.5);
-        pdf.text("%", boxX + entityBoxWidth * 0.54, rowY + 3.5);
-        pdf.text("Recom.", boxX + entityBoxWidth * 0.68, rowY + 3.5);
-        pdf.text("%", boxX + entityBoxWidth * 0.86, rowY + 3.5);
+        pdf.text("Current", boxX + entityBoxWidth * 0.30, rowY + 3.5);
+        pdf.text("%", boxX + entityBoxWidth * 0.46, rowY + 3.5);
+        pdf.text("Recom.", boxX + entityBoxWidth * 0.60, rowY + 3.5);
+        pdf.text("%", boxX + entityBoxWidth * 0.80, rowY + 3.5);
         rowY += 5;
         
         // Asset Rows
@@ -1168,10 +1168,10 @@ export default function RiskReturnOptimiser() {
           pdf.setTextColor(0, 72, 118);
           pdf.text(displayName, boxX + boxPadding, rowY + 3);
           // Center values under headers
-          pdf.text(formatCurrency(currVal), boxX + entityBoxWidth * 0.33, rowY + 3);
-          pdf.text(currPct.toFixed(1) + '%', boxX + entityBoxWidth * 0.52, rowY + 3);
-          pdf.text(formatCurrency(recVal), boxX + entityBoxWidth * 0.66, rowY + 3);
-          pdf.text(recPct.toFixed(1) + '%', boxX + entityBoxWidth * 0.84, rowY + 3);
+          pdf.text(formatCurrency(currVal), boxX + entityBoxWidth * 0.26, rowY + 3);
+          pdf.text(currPct.toFixed(1) + '%', boxX + entityBoxWidth * 0.44, rowY + 3);
+          pdf.text(formatCurrency(recVal), boxX + entityBoxWidth * 0.58, rowY + 3);
+          pdf.text(recPct.toFixed(1) + '%', boxX + entityBoxWidth * 0.78, rowY + 3);
           rowY += 4;
         });
         
@@ -1180,10 +1180,10 @@ export default function RiskReturnOptimiser() {
         pdf.rect(boxX, rowY, entityBoxWidth, 5, 'F');
         pdf.setFontSize(6); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
         pdf.text("Total", boxX + boxPadding, rowY + 3.5);
-        pdf.text(formatCurrency(struct.value), boxX + entityBoxWidth * 0.33, rowY + 3.5);
-        pdf.text("100%", boxX + entityBoxWidth * 0.52, rowY + 3.5);
-        pdf.text(formatCurrency(struct.value), boxX + entityBoxWidth * 0.66, rowY + 3.5);
-        pdf.text("100%", boxX + entityBoxWidth * 0.84, rowY + 3.5);
+        pdf.text(formatCurrency(struct.value), boxX + entityBoxWidth * 0.26, rowY + 3.5);
+        pdf.text("100%", boxX + entityBoxWidth * 0.44, rowY + 3.5);
+        pdf.text(formatCurrency(struct.value), boxX + entityBoxWidth * 0.58, rowY + 3.5);
+        pdf.text("100%", boxX + entityBoxWidth * 0.78, rowY + 3.5);
         rowY += 5;
         
         // Box border
@@ -3644,7 +3644,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.184</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.185</span>
              </div>
           </div>
         </div>
