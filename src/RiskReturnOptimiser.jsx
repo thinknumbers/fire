@@ -965,14 +965,14 @@ export default function RiskReturnOptimiser() {
       // Table Header
       pdf.setFillColor(245, 245, 245);
       pdf.rect(margin, y, pdfWidth, 7, 'F');
-      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
+      pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
       pdf.text("Asset Class", margin + 2, y + 5);
       pdf.text("Weight", margin + pdfWidth * 0.6, y + 5);
       pdf.text("Value", margin + pdfWidth * 0.8, y + 5);
       y += 7;
 
       // Table Rows
-      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
       let totalValue = 0;
       activeOnly.forEach((asset, idx) => {
         const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
@@ -990,7 +990,7 @@ export default function RiskReturnOptimiser() {
         pdf.text(asset.name, margin + 6, y + 4);
         pdf.text(formatPercent(weight), margin + pdfWidth * 0.6, y + 4);
         pdf.text(formatCurrency(value), margin + pdfWidth * 0.8, y + 4);
-        y += 5;
+        y += 4;
       });
       
       // Total Row
@@ -1000,14 +1000,14 @@ export default function RiskReturnOptimiser() {
       pdf.text("Total", margin + 6, y + 4);
       pdf.text("100.0%", margin + pdfWidth * 0.6, y + 4);
       pdf.text(formatCurrency(totalWealth), margin + pdfWidth * 0.8, y + 4);
-      y += 15;
+      y += 10;
 
       // 2. Model Portfolios Summary
       addText("Model Portfolios Summary", 12, 'bold', headingRgb); y += 6;
       
       pdf.setFillColor(245, 245, 245);
       pdf.rect(margin, y, pdfWidth, 7, 'F');
-      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
+      pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
       pdf.text("Model", margin + 2, y + 5);
       pdf.text("Name", margin + 25, y + 5);
       pdf.text("Return", margin + pdfWidth * 0.65, y + 5);
@@ -1032,7 +1032,7 @@ export default function RiskReturnOptimiser() {
         pdf.text(MODEL_NAMES[port.id] || 'Custom', margin + 25, y + 4);
         pdf.text(formatPercent(port.return), margin + pdfWidth * 0.65, y + 4);
         pdf.text(formatPercent(port.risk), margin + pdfWidth * 0.85, y + 4);
-        y += 5;
+        y += 4;
       });
       y += 10;
 
@@ -1041,7 +1041,7 @@ export default function RiskReturnOptimiser() {
       
       pdf.setFillColor(245, 245, 245);
       pdf.rect(margin, y, pdfWidth, 7, 'F');
-      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
+      pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
       pdf.text("Year", margin + 2, y + 5);
       pdf.text("Upside", margin + pdfWidth * 0.3, y + 5);
       pdf.text("Median", margin + pdfWidth * 0.55, y + 5);
@@ -1066,7 +1066,7 @@ export default function RiskReturnOptimiser() {
         pdf.text(formatCurrency(res.p50), margin + pdfWidth * 0.55, y + 4);
         pdf.setFont('helvetica', 'normal');
         pdf.text(formatCurrency(res.p02), margin + pdfWidth * 0.8, y + 4);
-        y += 5;
+        y += 4;
       });
       y += 10;
 
@@ -3100,29 +3100,48 @@ export default function RiskReturnOptimiser() {
                  <div className="font-bold text-sm text-gray-800 mb-2 border-b pb-1">{struct.name}</div>
                  <div className="space-y-1">
                    <div className="grid grid-cols-12 text-[10px] font-bold text-gray-400 uppercase mb-1 border-b pb-1">
-                     <div className="col-span-6">Asset</div>
-                     <div className="col-span-4 text-right">$$</div>
+                     <div className="col-span-4">Asset</div>
+                     <div className="col-span-2 text-right">Current</div>
+                     <div className="col-span-1 text-right">%</div>
+                     <div className="col-span-3 text-right">Recommended</div>
                      <div className="col-span-2 text-right">%</div>
                    </div>
                     {activeAssets.map((asset) => {
                       // Find the correct index in the full optimizationAssets array by asset ID
                       const fullIdx = optimizationAssets.findIndex(a => a.id === asset.id);
-                      const entityWeight = fullIdx >= 0 ? (entityWeights[fullIdx] || 0) : 0;
-                      const dollarVal = entityWeight * struct.value;
-                      const percentVal = entityWeight * 100;
+                      // Recommended
+                      const recWeight = fullIdx >= 0 ? (entityWeights[fullIdx] || 0) : 0;
+                      const recVal = recWeight * struct.value;
+                      const recPct = recWeight * 100;
+
+                      // Current
+                      let currWeight = 0;
+                      if (struct.useAssetAllocation && struct.assetAllocation) {
+                          const alloc = struct.assetAllocation.find(a => a.id === asset.id);
+                          currWeight = alloc ? alloc.weight / 100 : 0;
+                      } else {
+                          if (asset.id === 'cash') currWeight = 1.0;
+                      }
+                      const currVal = currWeight * struct.value;
+                      const currPct = currWeight * 100;
+
                      return (
                        <div key={asset.id} className="grid grid-cols-12 text-xs py-0.5 border-b border-gray-50 last:border-0 items-center">
-                         <div className="col-span-6 text-gray-600 truncate pr-1" title={asset.name}>{asset.name}</div>
-                         <div className="col-span-4 text-right font-mono text-gray-900 text-[10px]">{formatCurrency(dollarVal)}</div>
-                         <div className="col-span-2 text-right font-mono text-gray-900 text-[10px]">{percentVal.toFixed(1)}%</div>
+                         <div className="col-span-4 text-gray-600 truncate pr-1" title={asset.name}>{asset.name}</div>
+                         <div className="col-span-2 text-right font-mono text-gray-900 text-[10px]">{formatCurrency(currVal)}</div>
+                         <div className="col-span-1 text-right font-mono text-gray-900 text-[10px]">{currPct.toFixed(1)}%</div>
+                         <div className="col-span-3 text-right font-mono text-gray-900 text-[10px]">{formatCurrency(recVal)}</div>
+                         <div className="col-span-2 text-right font-mono text-gray-900 text-[10px]">{recPct.toFixed(1)}%</div>
                        </div>
                      )
                    })}
                  </div>
                  <div className="mt-3 pt-2 border-t-2 border-gray-200 bg-gray-50 -mx-3 -mb-3 p-3 rounded-b-lg">
                     <div className="grid grid-cols-12 text-xs font-bold text-gray-900 uppercase">
-                      <div className="col-span-6">Total</div>
-                      <div className="col-span-4 text-right font-mono">{formatCurrency(struct.value)}</div>
+                      <div className="col-span-4">Total</div>
+                      <div className="col-span-2 text-right font-mono">{formatCurrency(struct.value)}</div>
+                      <div className="col-span-1 text-right font-mono">100%</div>
+                      <div className="col-span-3 text-right font-mono">{formatCurrency(struct.value)}</div>
                       <div className="col-span-2 text-right font-mono">100%</div>
                     </div>
                  </div>
@@ -3385,7 +3404,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.159</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.160</span>
              </div>
           </div>
         </div>
