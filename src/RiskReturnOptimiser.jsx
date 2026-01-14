@@ -850,7 +850,7 @@ export default function RiskReturnOptimiser() {
       setActiveTab('output');
       await new Promise(r => setTimeout(r, 1500));
 
-      const pieSize = 55; // Increased size to match entity charts (approx 55mm)
+      const pieSize = 70; // Increased size to match entity charts (70mm)
       const pieX = (pageWidth - pieSize) / 2;
       
       // Add Title for the Total Pie
@@ -1074,7 +1074,9 @@ export default function RiskReturnOptimiser() {
       addPageBorder();
       y = margin;
 
-      const chartH = 65;
+      const chartH = 75;
+      const displayMargin = 5; // Reduced margin for wider charts
+      const displayWidth = pageWidth - (displayMargin * 2);
 
       // 1. Efficient Frontier
       addText("Efficient Frontier Analysis", 14, 'bold', headingRgb); y += 8;
@@ -1087,7 +1089,7 @@ export default function RiskReturnOptimiser() {
          const img = await captureChart('temp-frontier-chart');
          frontierEl.id = originalId;
          if (img) {
-            pdf.addImage(img, 'PNG', margin, y, pdfWidth, chartH, undefined, 'FAST');
+            pdf.addImage(img, 'PNG', displayMargin, y, displayWidth, chartH, undefined, 'FAST');
             y += chartH + 10;
          }
       } else {
@@ -1100,7 +1102,7 @@ export default function RiskReturnOptimiser() {
       addText("Wealth Projection", 14, 'bold', headingRgb); y += 8;
       const wealthImg = await captureChart('wealth-projection-chart');
       if (wealthImg) {
-          pdf.addImage(wealthImg, 'PNG', margin, y, pdfWidth, chartH, undefined, 'FAST');
+          pdf.addImage(wealthImg, 'PNG', displayMargin, y, displayWidth, chartH, undefined, 'FAST');
           y += chartH + 10;
       }
       
@@ -1108,7 +1110,7 @@ export default function RiskReturnOptimiser() {
       addText("Estimated Outcomes", 14, 'bold', headingRgb); y += 8;
       const outcomesImg = await captureChart('estimating-outcomes-chart');
       if (outcomesImg) {
-          pdf.addImage(outcomesImg, 'PNG', margin, y, pdfWidth, chartH, undefined, 'FAST');
+          pdf.addImage(outcomesImg, 'PNG', displayMargin, y, displayWidth, chartH, undefined, 'FAST');
       }
 
       // Footer on each page
