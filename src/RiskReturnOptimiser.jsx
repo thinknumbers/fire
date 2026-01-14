@@ -819,7 +819,7 @@ export default function RiskReturnOptimiser() {
         y += 4;
       });
 
-      y = Math.max(y, startY + 25) + 5;
+      y = Math.max(y, startY + 25) + 2;
       addLine();
 
       // Portfolio Analysis Boxes
@@ -842,7 +842,7 @@ export default function RiskReturnOptimiser() {
       drawBox(startX, "Expected Return", formatPercent(selectedPortfolio.return), [22, 163, 74]);
       drawBox(startX + boxWidth + 10, "Risk (StdDev)", formatPercent(selectedPortfolio.risk), [220, 38, 38]);
       
-      y += boxHeight + 10;
+      y += boxHeight + 5;
 
       // ==================== PAGE 1: PIE CHARTS ====================
       // Overall Pie Chart
@@ -855,7 +855,7 @@ export default function RiskReturnOptimiser() {
       
       // Add Title for the Total Pie
       addText("Total Portfolio", 9, 'bold', [80, 80, 80], 'center');
-      y += 4;
+      y += 2;
 
       const pieContainer = document.getElementById('pie-chart-section');
       if (pieContainer) {
@@ -880,7 +880,7 @@ export default function RiskReturnOptimiser() {
           finally { document.body.removeChild(tempDiv); }
         }
       }
-      y += pieSize + 5; // Reduced gap
+      y += pieSize + 2; // Reduced gap
 
       // Entity Pie Charts - capture from UI
       addText("Allocation by Entity", 10, 'bold', headingRgb); y += 4; // Reduced gap
