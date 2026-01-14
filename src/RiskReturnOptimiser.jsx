@@ -2936,8 +2936,10 @@ export default function RiskReturnOptimiser() {
                   name="Risk" 
                   unit="" 
                   tickFormatter={(val) => formatPercent(val)}
-                  label={{ value: 'Risk', position: 'bottom', offset: 0 }}
+                  label={{ value: 'Risk', position: 'bottom', offset: 0, fill: '#004876' }}
                   domain={['auto', 'auto']}
+                  tick={{ fill: '#004876' }}
+                  stroke="#004876"
                 />
                 <YAxis 
                   type="number" 
@@ -2945,8 +2947,10 @@ export default function RiskReturnOptimiser() {
                   name="Return" 
                   unit="" 
                   tickFormatter={(val) => formatPercent(val)}
-                  label={{ value: 'Return', angle: -90, position: 'insideLeft' }}
+                  label={{ value: 'Return', angle: -90, position: 'insideLeft', fill: '#004876' }}
                   domain={[0, 'auto']}
+                  tick={{ fill: '#004876' }}
+                  stroke="#004876"
                 />
                 {!isExporting && <Tooltip 
                   cursor={{ strokeDasharray: '3 3' }} 
@@ -2988,8 +2992,8 @@ export default function RiskReturnOptimiser() {
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={efficientFrontier} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                            <YAxis tickFormatter={(val) => `${(val*100).toFixed(0)}%`} tick={{ fontSize: 10 }} domain={[0, 1]} />
+                            <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#004876' }} stroke="#004876" />
+                            <YAxis tickFormatter={(val) => `${(val*100).toFixed(0)}%`} tick={{ fontSize: 10, fill: '#004876' }} domain={[0, 1]} stroke="#004876" />
                             <Tooltip content={({ active, payload, label }) => {
                                 if (active && payload && payload.length) {
                                   return (
@@ -3394,8 +3398,8 @@ export default function RiskReturnOptimiser() {
                     <stop offset="95%" stopColor="#E03A3E" stopOpacity={0.1}/>
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="year" label={{ value: 'Years', position: 'bottom' }} />
-                <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} />
+                <XAxis dataKey="year" label={{ value: 'Years', position: 'bottom', fill: '#004876' }} tick={{ fill: '#004876' }} stroke="#004876" />
+                <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} tick={{ fill: '#004876' }} stroke="#004876" />
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 {!isExporting && <Tooltip 
                   content={({ active, payload, label }) => {
@@ -3460,8 +3464,8 @@ export default function RiskReturnOptimiser() {
                   margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="year" axisLine={false} tickLine={false} />
-                  <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} />
+                  <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fill: '#004876' }} />
+                  <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} tick={{ fill: '#004876' }} stroke="#004876" />
                   {!isExporting && <Tooltip 
                      cursor={{fill: 'transparent'}}
                      content={({ active, payload, label }) => {
@@ -3543,7 +3547,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.178</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.179</span>
              </div>
           </div>
         </div>
