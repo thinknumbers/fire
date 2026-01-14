@@ -417,11 +417,11 @@ export default function RiskReturnOptimiser() {
 
   // --- Settings State ---
   const DEFAULT_APP_SETTINGS = {
-     title: "FIREBALL",
+     title: "Fireball Risk Optimiser",
      logo: fireLogo,
      colors: {
-         accent: '#E84E1B',
-         heading: '#1C2E4A',
+         accent: '#004876',
+         heading: '#f7a800',
          text: '#333333',
          bgLight: '#F2F2F2'
      }
@@ -3543,7 +3543,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.176</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.177</span>
              </div>
           </div>
         </div>
