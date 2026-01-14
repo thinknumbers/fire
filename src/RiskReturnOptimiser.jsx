@@ -2986,10 +2986,14 @@ export default function RiskReturnOptimiser() {
                   const globalWeights = selectedPortfolio?.weights || activeAssets.map(a => a.weight);
                   const entityWeights = getEntityConstrainedWeights(struct, globalWeights, optimizationAssets.length > 0 ? optimizationAssets : activeAssets);
                   
-                  const entityAssets = activeAssets.map((asset, idx) => ({
-                    ...asset,
-                    value: (entityWeights[idx] || 0) * 100
-                  })).filter(a => a.value > 0.5);
+                  const entityAssets = activeAssets.map((asset) => {
+                    const fullIdx = optimizationAssets.findIndex(a => a.id === asset.id);
+                    const weight = fullIdx >= 0 ? (entityWeights[fullIdx] || 0) : 0;
+                    return {
+                      ...asset,
+                      value: weight * 100
+                    };
+                  }).filter(a => a.value > 0.5);
                   
                   return (
                     <div key={struct.id} className="flex-shrink-0" style={{ width: `${Math.min(200, 100 / structures.length)}%`, minWidth: '130px', maxWidth: '180px' }}>
