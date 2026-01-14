@@ -409,7 +409,9 @@ export default function RiskReturnOptimiser() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [progress, setProgress] = useState(0); // 0-100
   const [simulationCount, setSimulationCount] = useState(1000); // Default number of simulations
+
   const [selectedPortfolioId, setSelectedPortfolioId] = useState(5);
+  const [forecastConfidenceLevel, setForecastConfidenceLevel] = useState(2); // 1=Low, 2=Med, 3=High
 
   // --- Settings State ---
   const DEFAULT_APP_SETTINGS = {
@@ -1497,8 +1499,14 @@ export default function RiskReturnOptimiser() {
     const afterTaxReturns = calculateClientTaxAdjustedReturns(activeAssets, structures, entityTypes);
     
     // Simulation Configuration
-    const forecastConfidence = 50; // Medium (T=50) - Could be a state variable
-    const numSimulations = 50;     // N=50 resampled histories
+    // User Input: simulationCount = N (Number of Resampled Histories)
+    const numSimulations = Math.max(10, Math.min(simulationCount, 500)); 
+    
+    // Forecast Confidence (T = Sample Size)
+    // Low = T is small (high uncertainty/diversification). High = T is large (converges to Markowitz).
+    // derived from 'forecastConfidenceLevel' state (1, 2, 3)
+    const T_MAP = { 1: 15, 2: 50, 3: 200 }; 
+    const confidenceT = T_MAP[forecastConfidenceLevel] || 50;
 
     // Run Optimization Async to avoid blocking UI
     setTimeout(() => {
@@ -1516,23 +1524,24 @@ export default function RiskReturnOptimiser() {
         }));
 
         try {
-            const result = runResampledOptimization(optAssets, activeCorrelations, constraints, forecastConfidence, numSimulations);
+            const result = runResampledOptimization(optAssets, activeCorrelations, constraints, confidenceT, numSimulations);
             
-            // Convert results back to percentage format for UI
+            // Keep Result in DECIMALS. do NOT multiply by 100.
+            // Charts and Projectors expect Decimals (0.09).
             const finalFrontier = result.frontier.map(p => ({
                 ...p,
-                return: p.return * 100,
-                risk: p.risk * 100,
-                weights: p.weights // Keep decimal for internal calc, UI converts to %
+                return: p.return,
+                risk: p.risk,
+                weights: p.weights 
             }));
             
-            // Flatten simulations for the cloud visualization (optional, heavyweight)
+            // Flatten simulations for the cloud visualization
             const cloud = []; 
             result.simulations.forEach(simFrontier => {
                 simFrontier.forEach(p => {
                     cloud.push({
-                        return: p.return * 100,
-                        risk: p.risk * 100
+                        return: p.return,
+                        risk: p.risk
                     });
                 });
             });
@@ -2838,14 +2847,32 @@ export default function RiskReturnOptimiser() {
           
           <div className="flex items-center gap-4">
              <div className="text-right">
+               <label className="block text-xs font-bold text-gray-500 mb-1">Forecast Confidence</label>
+               <select 
+                  value={forecastConfidenceLevel}
+                  onChange={(e) => setForecastConfidenceLevel(parseInt(e.target.value))}
+                  className="w-32 text-right border border-gray-300 rounded px-2 py-1 text-sm bg-white"
+               >
+                   <option value={1}>Low (Robust)</option>
+                   <option value={2}>Medium</option>
+                   <option value={3}>High (Precise)</option>
+               </select>
+             </div>
+
+             <div className="text-right">
                <label className="block text-xs font-bold text-gray-500 mb-1">Simulations</label>
-               <NumberInput 
-                 value={simulationCount} 
-                 onChange={(val) => setSimulationCount(val || 1000)}
-                 className="w-32 text-right border border-gray-300 rounded px-2 py-1 text-sm"
-                 placeholder="1000"
-                 prefix=""
-               />
+               <div className="group relative">
+                 <NumberInput 
+                   value={simulationCount} 
+                   onChange={(val) => setSimulationCount(val || 50)}
+                   className="w-24 text-right border border-gray-300 rounded px-2 py-1 text-sm"
+                   placeholder="50"
+                   prefix=""
+                 />
+                 <div className="hidden group-hover:block absolute right-0 top-full mt-1 w-48 p-2 bg-gray-800 text-white text-xs rounded z-50">
+                     Number of alternative histories to generate (N). Higher = smoother result but slower.
+                 </div>
+               </div>
              </div>
 
              {isSimulating ? (
@@ -3488,7 +3515,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.165</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.167</span>
              </div>
           </div>
         </div>
