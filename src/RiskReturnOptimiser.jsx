@@ -1,4 +1,4 @@
-// Deployment trigger: 2026-01-07T17:14
+// Deployment trigger: v1.190 - 2026-01-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -53,19 +53,19 @@ const NumberInput = ({ value, onChange, className, placeholder, prefix = "$" }) 
 };
 
 const DEFAULT_ASSETS = [
-  { id: 'aus_eq', name: 'Australian Equities', return: 0.087, stdev: 0.1742, incomeRatio: 0.67, minWeight: 0, maxWeight: 100, color: '#003f5c', active: true, isDefault: true },
-  { id: 'us_large', name: 'US Large Cap Equities', return: 0.084, stdev: 0.1711, incomeRatio: 0.35, minWeight: 0, maxWeight: 100, color: '#2f4b7c', active: true, isDefault: true },
-  { id: 'us_small', name: 'US Small Cap Equities', return: 0.077, stdev: 0.2081, incomeRatio: 0.40, minWeight: 0, maxWeight: 100, color: '#665191', active: true, isDefault: true },
-  { id: 'dev_world', name: 'Developed World Equities', return: 0.07, stdev: 0.1673, incomeRatio: 0.49, minWeight: 0, maxWeight: 100, color: '#a05195', active: true, isDefault: true },
-  { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.083, stdev: 0.20, incomeRatio: 0.44, minWeight: 0, maxWeight: 100, color: '#d45087', active: true, isDefault: true },
-  { id: 'reits', name: 'Global REITs', return: 0.06, stdev: 0.1519, incomeRatio: 0.63, minWeight: 0, maxWeight: 100, color: '#f95d6a', active: true, isDefault: true },
-  { id: 'hedge', name: 'Hedge Fund', return: 0.052, stdev: 0.1171, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#ff7c43', active: true, isDefault: true },
-  { id: 'comm', name: 'Commodities', return: 0.042, stdev: 0.2084, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#ffa600', active: true, isDefault: true },
-  { id: 'aus_bond', name: 'Australian Bonds', return: 0.038, stdev: 0.0394, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#0088FE', active: true, isDefault: true },
-  { id: 'gl_bond', name: 'Global Bonds', return: 0.036, stdev: 0.0358, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#00C49F', active: true, isDefault: true },
-  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054, stdev: 0.1112, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#FFBB28', active: true, isDefault: true },
-  { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.067, stdev: 0.1262, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#FF8042', active: true, isDefault: true },
-  { id: 'cash', name: 'Cash', return: 0.029, stdev: 0.0061, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#8884d8', active: true, isDefault: true },
+  { id: 'aus_eq', name: 'Australian Equities', return: 0.087, stdev: 0.1742, incomeRatio: 0.67, minWeight: 0, maxWeight: 100, color: '#7eb7c9', active: true, isDefault: true },
+  { id: 'us_large', name: 'US Large Cap Equities', return: 0.084, stdev: 0.1711, incomeRatio: 0.35, minWeight: 0, maxWeight: 100, color: '#8fa3bf', active: true, isDefault: true },
+  { id: 'us_small', name: 'US Small Cap Equities', return: 0.077, stdev: 0.2081, incomeRatio: 0.40, minWeight: 0, maxWeight: 100, color: '#a599bf', active: true, isDefault: true },
+  { id: 'dev_world', name: 'Developed World Equities', return: 0.07, stdev: 0.1673, incomeRatio: 0.49, minWeight: 0, maxWeight: 100, color: '#c4a1bf', active: true, isDefault: true },
+  { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.083, stdev: 0.20, incomeRatio: 0.44, minWeight: 0, maxWeight: 100, color: '#d9a8b8', active: true, isDefault: true },
+  { id: 'reits', name: 'Global REITs', return: 0.06, stdev: 0.1519, incomeRatio: 0.63, minWeight: 0, maxWeight: 100, color: '#e8b8a8', active: true, isDefault: true },
+  { id: 'hedge', name: 'Hedge Fund', return: 0.052, stdev: 0.1171, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#f2c8a8', active: true, isDefault: true },
+  { id: 'comm', name: 'Commodities', return: 0.042, stdev: 0.2084, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#f5d9a8', active: true, isDefault: true },
+  { id: 'aus_bond', name: 'Australian Bonds', return: 0.038, stdev: 0.0394, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#98c9e8', active: true, isDefault: true },
+  { id: 'gl_bond', name: 'Global Bonds', return: 0.036, stdev: 0.0358, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#98dbc2', active: true, isDefault: true },
+  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054, stdev: 0.1112, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#f5e5a3', active: true, isDefault: true },
+  { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.067, stdev: 0.1262, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#f5c8a8', active: true, isDefault: true },
+  { id: 'cash', name: 'Cash', return: 0.029, stdev: 0.0061, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#b8b8d8', active: true, isDefault: true },
 ];
 
 const INITIAL_CORRELATIONS_DATA = {
@@ -113,7 +113,7 @@ const DEFAULT_ENTITY_TYPES = {
   COMPANY: { label: 'Company', incomeTax: 0.25, ltCgt: 0.25, stCgt: 0.25 },
   TRUST: { label: 'Family Trust', incomeTax: 0.30, ltCgt: 0.15, stCgt: 0.30 }, // Avg dist rate
   SUPER_ACCUM: { label: 'Superannuation (Accumulation Phase)', incomeTax: 0.15, ltCgt: 0.10, stCgt: 0.15 },
-  PENSION: { label: 'Superannuation (Pensions Phase)', incomeTax: 0.00, ltCgt: 0.00, stCgt: 0.00 },
+  PENSION: { label: 'Superannuation (Pension Phase)', incomeTax: 0.00, ltCgt: 0.00, stCgt: 0.00 },
 };
 
 const MODEL_NAMES = {
@@ -265,11 +265,11 @@ const OutcomeCandlestick = (props) => {
   // y is the top (p84), height is the distance to bottom (p02).
   // We can draw the box and the specific lines within it.
   
-  // Using specific colors from request
-  const color84 = "#fbbf24"; // Amber 400 (Top)
-  const color50 = "#ea580c"; // Orange 600 (Median)
-  const color02 = "#ce2029"; // Red 700 (Bottom)
-  const boxFill = "#ffedd5"; // Orange 100
+  // Using blue color palette
+  const color84 = "#93C5FD"; // Blue 300 (Top/Upside)
+  const color50 = "#3B82F6"; // Blue 500 (Median)
+  const color02 = "#1D4ED8"; // Blue 700 (Bottom/Downside)
+  const boxFill = "#DBEAFE"; // Blue 100
 
   // Calculate pixel position for median
   // We need the scale. Recharts passes xAxis and yAxis in the props if we look for them,
@@ -1942,11 +1942,10 @@ export default function RiskReturnOptimiser() {
   const Navigation = () => (
     <div className="flex flex-col md:flex-row gap-2 mb-6 border-b border-gray-200 pb-4 overflow-x-auto">
       {[
-        { id: 'client', label: 'Client details', icon: User },
-        { id: 'projections', label: 'Projections Input', icon: TrendingUp },
+        { id: 'client', label: 'Client Details', icon: User },
         { id: 'optimization', label: 'Optimisation', icon: Calculator },
         { id: 'output', label: 'Output', icon: PieIcon },
-        { id: 'cashflow', label: 'Projections Output', icon: FileText },
+        { id: 'cashflow', label: 'Projections', icon: FileText },
       ].map((tab) => (
         <button
           key={tab.id}
@@ -2180,98 +2179,119 @@ export default function RiskReturnOptimiser() {
           <table className="min-w-full divide-y divide-gray-200 text-xs"> {/* Reduced font size to text-xs */}
             <thead>
               <tr className="bg-gray-50">
-                <th className="px-4 py-3 text-left font-medium text-gray-500 w-12 text-center">Include</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Asset Class</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Expected Return %</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Expected SD %</th>
-                {/* Removed Income Yield % column */}
-                <th className="px-2 py-3 text-left font-medium text-gray-500 text-center">Proportion of return – gains (%)</th>
-                <th className="px-2 py-3 text-left font-medium text-gray-500 text-center">Proportion of return – income (%)</th>
-                <th className="px-4 py-3"></th>
+                <th className="px-4 py-2 text-left font-medium text-gray-500">Asset Class</th>
+                <th className="px-2 py-2 text-center font-medium text-gray-500 w-20">
+                  <div>Expected Return</div>
+                  <div className="text-[10px]">(%)</div>
+                </th>
+                <th className="px-2 py-2 text-center font-medium text-gray-500 w-20">
+                  <div>Expected SD</div>
+                  <div className="text-[10px]">(%)</div>
+                </th>
+                <th className="px-2 py-2 text-center font-medium text-gray-500 w-20">Proportion of return – gains (%)</th>
+                <th className="px-2 py-2 text-center font-medium text-gray-500 w-20">Proportion of return – income (%)</th>
+                <th className="px-2 py-2 w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {assets.map((asset) => (
                 <tr key={asset.id} className={!asset.active ? 'opacity-50 bg-gray-50' : ''}>
-                  <td className="px-4 py-3 text-center">
-                    <button 
-                      onClick={() => handleAssetToggle(asset.id)}
-                      className={`p-1 rounded transition-colors ${asset.active ? 'text-fire-accent hover:bg-blue-50' : 'text-gray-400 hover:bg-gray-200'}`}
-                    >
-                      {asset.active ? <CheckSquare className="w-4 h-4"/> : <Square className="w-4 h-4"/>}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 font-medium text-gray-900">
+                  <td className="px-4 py-3 font-medium text-black">
                     <div className="flex items-center">
-                      {/* Removed colored dot */}
                       {asset.isDefault ? (
                         asset.name
                       ) : (
                         <input 
                           type="text" 
-                          value={asset.name}
-                          onChange={(e) => setAssets(assets.map(a => a.id === asset.id ? {...a, name: e.target.value} : a))}
-                          className="border border-gray-300 rounded px-2 py-1 w-full text-xs"
+                          defaultValue={asset.name}
+                          onBlur={(e) => {
+                            if (e.target.value !== asset.name) {
+                              setAssets(assets.map(a => a.id === asset.id ? {...a, name: e.target.value} : a));
+                            }
+                          }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                          className="border border-gray-300 rounded px-2 py-1 w-full text-xs text-black"
                         />
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                      <input type="number" step="0.01" className="w-20 border rounded px-2 py-1 text-xs"
+                  <td className="px-2 py-3 text-center">
+                      <input 
+                        type="text" 
+                        className="w-16 border rounded px-2 py-1 text-xs text-center text-black"
                         disabled={!asset.active}
-                        value={(asset.return * 100).toFixed(2)}
-                        onChange={(e) => {
+                        key={`return-${asset.id}-${asset.return}`}
+                        defaultValue={(asset.return * 100).toFixed(2)}
+                        onBlur={(e) => {
                            const val = parseFloat(e.target.value);
-                           setAssets(assets.map(a => a.id === asset.id ? {...a, return: isNaN(val) ? 0 : val/100} : a));
+                           if (!isNaN(val) && val/100 !== asset.return) {
+                             setAssets(assets.map(a => a.id === asset.id ? {...a, return: val/100} : a));
+                           }
                         }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                       />
                   </td>
-                  <td className="px-4 py-3">
-                    <input type="number" step="0.01" className="w-20 border rounded px-2 py-1 text-xs"
+                  <td className="px-2 py-3 text-center">
+                    <input 
+                      type="text" 
+                      className="w-16 border rounded px-2 py-1 text-xs text-center text-black"
                       disabled={!asset.active}
-                      value={(asset.stdev * 100).toFixed(2)}
-                      onChange={(e) => {
+                      key={`stdev-${asset.id}-${asset.stdev}`}
+                      defaultValue={(asset.stdev * 100).toFixed(2)}
+                      onBlur={(e) => {
                            const val = parseFloat(e.target.value);
-                           setAssets(assets.map(a => a.id === asset.id ? {...a, stdev: isNaN(val) ? 0 : val/100} : a));
+                           if (!isNaN(val) && val/100 !== asset.stdev) {
+                             setAssets(assets.map(a => a.id === asset.id ? {...a, stdev: val/100} : a));
+                           }
                       }}
-                    />
-                  </td>
-                  {/* Removed Income Yield input */}
-                  <td className="px-2 py-3 text-center">
-                    <input 
-                      type="number" step="1" min="0" max="100"
-                      value={Math.round((1 - asset.incomeRatio) * 100)} 
-                      onChange={(e) => {
-                         let val = parseFloat(e.target.value);
-                         if (isNaN(val)) val = 0;
-                         if (val > 100) val = 100;
-                         if (val < 0) val = 0;
-                         // Set incomeRatio (which is income portion) to 1 - gains portion
-                         setAssets(assets.map(a => a.id === asset.id ? { ...a, incomeRatio: 1 - (val / 100) } : a));
-                      }}
-                      className="w-16 border border-gray-300 rounded px-1 py-1 text-xs text-center"
+                      onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                     />
                   </td>
                   <td className="px-2 py-3 text-center">
                     <input 
-                      type="number" step="1" min="0" max="100"
-                      value={Math.round(asset.incomeRatio * 100)} 
-                      onChange={(e) => {
+                      type="text" 
+                      key={`gains-${asset.id}-${asset.incomeRatio}`}
+                      defaultValue={Math.round((1 - asset.incomeRatio) * 100).toString()}
+                      onBlur={(e) => {
                          let val = parseFloat(e.target.value);
                          if (isNaN(val)) val = 0;
                          if (val > 100) val = 100;
                          if (val < 0) val = 0;
-                         setAssets(assets.map(a => a.id === asset.id ? { ...a, incomeRatio: val / 100 } : a));
+                         const newIncomeRatio = 1 - (val / 100);
+                         if (newIncomeRatio !== asset.incomeRatio) {
+                           setAssets(assets.map(a => a.id === asset.id ? { ...a, incomeRatio: newIncomeRatio } : a));
+                         }
                       }}
-                      className="w-16 border border-gray-300 rounded px-1 py-1 text-xs text-center"
+                      onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                      className="w-16 border border-gray-300 rounded px-1 py-1 text-xs text-center text-black"
                     />
                   </td>
-                  <td className="px-4 py-3 text-center">
-                    {!asset.isDefault && (
-                      <button onClick={() => handleDeleteAsset(asset.id)} className="text-red-400 hover:text-red-600">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                  <td className="px-2 py-3 text-center">
+                    <input 
+                      type="text" 
+                      key={`income-${asset.id}-${asset.incomeRatio}`}
+                      defaultValue={Math.round(asset.incomeRatio * 100).toString()}
+                      onBlur={(e) => {
+                         let val = parseFloat(e.target.value);
+                         if (isNaN(val)) val = 0;
+                         if (val > 100) val = 100;
+                         if (val < 0) val = 0;
+                         if (val / 100 !== asset.incomeRatio) {
+                           setAssets(assets.map(a => a.id === asset.id ? { ...a, incomeRatio: val / 100 } : a));
+                         }
+                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                      className="w-16 border border-gray-300 rounded px-1 py-1 text-xs text-center text-black"
+                    />
+                  </td>
+                  <td className="px-2 py-3 text-center">
+                    <button 
+                      onClick={() => handleDeleteAsset(asset.id)} 
+                      className="text-red-400 hover:text-red-600"
+                      title="Remove asset class"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -2282,7 +2302,7 @@ export default function RiskReturnOptimiser() {
               onClick={handleAddAsset}
               className="flex items-center text-sm font-medium text-fire-accent hover:text-blue-800"
             >
-              <Plus className="w-4 h-4 mr-2" /> Add Custom Asset Class
+              <Plus className="w-4 h-4 mr-2" /> Add Asset Class
             </button>
           </div>
         </div>
@@ -2295,7 +2315,6 @@ export default function RiskReturnOptimiser() {
           <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
           Correlation
         </h3>
-        {/* Removed descriptive text "Manage correlation factors..." */}
         
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-xs table-fixed">
@@ -2307,12 +2326,13 @@ export default function RiskReturnOptimiser() {
                     {a.name}
                   </th>
                 ))}
+                <th className="px-2 py-2 bg-gray-50 w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {assets.map(rowAsset => (
                 <tr key={rowAsset.id} className={!rowAsset.active ? 'opacity-50' : ''}>
-                  <td className="px-2 py-2 font-medium text-gray-900 bg-gray-50 whitespace-nowrap sticky left-0 z-10 border-r border-gray-200 w-24 overflow-hidden text-ellipsis" title={rowAsset.name}>
+                  <td className="px-2 py-2 font-medium text-black bg-gray-50 whitespace-nowrap sticky left-0 z-10 border-r border-gray-200 w-24 overflow-hidden text-ellipsis" title={rowAsset.name}>
                     {rowAsset.name}
                   </td>
                   {assets.map(colAsset => {
@@ -2325,26 +2345,44 @@ export default function RiskReturnOptimiser() {
                             <div className="text-gray-300 text-center">-</div>
                           ) : (
                             <input 
-                              type="number"
-                              step="0.000001"
-                              min="-1"
-                              max="1"
-                              className="w-16 border border-gray-200 rounded px-1 py-1 text-center text-xs focus:ring-1 focus:ring-fire-accent focus:border-fire-accent"
-                              value={val.toFixed(6)}
+                              type="text"
+                              className="w-16 border border-gray-200 rounded px-1 py-1 text-center text-xs text-black focus:ring-1 focus:ring-fire-accent focus:border-fire-accent"
+                              key={`corr-${rowAsset.id}-${colAsset.id}-${val}`}
+                              defaultValue={val.toFixed(6)}
                               disabled={!rowAsset.active || !colAsset.active} 
-                              onChange={(e) => {
-                                  const val = parseFloat(e.target.value);
-                                  handleCorrelationChange(rowAsset.id, colAsset.id, isNaN(val) ? 0 : val);
+                              onBlur={(e) => {
+                                  const newVal = parseFloat(e.target.value);
+                                  if (!isNaN(newVal) && newVal !== val) {
+                                    handleCorrelationChange(rowAsset.id, colAsset.id, newVal);
+                                  }
                               }}
+                              onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                             />
                           )}
                        </td>
                      );
                   })}
+                  <td className="px-2 py-1 text-center">
+                    <button 
+                      onClick={() => handleDeleteAsset(rowAsset.id)} 
+                      className="text-red-400 hover:text-red-600"
+                      title="Remove asset class"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="p-4 border-t border-gray-200">
+          <button 
+            onClick={handleAddAsset}
+            className="flex items-center text-sm font-medium text-fire-accent hover:text-blue-800"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Add Asset Class
+          </button>
         </div>
       </div>
 
@@ -2966,32 +3004,13 @@ export default function RiskReturnOptimiser() {
 
              <div className="text-right">
                <label className="block text-xs font-bold text-gray-500 mb-1">Simulations</label>
-               <div className="group relative">
-                 <NumberInput 
-                   value={simulationCount} 
-                   onChange={(val) => setSimulationCount(val || 50)}
-                   className="w-24 text-right border border-gray-300 rounded px-2 py-1 text-sm"
-                   placeholder="50"
-                   prefix=""
-                 />
-                 <div className="hidden group-hover:block absolute right-0 top-full mt-1 w-48 p-2 bg-gray-800 text-white text-xs rounded z-50">
-                     Number of alternative histories to generate (N). Higher = smoother result but slower.
-                 </div>
-               </div>
-             </div>
-
-             <div className="text-right flex flex-col items-end">
-                 <label className="block text-xs font-bold text-gray-500 mb-1">View Returns</label>
-                 <div className="flex items-center gap-2">
-                     <span className={`text-xs ${!showPreTaxFrontier ? 'font-bold text-gray-800' : 'text-gray-500'}`}>After-Tax</span>
-                     <button 
-                        onClick={() => setShowPreTaxFrontier(!showPreTaxFrontier)}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showPreTaxFrontier ? 'bg-fire-accent' : 'bg-gray-300'}`}
-                     >
-                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${showPreTaxFrontier ? 'translate-x-5' : 'translate-x-1'}`} />
-                     </button>
-                     <span className={`text-xs ${showPreTaxFrontier ? 'font-bold text-gray-800' : 'text-gray-500'}`}>Pre-Tax</span>
-                 </div>
+               <NumberInput 
+                 value={simulationCount} 
+                 onChange={(val) => setSimulationCount(val || 50)}
+                 className="w-24 text-right border border-gray-300 rounded px-2 py-1 text-sm text-black"
+                 placeholder="50"
+                 prefix=""
+               />
              </div>
 
 
@@ -3056,18 +3075,17 @@ export default function RiskReturnOptimiser() {
                       const data = payload[0].payload;
                       return (
                         <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-xs z-50">
-                          <p className="font-bold mb-1 text-gray-900">{data.label || 'Simulation'}</p>
-                          <p className="text-gray-600">Return: <span className="font-mono text-green-600">{formatPercent(data.return)}</span></p>
-                          <p className="text-gray-600">Risk: <span className="font-mono text-red-600">{formatPercent(data.risk)}</span></p>
+                          <p className="font-bold mb-1 text-black">{data.label || 'Simulation'}</p>
+                          <p className="text-black">Return: <span className="font-mono text-black">{formatPercent(data.return)}</span></p>
+                          <p className="text-black">Risk: <span className="font-mono text-black">{formatPercent(data.risk)}</span></p>
                         </div>
                       );
                     }
                     return null;
                   }}
                 />}
-                {/* Legend removed as requested */}
-                {/* Cloud always After-Tax currently - maybe hide in PreTax mode to avoid confusion? */}
-                {!showPreTaxFrontier && <Scatter name="Portfolios" data={simulationData} fill="#cbd5e1" shape="circle" r={2} opacity={0.5} isAnimationActive={!isExporting} />}
+                {/* Simulation cloud */}
+                <Scatter name="Portfolios" data={simulationData} fill="#cbd5e1" shape="circle" r={2} opacity={0.5} isAnimationActive={!isExporting} />
                 
                 <Scatter name="Models" data={chartData} fill="#2563eb" shape="diamond" r={8} isAnimationActive={!isExporting} />
               </ScatterChart>
@@ -3081,53 +3099,7 @@ export default function RiskReturnOptimiser() {
           </div>
         )}
 
-        {/* Portfolio Composition Map (Area Chart) */}
-        {efficientFrontier.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-gray-100">
-                <h3 className="font-bold text-gray-800 mb-4 text-sm">Portfolio Composition Map (Michaud)</h3>
-                <div className="h-[250px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={efficientFrontier} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#004876' }} stroke="#004876" />
-                            <YAxis tickFormatter={(val) => `${(val*100).toFixed(0)}%`} tick={{ fontSize: 10, fill: '#004876' }} domain={[0, 1]} stroke="#004876" />
-                            <Tooltip content={({ active, payload, label }) => {
-                                if (active && payload && payload.length) {
-                                  return (
-                                    <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-xs z-50">
-                                      <p className="font-bold mb-2 text-gray-900">{label}</p>
-                                      {payload.map((entry, idx) => (
-                                        <div key={idx} className="flex justify-between gap-4 text-gray-600">
-                                            <span style={{ color: entry.color }}>{entry.name}:</span>
-                                            <span className="font-mono">{formatPercent(entry.value)}</span>
-                                        </div>
-                                      )).reverse()}
-                                    </div>
-                                  );
-                                }
-                                return null;
-                            }} />
-                            <Legend wrapperStyle={{ fontSize: '10px' }} />
-                            {optimizationAssets.map((asset, idx) => (
-                                <Area 
-                                    key={asset.id}
-                                    type="monotone" 
-                                    dataKey={(data) => data.weights ? data.weights[idx] : 0}
-                                    name={asset.name}
-                                    stackId="1"
-                                    stroke={asset.color}
-                                    fill={asset.color}
-                                    fillOpacity={0.8}
-                                />
-                            ))}
-                        </AreaChart>
-                    </ResponsiveContainer>
-                </div>
-                <p className="text-xs text-gray-500 mt-2 italic text-center">
-                    Shows the evolution of optimal asset weights as risk increases (Standard vs Resampled).
-                </p>
-            </div>
-        )}
+        {/* Michaud Portfolio Composition Map removed as requested */}
       </div>
     </div>
   );
@@ -3153,7 +3125,7 @@ export default function RiskReturnOptimiser() {
       ...asset,
       weight: blendedWeights[idx],
       value: blendedWeights[idx] * 100
-    })).filter(a => a.id === 'cash' || a.weight > 0.005); 
+    })); // Show all assets including 0% allocations 
 
     return (
       <div className="space-y-6 animate-in fade-in h-4/5">
@@ -3168,11 +3140,11 @@ export default function RiskReturnOptimiser() {
               <select
                 value={selectedPortfolioId}
                 onChange={(e) => setSelectedPortfolioId(parseInt(e.target.value))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-fire-accent focus:border-fire-accent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-black focus:ring-2 focus:ring-fire-accent focus:border-fire-accent"
               >
                 {efficientFrontier.map((p, i) => (
                   <option key={i+1} value={i+1}>
-                    Portfolio {i+1} - {MODEL_NAMES[i+1] || 'Custom'}
+                    Portfolio {i+1}
                   </option>
                 ))}
               </select>
@@ -3180,11 +3152,11 @@ export default function RiskReturnOptimiser() {
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div className="text-center p-3 bg-gray-50 rounded border border-gray-200">
                   <div className="text-xs text-gray-500 uppercase">Return</div>
-                  <div className="text-xl font-bold text-green-600">{formatPercent(selectedPortfolio.return)}</div>
+                  <div className="text-xl font-bold text-black">{formatPercent(selectedPortfolio.return)}</div>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded border border-gray-200">
                   <div className="text-xs text-gray-500 uppercase">Risk</div>
-                  <div className="text-xl font-bold text-red-600">{formatPercent(selectedPortfolio.risk)}</div>
+                  <div className="text-xl font-bold text-black">{formatPercent(selectedPortfolio.risk)}</div>
                 </div>
               </div>
             </div>
@@ -3196,20 +3168,20 @@ export default function RiskReturnOptimiser() {
                 <table className="min-w-full text-sm">
                    <thead>
                     <tr className="bg-gray-50 sticky top-0 text-[10px]">
-                      <th className="px-3 py-1 text-left font-medium text-gray-500 uppercase">Asset</th>
-                      <th className="px-3 py-1 text-right font-medium text-gray-500 uppercase">$$</th>
+                      <th className="px-3 py-1 text-left font-medium text-gray-500 uppercase"></th>
+                      <th className="px-3 py-1 text-right font-medium text-gray-500 uppercase">Amount ($)</th>
                       <th className="px-3 py-1 text-right font-medium text-gray-500 uppercase">%</th>
                     </tr>
                   </thead>
                    <tbody className="divide-y divide-gray-100">
                     {activeAssets.map((asset) => (
                       <tr key={asset.id}>
-                        <td className="px-3 py-1 font-medium flex items-center whitespace-nowrap overflow-hidden text-ellipsis">
+                        <td className="px-3 py-1 font-medium text-black flex items-center whitespace-nowrap overflow-hidden text-ellipsis">
                           <div className="w-2 h-2 rounded-full mr-2 shrink-0" style={{backgroundColor:asset.color}}/>
                           {asset.name}
                         </td>
-                        <td className="px-3 py-1 text-right text-gray-600 font-mono text-[11px]">{formatCurrency(asset.weight * totalWealth)}</td>
-                        <td className="px-3 py-1 text-right text-gray-900 font-mono text-[11px]">{formatPercent(asset.weight)}</td>
+                        <td className="px-3 py-1 text-right text-black font-mono text-[11px]">{formatCurrency(asset.weight * totalWealth)}</td>
+                        <td className="px-3 py-1 text-right text-black font-mono text-[11px]">{(asset.weight * 100).toFixed(1)}%</td>
                       </tr>
                     ))}
                     <tr className="bg-gray-50 border-t-2 border-gray-200">
@@ -3340,10 +3312,10 @@ export default function RiskReturnOptimiser() {
                  <div className="font-bold text-sm text-gray-800 mb-2 border-b pb-1">{struct.name}</div>
                  <div className="space-y-1">
                    <div className="grid grid-cols-12 text-[10px] font-bold text-gray-400 uppercase mb-1 border-b pb-1">
-                     <div className="col-span-4">Asset</div>
+                     <div className="col-span-4"></div>
                      <div className="col-span-2 text-center">Current</div>
                      <div className="col-span-2 text-center">%</div>
-                     <div className="col-span-2 text-center">Recommended</div>
+                     <div className="col-span-2 text-center">Recommend</div>
                      <div className="col-span-2 text-center">%</div>
                    </div>
                     {activeAssets.map((asset) => {
@@ -3491,8 +3463,8 @@ export default function RiskReturnOptimiser() {
               <ComposedChart data={cfSimulationResults} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="confidenceBand" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#E03A3E" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#E03A3E" stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.1}/>
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="year" label={{ value: 'Years', position: 'bottom', fill: '#004876' }} tick={{ fill: '#004876' }} stroke="#004876" />
@@ -3504,19 +3476,19 @@ export default function RiskReturnOptimiser() {
                       const data = payload[0].payload;
                       return (
                         <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-sm z-50">
-                          <p className="font-bold mb-2 text-gray-900">Year {label}</p>
+                          <p className="font-bold mb-2 text-black">{label}</p>
                           <div className="space-y-1">
                             <div className="flex justify-between gap-4">
-                              <span className="text-gray-500">Upside:</span>
-                              <span className="font-mono font-medium text-red-400">{formatCurrency(data.p84)}</span>
+                              <span className="text-black">Upside:</span>
+                              <span className="font-mono font-medium text-black">{formatCurrency(data.p84)}</span>
                             </div>
                             <div className="flex justify-between gap-4">
-                              <span className="text-gray-500">Median:</span>
-                              <span className="font-mono font-bold text-fire-accent">{formatCurrency(data.p50)}</span>
+                              <span className="text-black">Median:</span>
+                              <span className="font-mono font-bold text-black">{formatCurrency(data.p50)}</span>
                             </div>
                             <div className="flex justify-between gap-4">
-                              <span className="text-gray-500">Downside:</span>
-                              <span className="font-mono font-medium text-red-400">{formatCurrency(data.p02)}</span>
+                              <span className="text-black">Downside:</span>
+                              <span className="font-mono font-medium text-black">{formatCurrency(data.p02)}</span>
                             </div>
                           </div>
                         </div>
@@ -3529,9 +3501,9 @@ export default function RiskReturnOptimiser() {
                 <Area type="monotone" dataKey="p84" stroke="none" fill="url(#confidenceBand)" name="Upside" isAnimationActive={!isExporting} />
                 <Area type="monotone" dataKey="p02" stroke="none" fill="#fff" name="Downside" isAnimationActive={!isExporting} /> 
                 
-                <Line type="monotone" dataKey="p50" stroke="#E03A3E" strokeWidth={3} dot={false} strokeDasharray="5 5" name="Median" isAnimationActive={!isExporting} />
-                <Line type="monotone" dataKey="p84" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Upside" isAnimationActive={!isExporting} />
-                <Line type="monotone" dataKey="p02" stroke="#fca5a5" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Downside" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p50" stroke="#3B82F6" strokeWidth={3} dot={false} strokeDasharray="5 5" name="Median" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p84" stroke="#93C5FD" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Upside" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p02" stroke="#93C5FD" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Downside" isAnimationActive={!isExporting} />
 
                 {/* One-Off Event Reference Lines - Rendered last to be on top */}
                 {oneOffEvents.map((event, idx) => (
@@ -3570,19 +3542,19 @@ export default function RiskReturnOptimiser() {
                                const data = payload[0].payload;
                                return (
                                  <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-xs z-50">
-                                   <p className="font-bold mb-2 text-gray-900">{label}</p>
+                                   <p className="font-bold mb-2 text-black">{label}</p>
                                    <div className="space-y-1">
                                      <div className="flex justify-between gap-4">
-                                       <span className="text-gray-500">Upside:</span>
-                                       <span className="font-mono font-bold text-amber-400">{formatCurrency(data.p84)}</span>
+                                       <span className="text-black">Upside:</span>
+                                       <span className="font-mono font-bold text-black">{formatCurrency(data.p84)}</span>
                                      </div>
                                      <div className="flex justify-between gap-4">
-                                       <span className="text-gray-500">Median:</span>
-                                       <span className="font-mono font-bold text-orange-600">{formatCurrency(data.p50)}</span>
+                                       <span className="text-black">Median:</span>
+                                       <span className="font-mono font-bold text-black">{formatCurrency(data.p50)}</span>
                                      </div>
                                      <div className="flex justify-between gap-4">
-                                       <span className="text-gray-500">Downside:</span>
-                                       <span className="font-mono font-bold text-red-700">{formatCurrency(data.p02)}</span>
+                                       <span className="text-black">Downside:</span>
+                                       <span className="font-mono font-bold text-black">{formatCurrency(data.p02)}</span>
                                      </div>
                                    </div>
                                  </div>
@@ -3594,9 +3566,9 @@ export default function RiskReturnOptimiser() {
                   <Bar dataKey="range" barSize={60} shape={<OutcomeCandlestick />} isAnimationActive={!isExporting} />
                   <Legend 
                      payload={[
-                       { value: 'Upside', type: 'line', color: '#fbbf24' },
-                       { value: 'Median', type: 'line', color: '#ea580c' },
-                       { value: 'Downside', type: 'line', color: '#ce2029' },
+                       { value: 'Upside', type: 'line', color: '#93C5FD' },
+                       { value: 'Median', type: 'line', color: '#3B82F6' },
+                       { value: 'Downside', type: 'line', color: '#1D4ED8' },
                      ]}
                   />
                 </ComposedChart>
@@ -3644,7 +3616,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.189</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.190</span>
              </div>
           </div>
         </div>
