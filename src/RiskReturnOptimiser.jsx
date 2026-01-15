@@ -1,4 +1,4 @@
-// Deployment trigger: v1.205 - 2026-01-15
+// Deployment trigger: v1.206 - 2026-01-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1699,17 +1699,39 @@ export default function RiskReturnOptimiser() {
             
             uniqueEntityTypes.forEach(entityType => {
                 try {
-                    // Calculate after-tax returns specific to this entity type
-                    const entityAfterTaxReturns = calculateEntityAfterTaxReturns(activeAssets, entityType, entityTypes);
+                    // Manual inline calculation to capture debug details
+                    const entRates = entityTypes[entityType] || { incomeTax: 0, ltCgt: 0 };
+                    const detailLogs = [];
+
+                    const entityOptAssets = activeAssets.map((asset, i) => {
+                        const preTaxReturn = asset.return; 
+                        const incomeRatio = asset.incomeRatio !== undefined ? asset.incomeRatio : 1.0; 
+                        const incomeTax = entRates.incomeTax;
+                        const capGainTax = entRates.ltCgt; // Assuming Long Term for Strategic AA
+
+                        // Formula: Ret * [ (Income% * (1-IncTax)) + (Growth% * (1-CGT)) ]
+                        const incomeComponent = incomeRatio * (1 - incomeTax);
+                        const growthComponent = (1 - incomeRatio) * (1 - capGainTax);
+                        const afterTaxReturn = preTaxReturn * (incomeComponent + growthComponent);
+
+                        detailLogs.push({
+                            name: asset.name,
+                            preTax: preTaxReturn,
+                            incomeRatio: incomeRatio,
+                            incTaxRate: incomeTax,
+                            cgtRate: capGainTax,
+                            postTax: afterTaxReturn,
+                            risk: asset.stdev
+                        });
+
+                        return {
+                            ...asset,
+                            return: afterTaxReturn,
+                            stdev: asset.stdev || 0
+                        };
+                    });
                     
-                    // Create entity-specific assets with these returns
-                    const entityOptAssets = activeAssets.map((a, i) => ({
-                        ...a,
-                        return: entityAfterTaxReturns[i],
-                        stdev: a.stdev || 0
-                    }));
-                    
-                    logs.push({ step: `Entity Opt: ${entityType}`, details: entityOptAssets.map(a => ({ name: a.name, ret: a.return, risk: a.stdev })) });
+                    logs.push({ step: `Entity Opt: ${entityType}`, details: detailLogs });
                     
                     // Run optimization for this entity type
                     const entityResult = runResampledOptimization(entityOptAssets, activeCorrelations, constraints, confidenceT, Math.max(10, Math.floor(numSimulations / 2)));
@@ -4066,7 +4088,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.205</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.206</span>
              </div>
           </div>
         </div>
