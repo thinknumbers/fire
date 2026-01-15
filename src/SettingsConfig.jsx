@@ -64,13 +64,8 @@
                <label className="block text-sm font-medium text-gray-700 mb-1">Report Title</label>
                <input 
                  type="text" 
-                 key={`title-${draft.title}`}
                  defaultValue={draft.title || ''}
-                 onBlur={(e) => {
-                   if (e.target.value !== draft.title) {
-                     setDraft({...draft, title: e.target.value});
-                   }
-                 }}
+                 onBlur={(e) => setDraft({...draft, title: e.target.value})}
                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-fire-accent focus:border-fire-accent text-sm text-black" 
                />
