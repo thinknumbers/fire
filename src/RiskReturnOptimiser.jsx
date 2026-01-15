@@ -1,4 +1,4 @@
-// Deployment trigger: v1.215 - 2026-01-16
+// Deployment trigger: v1.216 - 2026-01-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1703,6 +1703,12 @@ export default function RiskReturnOptimiser() {
                         const growthComponent = round4((1 - incomeRatio) * (1 - capGainTax));
                         const afterTaxReturn = round4(preTaxReturn * (incomeComponent + growthComponent));
 
+                        // Post-Tax Risk Adjustment
+                        // If returns are dampened by tax, volatility of after-tax wealth is also dampened.
+                        // Retention Rate = AfterTax / PreTax
+                        const retentionRate = preTaxReturn > 0.0001 ? (afterTaxReturn / preTaxReturn) : 1.0;
+                        const afterTaxRisk = round4((asset.stdev || 0) * retentionRate);
+
                         detailLogs.push({
                             name: asset.name,
                             preTax: preTaxReturn,
@@ -1710,13 +1716,14 @@ export default function RiskReturnOptimiser() {
                             incTaxRate: incomeTax,
                             cgtRate: capGainTax,
                             postTax: afterTaxReturn,
-                            risk: asset.stdev
+                            preTaxRisk: asset.stdev,
+                            postTaxRisk: afterTaxRisk
                         });
 
                         return {
                             ...asset,
                             return: afterTaxReturn,
-                            stdev: asset.stdev || 0
+                            stdev: afterTaxRisk
                         };
                     });
                     
@@ -4217,7 +4224,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.215</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.216</span>
              </div>
           </div>
         </div>
