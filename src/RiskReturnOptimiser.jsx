@@ -1,4 +1,4 @@
-// Deployment trigger: v1.211 - 2026-01-16
+// Deployment trigger: v1.212 - 2026-01-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1683,6 +1683,8 @@ export default function RiskReturnOptimiser() {
             const perEntityFrontiers = {};
             // Also keep track of a "Global Fallback" in case Total Wealth is 0 or singular
             let globalFallbackFrontier = []; 
+            const cloud = []; 
+            
             
             uniqueEntityTypes.forEach(entityType => {
                 try {
@@ -1919,7 +1921,6 @@ export default function RiskReturnOptimiser() {
             // Finish
             // Create a fake "Cloud" based on aggregated results? Or just empty.
             // We can leave cloud empty or reuse one of the entity clouds, but simpler to leave empty or use previous logic if needed.
-            const cloud = []; 
             finishOptimization(cloud, finalFrontier, activeAssets);
             
         } catch (err) {
@@ -4218,7 +4219,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.211</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.212</span>
              </div>
           </div>
         </div>
