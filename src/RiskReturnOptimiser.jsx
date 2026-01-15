@@ -1,4 +1,4 @@
-// Deployment trigger: v1.199 - 2026-01-15
+// Deployment trigger: v1.200 - 2026-01-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1636,18 +1636,12 @@ export default function RiskReturnOptimiser() {
         };
         
         // Use After-Tax returns for optimization
-        const optAssets = activeAssets.map((a, i) => {
-            const grossReturn = a.return || 0;
-            const afterTax = afterTaxReturns[i];
-            // Scale risk by the tax factor (Effective Stdev = Stdev * (AfterTax / PreTax))
-            // This ensures risk is tax-adjusted consistent with returns
-            const taxFactor = grossReturn > 0.0001 ? (afterTax / grossReturn) : 1.0;
-            return {
-                ...a,
-                return: afterTax, 
-                stdev: (a.stdev || 0) * taxFactor
-            };
-        });
+        // Use After-Tax returns for optimization
+        const optAssets = activeAssets.map((a, i) => ({
+            ...a,
+            return: afterTaxReturns[i],
+            stdev: a.stdev || 0 
+        }));
 
         try {
             const result = runResampledOptimization(optAssets, activeCorrelations, constraints, confidenceT, numSimulations);
@@ -1685,17 +1679,12 @@ export default function RiskReturnOptimiser() {
                     const entityAfterTaxReturns = calculateEntityAfterTaxReturns(activeAssets, entityType, entityTypes);
                     
                     // Create entity-specific assets with these returns
-                    const entityOptAssets = activeAssets.map((a, i) => {
-                        const grossReturn = a.return || 0;
-                        const afterTax = entityAfterTaxReturns[i];
-                        // Scale risk by tax factor for entity specific optimization too
-                        const taxFactor = grossReturn > 0.0001 ? (afterTax / grossReturn) : 1.0;
-                        return {
-                            ...a,
-                            return: afterTax,
-                            stdev: (a.stdev || 0) * taxFactor
-                        };
-                    });
+                    // Create entity-specific assets with these returns
+                    const entityOptAssets = activeAssets.map((a, i) => ({
+                        ...a,
+                        return: entityAfterTaxReturns[i],
+                        stdev: a.stdev || 0
+                    }));
                     
                     // Run optimization for this entity type
                     const entityResult = runResampledOptimization(entityOptAssets, activeCorrelations, constraints, confidenceT, Math.max(10, Math.floor(numSimulations / 2)));
@@ -4041,7 +4030,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.199</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.200</span>
              </div>
           </div>
         </div>
