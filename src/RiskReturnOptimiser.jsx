@@ -1,4 +1,4 @@
-// Deployment trigger: v1.200 - 2026-01-15
+// Deployment trigger: v1.201 - 2026-01-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -434,6 +434,10 @@ export default function RiskReturnOptimiser() {
   const [selectedPortfolioId, setSelectedPortfolioId] = useState(5);
   const [forecastConfidenceLevel, setForecastConfidenceLevel] = useState(3); // 1=Low, 2=Med, 3=High
   const [showPreTaxFrontier, setShowPreTaxFrontier] = useState(false); // Toggle for optimization chart
+  
+  // Debug State
+  const [debugLogs, setDebugLogs] = useState([]);
+  const [showDebugModal, setShowDebugModal] = useState(false);
 
   // --- Settings State ---
   const DEFAULT_APP_SETTINGS = {
@@ -1588,6 +1592,9 @@ export default function RiskReturnOptimiser() {
   };
 
   const handleRunOptimization = () => {
+    const logs = [];
+    logs.push({ step: 'Start', details: 'Optimization Initiated', timestamp: Date.now() });
+
     // Apply per-entity constraints to get effective global constraints
     const effectiveAssets = calculateEffectiveConstraints(assets, structures);
     
@@ -1616,6 +1623,7 @@ export default function RiskReturnOptimiser() {
     );
 
     const afterTaxReturns = calculateClientTaxAdjustedReturns(activeAssets, structures, entityTypes);
+    logs.push({ step: 'Global Inputs', details: { afterTaxReturns, note: 'Global Weighted Avg Returns' } });
     
     // Simulation Configuration
     // User Input: simulationCount = N (Number of Resampled Histories)
@@ -1642,6 +1650,14 @@ export default function RiskReturnOptimiser() {
             return: afterTaxReturns[i],
             stdev: a.stdev || 0 
         }));
+        
+        logs.push({ 
+            step: 'Global Optimization', 
+            details: { 
+                assets: optAssets.map(a => ({ name: a.name, return: a.return, risk: a.stdev })),
+                constraints 
+            }
+        });
 
         try {
             const result = runResampledOptimization(optAssets, activeCorrelations, constraints, confidenceT, numSimulations);
@@ -1679,12 +1695,13 @@ export default function RiskReturnOptimiser() {
                     const entityAfterTaxReturns = calculateEntityAfterTaxReturns(activeAssets, entityType, entityTypes);
                     
                     // Create entity-specific assets with these returns
-                    // Create entity-specific assets with these returns
                     const entityOptAssets = activeAssets.map((a, i) => ({
                         ...a,
                         return: entityAfterTaxReturns[i],
                         stdev: a.stdev || 0
                     }));
+                    
+                    logs.push({ step: `Entity Opt: ${entityType}`, details: entityOptAssets.map(a => ({ name: a.name, ret: a.return, risk: a.stdev })) });
                     
                     // Run optimization for this entity type
                     const entityResult = runResampledOptimization(entityOptAssets, activeCorrelations, constraints, confidenceT, Math.max(10, Math.floor(numSimulations / 2)));
@@ -1740,6 +1757,8 @@ export default function RiskReturnOptimiser() {
             
             // Store entity-specific frontiers
             setEntityFrontiers(perEntityFrontiers);
+            
+            setDebugLogs(logs);
 
             finishOptimization(cloud, finalFrontier, activeAssets);
             
@@ -3421,13 +3440,22 @@ export default function RiskReturnOptimiser() {
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={handleRunOptimization}
-                  disabled={isSimulating}
-                  className="flex items-center justify-center px-6 py-3 bg-fire-accent hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 shadow-sm"
-                >
-                  <Cpu className="w-4 h-4 mr-2" /> Optimise
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleRunOptimization}
+                    disabled={isSimulating}
+                    className="flex items-center justify-center px-6 py-3 bg-fire-accent hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 shadow-sm"
+                  >
+                    <Cpu className="w-4 h-4 mr-2" /> Optimise
+                  </button>
+                  <button
+                    onClick={() => setShowDebugModal(true)}
+                    className="flex items-center justify-center px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors shadow-sm"
+                    title="View Debug Logs"
+                  >
+                    <Activity className="w-4 h-4 mr-2" /> Debug
+                  </button>
+                </div>
               )}
           </div>
         </div>
@@ -4030,7 +4058,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.200</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.201</span>
              </div>
           </div>
         </div>
@@ -4155,6 +4183,7 @@ export default function RiskReturnOptimiser() {
         {Navigation()}
         <main id="report-content">
           {/* Settings Modal is Global */}
+          <DebugLogsModal open={showDebugModal} onClose={() => setShowDebugModal(false)} logs={debugLogs} />
           <SettingsModal />
           
           {activeTab === 'data' && <div id="data-tab-content">{DataTab()}</div>}
@@ -4182,6 +4211,67 @@ export default function RiskReturnOptimiser() {
     </div>
   );
 }
+
+const DebugLogsModal = ({ open, onClose, logs }) => {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+          <h3 className="font-bold text-lg text-gray-800 flex items-center">
+            <Activity className="w-5 h-5 mr-2 text-fire-accent" />
+            Optimization Debug Log
+          </h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-auto p-0 bg-gray-50">
+          {logs.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">No logs available. Run an optimization first.</div>
+          ) : (
+            <div className="p-4 space-y-4">
+              {logs.map((log, idx) => (
+                <div key={idx} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                  <div className="bg-gray-100 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
+                    <span className="font-mono text-xs font-bold text-gray-700 uppercase">{log.step}</span>
+                    <span className="text-xs text-gray-400 font-mono">{new Date(log.timestamp).toLocaleTimeString()}.{new Date(log.timestamp).getMilliseconds()}</span>
+                  </div>
+                  <div className="p-4 overflow-x-auto">
+                    <pre className="text-xs font-mono text-gray-600 whitespace-pre-wrap leading-relaxed">
+                      {typeof log.details === 'string' ? log.details : JSON.stringify(log.details, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 border-t bg-gray-50 flex justify-end">
+          <button 
+            onClick={() => {
+              const text = JSON.stringify(logs, null, 2);
+              navigator.clipboard.writeText(text);
+              alert("Logs copied to clipboard!");
+            }}
+            className="px-4 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium text-gray-700 mr-2"
+          >
+            Copy JSON
+          </button>
+          <button 
+            onClick={onClose}
+            className="px-4 py-2 bg-fire-accent text-white rounded hover:bg-red-700 text-sm font-medium"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 
 
