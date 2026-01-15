@@ -6,7 +6,7 @@ import { cholesky, generateCorrelatedSample, getStats, dot, matMul } from './mat
 // Minimizes Variance w'Cw subject to w'Mu = TargetReturn AND Sum(w)=1 AND 0<=w<=1
 // Note: We use a penalty method or direct projection for equality constraints.
 
-function solveMarkowitz(mean, cov, targetReturn, minWeights, maxWeights) {
+function solveMarkowitz(mean, cov, targetReturn, minWeights, maxWeights, groupConstraints = []) {
     const n = mean.length;
     // Initial guess: Equal weights (normalized to constraints if needed)
     let w = new Array(n).fill(1/n); 
@@ -45,7 +45,7 @@ function solveMarkowitz(mean, cov, targetReturn, minWeights, maxWeights) {
         // 1. Bounds (Min/Max)
         // 2. Sum = 1
         // 3. Return = Target
-        w = projectConstraints(w, mean, targetReturn, minWeights, maxWeights);
+        w = projectConstraints(w, mean, targetReturn, minWeights, maxWeights, groupConstraints);
     }
     
     const risk = Math.sqrt(dot(w, matMul(cov, w.map(v=>[v])).map(r=>r[0])));
@@ -54,7 +54,7 @@ function solveMarkowitz(mean, cov, targetReturn, minWeights, maxWeights) {
     return { weights: w, risk, return: ret };
 }
 
-function projectConstraints(w, mean, targetRet, minW, maxW) {
+function projectConstraints(w, mean, targetRet, minW, maxW, groupConstraints = []) {
   let proj = [...w];
   const n = w.length;
   
@@ -88,9 +88,31 @@ function projectConstraints(w, mean, targetRet, minW, maxW) {
           const muNormSq = dot(mean, mean) || 1e-9;
           const lambda = (currentRet - targetRet) / muNormSq;
           
-          // Limit step size to avoid instability? No, projection is exact.
           const step = mean.map(m => lambda * m); 
           for(let i=0; i<n; i++) proj[i] -= step[i];
+      }
+
+      // 4. Group Constraints (Linear Inequality: Sum(w_subset) <= Max)
+      if (groupConstraints && groupConstraints.length > 0) {
+          groupConstraints.forEach(gc => {
+             // gc = { message: "...", indices: [0, 4, 5], max: 0.15 }
+             let subsetSum = 0;
+             gc.indices.forEach(idx => subsetSum += proj[idx]);
+             
+             if (subsetSum > gc.max) {
+                 // Violated. Project back.
+                 // Ideally proportional to weights? or equal subtraction?
+                 // Dykstra usually does projection onto convex set.
+                 // Projection of x onto sum(x) <= C is: x_new = x_old - (sum - C)/k * 1  (if all equal)
+                 // But we have bounds 0..1. The Box step in next iteration handles bounds.
+                 const diff = subsetSum - gc.max;
+                 const k = gc.indices.length;
+                 if (k > 0) {
+                     const sub = diff / k;
+                     gc.indices.forEach(idx => proj[idx] -= sub);
+                 }
+             }
+          });
       }
   }
   return proj;
@@ -109,7 +131,7 @@ function projectConstraints(w, mean, targetRet, minW, maxW) {
  * @param {Number} forecastConfidence - T (sample size), e.g., 20 (Low), 50 (Med), 100 (High).
  * @param {Number} numSimulations - N, e.g., 50 or 100.
  */
-export function runResampledOptimization(assets, correlations, constraints, forecastConfidence, numSimulations = 50) {
+export function runResampledOptimization(assets, correlations, constraints, forecastConfidence, numSimulations = 50, groupConstraints = []) {
     const n = assets.length;
     // 1. Convert Inputs to Mu and Sigma
     const mu_0 = assets.map(a => a.return);
@@ -176,7 +198,7 @@ export function runResampledOptimization(assets, correlations, constraints, fore
              const target = possibleMin + t * (possibleMax - possibleMin);
              
              // Solve
-             const sol = solveMarkowitz(mu_sim, cov_sim, target, constraints.minWeights, constraints.maxWeights);
+             const sol = solveMarkowitz(mu_sim, cov_sim, target, constraints.minWeights, constraints.maxWeights, groupConstraints);
              
              // Important: We assume 'sol' is the optimal weights for this HISTORY's view.
              simFrontier.push(sol);
