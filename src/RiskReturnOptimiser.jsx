@@ -2621,50 +2621,93 @@ export default function RiskReturnOptimiser() {
                                   <tr>
                                       <th className="px-3 py-2 text-left">Asset Class</th>
                                       <th className="px-3 py-2 text-center">Allocation (%)</th>
+                                      <th className="px-3 py-2 text-center">Expected Return (%)</th>
+                                      <th className="px-3 py-2 text-center">Expected Risk (%)</th>
                                       <th className="px-3 py-2 text-center">Constraints (Min %)</th>
                                       <th className="px-3 py-2 text-center">Constraints (Max %)</th>
                                   </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100">
-                                  {(struct.assetAllocation || DEFAULT_ASSETS.map(a => ({ id: a.id, weight: 0, min: 0, max: 100 }))).map(alloc => {
+                                  {(() => {
+                                    const allocations = struct.assetAllocation || DEFAULT_ASSETS.map(a => ({ id: a.id, weight: a.id === 'cash' ? 100 : 0, min: 0, max: 100 }));
+                                    const totalWeight = allocations.reduce((sum, alloc) => sum + (alloc.weight || 0), 0);
+                                    const totalExpectedReturn = allocations.reduce((sum, alloc) => {
                                       const assetDef = assets.find(a => a.id === alloc.id);
-                                      if(!assetDef) return null;
-                                      return (
-                                          <tr key={alloc.id}>
-                                              <td className="px-3 py-1 font-medium text-gray-700">{assetDef.name}</td>
-                                              <td className="px-3 py-1 text-center">
-                                                  <input type="number" className="w-16 border rounded text-center" 
-                                                      value={alloc.weight}
-                                                      onChange={(e) => {
-                                                          const val = parseFloat(e.target.value) || 0;
-                                                          const newAlloc = (struct.assetAllocation || DEFAULT_ASSETS.map(a => ({ id: a.id, weight: 0, min: 0, max: 100 }))).map(x => x.id === alloc.id ? {...x, weight: val} : x);
-                                                          setStructures(structures.map(s => s.id === struct.id ? {...s, assetAllocation: newAlloc} : s));
-                                                      }}
-                                                  />
-                                              </td>
-                                              <td className="px-3 py-1 text-center">
-                                                  <input type="number" className="w-16 border rounded text-center" 
-                                                      value={alloc.min}
-                                                      onChange={(e) => {
-                                                          const val = parseFloat(e.target.value) || 0;
-                                                          const newAlloc = (struct.assetAllocation || DEFAULT_ASSETS.map(a => ({ id: a.id, weight: 0, min: 0, max: 100 }))).map(x => x.id === alloc.id ? {...x, min: val} : x);
-                                                          setStructures(structures.map(s => s.id === struct.id ? {...s, assetAllocation: newAlloc} : s));
-                                                      }}
-                                                  />
-                                              </td>
-                                              <td className="px-3 py-1 text-center">
-                                                  <input type="number" className="w-16 border rounded text-center" 
-                                                      value={alloc.max}
-                                                      onChange={(e) => {
-                                                          const val = parseFloat(e.target.value) || 0;
-                                                          const newAlloc = (struct.assetAllocation || DEFAULT_ASSETS.map(a => ({ id: a.id, weight: 0, min: 0, max: 100 }))).map(x => x.id === alloc.id ? {...x, max: val} : x);
-                                                          setStructures(structures.map(s => s.id === struct.id ? {...s, assetAllocation: newAlloc} : s));
-                                                      }}
-                                                  />
-                                              </td>
-                                          </tr>
-                                      );
-                                  })}
+                                      return sum + (alloc.weight || 0) / 100 * (assetDef?.return || 0) * 100;
+                                    }, 0);
+                                    const totalExpectedRisk = allocations.reduce((sum, alloc) => {
+                                      const assetDef = assets.find(a => a.id === alloc.id);
+                                      return sum + (alloc.weight || 0) / 100 * (assetDef?.stdev || 0) * 100;
+                                    }, 0);
+                                    
+                                    return (
+                                      <>
+                                        {allocations.map(alloc => {
+                                          const assetDef = assets.find(a => a.id === alloc.id);
+                                          if(!assetDef) return null;
+                                          const weightedReturn = (alloc.weight || 0) / 100 * (assetDef.return || 0) * 100;
+                                          const weightedRisk = (alloc.weight || 0) / 100 * (assetDef.stdev || 0) * 100;
+                                          return (
+                                              <tr key={alloc.id}>
+                                                  <td className="px-3 py-1 font-medium text-black">{assetDef.name}</td>
+                                                  <td className="px-3 py-1 text-center">
+                                                      <input type="text" className="w-16 border rounded text-center text-black" 
+                                                          key={`alloc-${alloc.id}-${alloc.weight}`}
+                                                          defaultValue={alloc.weight}
+                                                          onBlur={(e) => {
+                                                              const val = parseFloat(e.target.value) || 0;
+                                                              if (val !== alloc.weight) {
+                                                                const newAlloc = allocations.map(x => x.id === alloc.id ? {...x, weight: val} : x);
+                                                                setStructures(structures.map(s => s.id === struct.id ? {...s, assetAllocation: newAlloc} : s));
+                                                              }
+                                                          }}
+                                                          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                                      />
+                                                  </td>
+                                                  <td className="px-3 py-1 text-center text-black">{weightedReturn.toFixed(2)}</td>
+                                                  <td className="px-3 py-1 text-center text-black">{weightedRisk.toFixed(2)}</td>
+                                                  <td className="px-3 py-1 text-center">
+                                                      <input type="text" className="w-16 border rounded text-center text-black" 
+                                                          key={`min-${alloc.id}-${alloc.min}`}
+                                                          defaultValue={alloc.min}
+                                                          onBlur={(e) => {
+                                                              const val = parseFloat(e.target.value) || 0;
+                                                              if (val !== alloc.min) {
+                                                                const newAlloc = allocations.map(x => x.id === alloc.id ? {...x, min: val} : x);
+                                                                setStructures(structures.map(s => s.id === struct.id ? {...s, assetAllocation: newAlloc} : s));
+                                                              }
+                                                          }}
+                                                          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                                      />
+                                                  </td>
+                                                  <td className="px-3 py-1 text-center">
+                                                      <input type="text" className="w-16 border rounded text-center text-black" 
+                                                          key={`max-${alloc.id}-${alloc.max}`}
+                                                          defaultValue={alloc.max}
+                                                          onBlur={(e) => {
+                                                              const val = parseFloat(e.target.value) || 0;
+                                                              if (val !== alloc.max) {
+                                                                const newAlloc = allocations.map(x => x.id === alloc.id ? {...x, max: val} : x);
+                                                                setStructures(structures.map(s => s.id === struct.id ? {...s, assetAllocation: newAlloc} : s));
+                                                              }
+                                                          }}
+                                                          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                                      />
+                                                  </td>
+                                              </tr>
+                                          );
+                                        })}
+                                        <tr className={`font-bold ${Math.abs(totalWeight - 100) > 0.01 ? 'bg-red-100 text-red-600' : 'bg-gray-100'}`}>
+                                          <td className="px-3 py-2">Total</td>
+                                          <td className={`px-3 py-2 text-center ${Math.abs(totalWeight - 100) > 0.01 ? 'text-red-600' : 'text-black'}`}>{totalWeight.toFixed(1)}%</td>
+                                          <td className="px-3 py-2 text-center">{totalExpectedReturn.toFixed(2)}%</td>
+                                          <td className="px-3 py-2 text-center">{totalExpectedRisk.toFixed(2)}%</td>
+                                          <td className="px-3 py-2"></td>
+                                          <td className="px-3 py-2"></td>
+                                        </tr>
+                                      </>
+                                    );
+                                  })()}
                               </tbody>
                           </table>
                       </div>
@@ -2684,7 +2727,7 @@ export default function RiskReturnOptimiser() {
                       useAssetAllocation: false,
                       useCustomTax: false,
                       customTax: { incomeTax: 0.47, ltCgt: 0.235, stCgt: 0.47 },
-                      assetAllocation: DEFAULT_ASSETS.map(a => ({ id: a.id, weight: 0, min: 0, max: 100 }))
+                      assetAllocation: DEFAULT_ASSETS.map(a => ({ id: a.id, weight: a.id === 'cash' ? 100 : 0, min: 0, max: 100 }))
                   };
                   setStructures([...structures, newStruct]);
               }}
