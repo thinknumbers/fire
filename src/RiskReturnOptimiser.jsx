@@ -3609,11 +3609,11 @@ export default function RiskReturnOptimiser() {
 
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div className="text-center p-3 bg-gray-50 rounded border border-gray-200">
-                  <div className="text-xs text-gray-500 uppercase">Return</div>
+                  <div className="text-xs text-gray-500">Return</div>
                   <div className="text-xl font-bold text-black">{formatPercent(selectedPortfolio.return)}</div>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded border border-gray-200">
-                  <div className="text-xs text-gray-500 uppercase">Risk</div>
+                  <div className="text-xs text-gray-500">Risk</div>
                   <div className="text-xl font-bold text-black">{formatPercent(selectedPortfolio.risk)}</div>
                 </div>
               </div>
@@ -3626,9 +3626,9 @@ export default function RiskReturnOptimiser() {
                 <table className="min-w-full text-sm">
                    <thead>
                     <tr className="bg-gray-50 sticky top-0 text-[10px]">
-                      <th className="px-3 py-1 text-left font-medium text-gray-500 uppercase"></th>
-                      <th className="px-3 py-1 text-right font-medium text-gray-500 uppercase">Amount ($)</th>
-                      <th className="px-3 py-1 text-right font-medium text-gray-500 uppercase">%</th>
+                      <th className="px-3 py-1 text-left font-medium text-gray-500"></th>
+                      <th className="px-3 py-1 text-right font-medium text-gray-500">Amount ($)</th>
+                      <th className="px-3 py-1 text-right font-medium text-gray-500">%</th>
                     </tr>
                   </thead>
                    <tbody className="divide-y divide-gray-100">
@@ -3643,9 +3643,9 @@ export default function RiskReturnOptimiser() {
                       </tr>
                     ))}
                     <tr className="bg-gray-50 border-t-2 border-gray-200">
-                      <td className="px-3 py-1 text-left text-xs font-bold text-gray-900 uppercase">Total</td>
-                      <td className="px-3 py-1 text-right text-xs font-bold text-gray-900 uppercase font-mono">{formatCurrency(totalWealth)}</td>
-                      <td className="px-3 py-1 text-right text-xs font-bold text-gray-900 uppercase">100.0%</td>
+                      <td className="px-3 py-1 text-left text-xs font-bold text-gray-900">Total</td>
+                      <td className="px-3 py-1 text-right text-xs font-bold text-gray-900 font-mono">{formatCurrency(totalWealth)}</td>
+                      <td className="px-3 py-1 text-right text-xs font-bold text-gray-900">100.0%</td>
                     </tr>
                   </tbody>
                 </table>
@@ -3660,7 +3660,7 @@ export default function RiskReturnOptimiser() {
               <h4 className="font-semibold text-gray-900 mb-4">Portfolio Asset Allocation</h4>
               
               <div className="flex flex-col items-center border-b border-gray-100 pb-4 mb-4">
-                <h5 className="text-xs font-semibold text-gray-700 mb-1 text-center uppercase tracking-wider">Total Portfolio</h5>
+                <h5 className="text-xs font-semibold text-gray-700 mb-1 text-center tracking-wider">Total Portfolio</h5>
                 <div className="h-[250px] w-full max-w-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -3715,7 +3715,7 @@ export default function RiskReturnOptimiser() {
                   
                   return (
                     <div key={struct.id} className="flex-shrink-0" style={{ width: `${Math.min(200, 100 / structures.length)}%`, minWidth: '130px', maxWidth: '180px' }}>
-                      <h5 className="text-[10px] font-semibold text-gray-500 mb-1 text-center uppercase tracking-tight">{struct.name}</h5>
+                      <h5 className="text-[10px] font-semibold text-gray-500 mb-1 text-center tracking-tight">{struct.name}</h5>
                       <div className="h-[150px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
