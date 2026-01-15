@@ -1,4 +1,4 @@
-// Deployment trigger: v1.198 - 2026-01-15
+// Deployment trigger: v1.199 - 2026-01-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -53,19 +53,19 @@ const NumberInput = ({ value, onChange, className, placeholder, prefix = "$" }) 
 };
 
 const DEFAULT_ASSETS = [
-  { id: 'aus_eq', name: 'Australian Equities', return: 0.087, stdev: 0.1742, incomeRatio: 0.67, minWeight: 0, maxWeight: 100, color: '#7eb7c9', active: true, isDefault: true },
-  { id: 'us_large', name: 'US Large Cap Equities', return: 0.084, stdev: 0.1711, incomeRatio: 0.35, minWeight: 0, maxWeight: 100, color: '#8fa3bf', active: true, isDefault: true },
-  { id: 'us_small', name: 'US Small Cap Equities', return: 0.077, stdev: 0.2081, incomeRatio: 0.40, minWeight: 0, maxWeight: 100, color: '#a599bf', active: true, isDefault: true },
-  { id: 'dev_world', name: 'Developed World Equities', return: 0.07, stdev: 0.1673, incomeRatio: 0.49, minWeight: 0, maxWeight: 100, color: '#c4a1bf', active: true, isDefault: true },
-  { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.083, stdev: 0.20, incomeRatio: 0.44, minWeight: 0, maxWeight: 100, color: '#d9a8b8', active: true, isDefault: true },
-  { id: 'reits', name: 'Global REITs', return: 0.06, stdev: 0.1519, incomeRatio: 0.63, minWeight: 0, maxWeight: 100, color: '#e8b8a8', active: true, isDefault: true },
-  { id: 'hedge', name: 'Hedge Fund', return: 0.052, stdev: 0.1171, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#f2c8a8', active: true, isDefault: true },
-  { id: 'comm', name: 'Commodities', return: 0.042, stdev: 0.2084, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#f5d9a8', active: true, isDefault: true },
-  { id: 'aus_bond', name: 'Australian Bonds', return: 0.038, stdev: 0.0394, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#98c9e8', active: true, isDefault: true },
-  { id: 'gl_bond', name: 'Global Bonds', return: 0.036, stdev: 0.0358, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#98dbc2', active: true, isDefault: true },
-  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054, stdev: 0.1112, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#f5e5a3', active: true, isDefault: true },
-  { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.067, stdev: 0.1262, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#f5c8a8', active: true, isDefault: true },
-  { id: 'cash', name: 'Cash', return: 0.029, stdev: 0.0061, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#b8b8d8', active: true, isDefault: true },
+  { id: 'aus_eq', name: 'Australian Equities', return: 0.087, stdev: 0.1742, incomeRatio: 0.67, minWeight: 0, maxWeight: 100, color: '#AEC6CF', active: true, isDefault: true }, // Pastel Blue
+  { id: 'us_large', name: 'US Large Cap Equities', return: 0.084, stdev: 0.1711, incomeRatio: 0.35, minWeight: 0, maxWeight: 100, color: '#FFB347', active: true, isDefault: true }, // Pastel Orange
+  { id: 'us_small', name: 'US Small Cap Equities', return: 0.077, stdev: 0.2081, incomeRatio: 0.40, minWeight: 0, maxWeight: 100, color: '#FF6961', active: true, isDefault: true }, // Pastel Red
+  { id: 'dev_world', name: 'Developed World Equities', return: 0.07, stdev: 0.1673, incomeRatio: 0.49, minWeight: 0, maxWeight: 100, color: '#CB99C9', active: true, isDefault: true }, // Pastel Violet
+  { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.083, stdev: 0.20, incomeRatio: 0.44, minWeight: 0, maxWeight: 100, color: '#779ECB', active: true, isDefault: true }, // Muted Blue
+  { id: 'reits', name: 'Global REITs', return: 0.06, stdev: 0.1519, incomeRatio: 0.63, minWeight: 0, maxWeight: 100, color: '#FDFD96', active: true, isDefault: true }, // Pastel Yellow
+  { id: 'hedge', name: 'Hedge Fund', return: 0.052, stdev: 0.1171, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#B39EB5', active: true, isDefault: true }, // Pastel Purple
+  { id: 'comm', name: 'Commodities', return: 0.042, stdev: 0.2084, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#C23B22', active: true, isDefault: true }, // Muted Red (Darker)
+  { id: 'aus_bond', name: 'Australian Bonds', return: 0.038, stdev: 0.0394, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#77DD77', active: true, isDefault: true }, // Pastel Green
+  { id: 'gl_bond', name: 'Global Bonds', return: 0.036, stdev: 0.0358, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#836953', active: true, isDefault: true }, // Pastel Brown
+  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054, stdev: 0.1112, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#FFD1DC', active: true, isDefault: true }, // Pastel Pink
+  { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.067, stdev: 0.1262, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#826d85', active: true, isDefault: true }, // Muted Grape
+  { id: 'cash', name: 'Cash', return: 0.029, stdev: 0.0061, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#CFCFC4', active: true, isDefault: true }, // Pastel Grey
 ];
 
 const INITIAL_CORRELATIONS_DATA = {
@@ -110,8 +110,8 @@ const generateFullCorrelationMatrix = (assets) => {
 
 const DEFAULT_ENTITY_TYPES = {
   PERSONAL: { label: 'Personal Name', incomeTax: 0.47, ltCgt: 0.235, stCgt: 0.47 },
-  COMPANY: { label: 'Company', incomeTax: 0.25, ltCgt: 0.25, stCgt: 0.25 },
-  TRUST: { label: 'Family Trust', incomeTax: 0.30, ltCgt: 0.15, stCgt: 0.30 }, // Avg dist rate
+  COMPANY: { label: 'Company', incomeTax: 0.30, ltCgt: 0.30, stCgt: 0.30 },
+  TRUST: { label: 'Family Trust', incomeTax: 0.30, ltCgt: 0.235, stCgt: 0.30 }, // Avg dist rate
   SUPER_ACCUM: { label: 'Superannuation (Accumulation Phase)', incomeTax: 0.15, ltCgt: 0.10, stCgt: 0.15 },
   PENSION: { label: 'Superannuation (Pension Phase)', incomeTax: 0.00, ltCgt: 0.00, stCgt: 0.00 },
 };
@@ -1636,11 +1636,18 @@ export default function RiskReturnOptimiser() {
         };
         
         // Use After-Tax returns for optimization
-        const optAssets = activeAssets.map((a, i) => ({
-            ...a,
-            return: afterTaxReturns[i], // Already decimal (e.g. 0.08 for 8%)
-            stdev: a.stdev || 0         // Already decimal (e.g. 0.15 for 15%)
-        }));
+        const optAssets = activeAssets.map((a, i) => {
+            const grossReturn = a.return || 0;
+            const afterTax = afterTaxReturns[i];
+            // Scale risk by the tax factor (Effective Stdev = Stdev * (AfterTax / PreTax))
+            // This ensures risk is tax-adjusted consistent with returns
+            const taxFactor = grossReturn > 0.0001 ? (afterTax / grossReturn) : 1.0;
+            return {
+                ...a,
+                return: afterTax, 
+                stdev: (a.stdev || 0) * taxFactor
+            };
+        });
 
         try {
             const result = runResampledOptimization(optAssets, activeCorrelations, constraints, confidenceT, numSimulations);
@@ -1678,11 +1685,17 @@ export default function RiskReturnOptimiser() {
                     const entityAfterTaxReturns = calculateEntityAfterTaxReturns(activeAssets, entityType, entityTypes);
                     
                     // Create entity-specific assets with these returns
-                    const entityOptAssets = activeAssets.map((a, i) => ({
-                        ...a,
-                        return: entityAfterTaxReturns[i],
-                        stdev: a.stdev || 0
-                    }));
+                    const entityOptAssets = activeAssets.map((a, i) => {
+                        const grossReturn = a.return || 0;
+                        const afterTax = entityAfterTaxReturns[i];
+                        // Scale risk by tax factor for entity specific optimization too
+                        const taxFactor = grossReturn > 0.0001 ? (afterTax / grossReturn) : 1.0;
+                        return {
+                            ...a,
+                            return: afterTax,
+                            stdev: (a.stdev || 0) * taxFactor
+                        };
+                    });
                     
                     // Run optimization for this entity type
                     const entityResult = runResampledOptimization(entityOptAssets, activeCorrelations, constraints, confidenceT, Math.max(10, Math.floor(numSimulations / 2)));
@@ -4028,7 +4041,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.198</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.199</span>
              </div>
           </div>
         </div>
