@@ -1,4 +1,4 @@
-// Deployment trigger: v1.204 - 2026-01-15
+// Deployment trigger: v1.205 - 2026-01-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1584,8 +1584,9 @@ export default function RiskReturnOptimiser() {
 
       return {
         ...asset,
-        minWeight: Math.round(weightedMin),
-        maxWeight: Math.round(weightedMax)
+        // Restore Math.max(0) to enforce STRICT non-negative constraints per user request
+        minWeight: Math.max(0, Math.round(weightedMin)),
+        maxWeight: Math.max(0, Math.round(weightedMax)) 
       };
     });
   };
@@ -1593,6 +1594,14 @@ export default function RiskReturnOptimiser() {
   const handleRunOptimization = () => {
     const logs = [];
     logs.push({ step: 'Start', details: 'Optimization Initiated', timestamp: Date.now() });
+
+    // Helper to clamp negative weights and renormalize 
+    const ensureNonNegative = (weights) => {
+        let clamped = weights.map(w => Math.max(0, w));
+        const sum = clamped.reduce((a, b) => a + b, 0);
+        if (sum === 0) return clamped; 
+        return clamped.map(w => w / sum);
+    };
 
     // Apply per-entity constraints to get effective global constraints
     const effectiveAssets = calculateEffectiveConstraints(assets, structures);
@@ -1667,7 +1676,7 @@ export default function RiskReturnOptimiser() {
                 ...p,
                 return: p.return,
                 risk: p.risk,
-                weights: p.weights 
+                weights: ensureNonNegative(p.weights) 
             }));
             
             // Flatten simulations for the cloud visualization
@@ -1710,7 +1719,7 @@ export default function RiskReturnOptimiser() {
                         ...p,
                         return: p.return,
                         risk: p.risk,
-                        weights: p.weights
+                        weights: ensureNonNegative(p.weights)
                     }));
                     
                     // Map to 10 named buckets
@@ -4057,7 +4066,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.204</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.205</span>
              </div>
           </div>
         </div>
