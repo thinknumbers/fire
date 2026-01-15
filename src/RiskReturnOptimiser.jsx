@@ -1,4 +1,4 @@
-// Deployment trigger: v1.195 - 2026-01-15
+// Deployment trigger: v1.198 - 2026-01-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -215,6 +215,25 @@ const calculateClientTaxAdjustedReturns = (assets, structures, entityTypes) => {
   });
 };
 
+// Calculate after-tax returns for a SPECIFIC entity type (for entity-specific optimization)
+const calculateEntityAfterTaxReturns = (assets, entityType, entityTypes, customTax = null) => {
+  // Get tax rates for this entity type
+  let rates = entityTypes[entityType] || entityTypes.PERSONAL || { incomeTax: 0.47, ltCgt: 0.235 };
+  
+  // Allow custom tax override
+  if (customTax) {
+    rates = customTax;
+  }
+  
+  return assets.map(asset => {
+    const incomeComponent = asset.return * (asset.incomeRatio || 0);
+    const capitalComponent = asset.return * (1 - (asset.incomeRatio || 0));
+    const afterTaxIncome = incomeComponent * (1 - rates.incomeTax);
+    const afterTaxCapital = capitalComponent * (1 - rates.ltCgt);
+    return afterTaxIncome + afterTaxCapital;
+  });
+};
+
 const calculatePortfolioStats = (weights, afterTaxReturns, assets, correlations) => {
   let expectedReturn = 0;
   for (let i = 0; i < weights.length; i++) {
@@ -406,6 +425,7 @@ export default function RiskReturnOptimiser() {
   // Simulation State
   const [simulations, setSimulations] = useState([]);
   const [efficientFrontier, setEfficientFrontier] = useState([]);
+  const [entityFrontiers, setEntityFrontiers] = useState({}); // Per-entity-type frontiers: { PERSONAL: [...], TRUST: [...], etc }
   const [isSimulating, setIsSimulating] = useState(false);
   const [progress, setProgress] = useState(0); // 0-100
   const [simulationCount, setSimulationCount] = useState(50); // Default number of simulations
@@ -1644,6 +1664,80 @@ export default function RiskReturnOptimiser() {
                     });
                 });
             });
+
+            // =====================================================
+            // ENTITY-SPECIFIC OPTIMIZATION
+            // Run separate optimization for each unique entity type
+            // =====================================================
+            const uniqueEntityTypes = [...new Set(structures.map(s => s.type))];
+            const perEntityFrontiers = {};
+            
+            uniqueEntityTypes.forEach(entityType => {
+                try {
+                    // Calculate after-tax returns specific to this entity type
+                    const entityAfterTaxReturns = calculateEntityAfterTaxReturns(activeAssets, entityType, entityTypes);
+                    
+                    // Create entity-specific assets with these returns
+                    const entityOptAssets = activeAssets.map((a, i) => ({
+                        ...a,
+                        return: entityAfterTaxReturns[i],
+                        stdev: a.stdev || 0
+                    }));
+                    
+                    // Run optimization for this entity type
+                    const entityResult = runResampledOptimization(entityOptAssets, activeCorrelations, constraints, confidenceT, Math.max(10, Math.floor(numSimulations / 2)));
+                    
+                    // Map to 10 buckets (same logic as main frontier)
+                    const entityFrontier = entityResult.frontier.map(p => ({
+                        ...p,
+                        return: p.return,
+                        risk: p.risk,
+                        weights: p.weights
+                    }));
+                    
+                    // Map to 10 named buckets
+                    if (entityFrontier.length > 0) {
+                        const BUCKET_LABELS = [
+                            "Defensive", "Conservative", "Moderate Conservative", "Moderate", "Balanced",
+                            "Balanced Growth", "Growth", "High Growth", "Aggressive", "High Aggressive"
+                        ];
+                        
+                        const minRisk = entityFrontier[0].risk;
+                        const maxRisk = entityFrontier[entityFrontier.length - 1].risk;
+                        const step = (maxRisk - minRisk) / (BUCKET_LABELS.length - 1 || 1);
+                        
+                        const mappedEntityFrontier = [];
+                        BUCKET_LABELS.forEach((label, idx) => {
+                            const targetRisk = minRisk + (idx * step);
+                            let closest = entityFrontier[0];
+                            let minDiff = Math.abs(entityFrontier[0].risk - targetRisk);
+                            
+                            for (let p of entityFrontier) {
+                                const diff = Math.abs(p.risk - targetRisk);
+                                if (diff < minDiff) {
+                                    minDiff = diff;
+                                    closest = p;
+                                }
+                            }
+                            
+                            mappedEntityFrontier.push({
+                                ...closest,
+                                id: idx + 1,
+                                label: `Portfolio ${idx + 1} - ${label}`
+                            });
+                        });
+                        
+                        perEntityFrontiers[entityType] = mappedEntityFrontier;
+                    }
+                } catch (entityErr) {
+                    console.warn(`Entity optimization for ${entityType} failed:`, entityErr);
+                    // Use global frontier as fallback
+                    perEntityFrontiers[entityType] = null;
+                }
+            });
+            
+            // Store entity-specific frontiers
+            setEntityFrontiers(perEntityFrontiers);
 
             finishOptimization(cloud, finalFrontier, activeAssets);
             
@@ -3403,13 +3497,22 @@ export default function RiskReturnOptimiser() {
   const OutputTab = () => {
     if (efficientFrontier.length === 0) return <div className="p-8 text-center text-gray-500">Please run the optimization first.</div>;
 
-    // Calculate blended allocation weights from all entity-constrained allocations
-    // This ensures Total Portfolio matches sum of per-entity allocations
+    // Calculate blended allocation weights from all entity-specific optimizations
+    // Each entity uses its own tax-optimized frontier when available
     const globalWeights = selectedPortfolio.weights;
     const blendedWeights = optimizationAssets.map((asset, assetIdx) => {
       let totalWeightedAllocation = 0;
       structures.forEach(struct => {
-        const entityWeights = getEntityConstrainedWeights(struct, globalWeights, optimizationAssets);
+        // Try to get entity-specific weights from entityFrontiers
+        let entityWeights;
+        const entityTypeFrontier = entityFrontiers[struct.type];
+        if (entityTypeFrontier && entityTypeFrontier[selectedPortfolioId - 1]) {
+          // Use entity-specific optimized weights
+          entityWeights = entityTypeFrontier[selectedPortfolioId - 1].weights;
+        } else {
+          // Fallback to constrained global weights
+          entityWeights = getEntityConstrainedWeights(struct, globalWeights, optimizationAssets);
+        }
         const entityWeight = entityWeights[assetIdx] || 0;
         totalWeightedAllocation += entityWeight * (struct.value / totalWealth);
       });
@@ -3531,9 +3634,15 @@ export default function RiskReturnOptimiser() {
               <div id="entity-pies-section" className="flex flex-wrap justify-center gap-4">
                 {/* Per-Entity Pie Charts */}
                 {structures.map(struct => {
-                  // Get entity-specific constrained weights
+                  // Get entity-specific weights - try entityFrontiers first
                   const globalWeights = selectedPortfolio?.weights || activeAssets.map(a => a.weight);
-                  const entityWeights = getEntityConstrainedWeights(struct, globalWeights, optimizationAssets.length > 0 ? optimizationAssets : activeAssets);
+                  const entityTypeFrontier = entityFrontiers[struct.type];
+                  let entityWeights;
+                  if (entityTypeFrontier && entityTypeFrontier[selectedPortfolioId - 1]) {
+                    entityWeights = entityTypeFrontier[selectedPortfolioId - 1].weights;
+                  } else {
+                    entityWeights = getEntityConstrainedWeights(struct, globalWeights, optimizationAssets.length > 0 ? optimizationAssets : activeAssets);
+                  }
                   
                   const entityAssets = activeAssets.map((asset) => {
                     const fullIdx = optimizationAssets.findIndex(a => a.id === asset.id);
@@ -3598,9 +3707,17 @@ export default function RiskReturnOptimiser() {
           <h4 className="font-semibold text-gray-900 mb-4">Asset Allocation by Entity</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
              {structures.map(struct => {
-                // Get entity-specific constrained weights
+                // Get entity-specific weights - try entityFrontiers first, fallback to constrained global
                 const globalWeights = selectedPortfolio?.weights || activeAssets.map(a => a.weight);
-                const entityWeights = getEntityConstrainedWeights(struct, globalWeights, optimizationAssets.length > 0 ? optimizationAssets : activeAssets);
+                const entityTypeFrontier = entityFrontiers[struct.type];
+                let entityWeights;
+                if (entityTypeFrontier && entityTypeFrontier[selectedPortfolioId - 1]) {
+                  // Use entity-specific optimized weights
+                  entityWeights = entityTypeFrontier[selectedPortfolioId - 1].weights;
+                } else {
+                  // Fallback to constrained global weights
+                  entityWeights = getEntityConstrainedWeights(struct, globalWeights, optimizationAssets.length > 0 ? optimizationAssets : activeAssets);
+                }
                 
                 return (
                <div key={struct.id} className="border border-gray-200 rounded-lg p-3">
@@ -3911,7 +4028,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.195</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.198</span>
              </div>
           </div>
         </div>
