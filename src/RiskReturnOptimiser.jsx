@@ -1,4 +1,4 @@
-// Deployment trigger: v1.212 - 2026-01-16
+// Deployment trigger: v1.213 - 2026-01-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -53,7 +53,7 @@ const NumberInput = ({ value, onChange, className, placeholder, prefix = "$" }) 
 };
 
 const DEFAULT_ASSETS = [
-  { id: 'aus_eq', name: 'Australian Equities', return: 0.087, stdev: 0.1742, incomeRatio: 0.67, minWeight: 0.1, maxWeight: 35, color: '#AEC6CF', active: true, isDefault: true }, // Pastel Blue
+  { id: 'aus_eq', name: 'Australian Equities', return: 0.087, stdev: 0.1742, incomeRatio: 0.67, minWeight: 0.1, maxWeight: 30, color: '#AEC6CF', active: true, isDefault: true }, // Pastel Blue
   { id: 'us_large', name: 'US Large Cap Equities', return: 0.084, stdev: 0.1711, incomeRatio: 0.35, minWeight: 0.1, maxWeight: 35, color: '#FFB347', active: true, isDefault: true }, // Pastel Orange
   { id: 'us_small', name: 'US Small Cap Equities', return: 0.077, stdev: 0.2081, incomeRatio: 0.40, minWeight: 0.1, maxWeight: 35, color: '#FF6961', active: true, isDefault: true }, // Pastel Red
   { id: 'dev_world', name: 'Developed World Equities', return: 0.07, stdev: 0.1673, incomeRatio: 0.49, minWeight: 0.1, maxWeight: 35, color: '#CB99C9', active: true, isDefault: true }, // Pastel Violet
@@ -65,7 +65,7 @@ const DEFAULT_ASSETS = [
   { id: 'gl_bond', name: 'Global Bonds', return: 0.036, stdev: 0.0358, incomeRatio: 1.0, minWeight: 0.1, maxWeight: 35, color: '#836953', active: true, isDefault: true }, // Pastel Brown
   { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054, stdev: 0.1112, incomeRatio: 0.99, minWeight: 0.1, maxWeight: 15, color: '#FFD1DC', active: true, isDefault: true }, // Pastel Pink
   { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.067, stdev: 0.1262, incomeRatio: 0.99, minWeight: 0.1, maxWeight: 15, color: '#826d85', active: true, isDefault: true }, // Muted Grape
-  { id: 'cash', name: 'Cash', return: 0.029, stdev: 0.0061, incomeRatio: 1.0, minWeight: 0.1, maxWeight: 100, color: '#CFCFC4', active: true, isDefault: true }, // Pastel Grey
+  { id: 'cash', name: 'Cash', return: 0.029, stdev: 0.0061, incomeRatio: 1.0, minWeight: 0.1, maxWeight: 80, color: '#CFCFC4', active: true, isDefault: true }, // Pastel Grey
 ];
 
 const INITIAL_CORRELATIONS_DATA = {
@@ -4219,7 +4219,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.212</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.213</span>
              </div>
           </div>
         </div>
