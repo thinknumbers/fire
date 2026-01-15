@@ -2743,6 +2743,67 @@ export default function RiskReturnOptimiser() {
           </div>
         </div>
       </div>
+
+      {/* Projection Input Assumptions */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+           <Calculator className="w-5 h-5 mr-2 text-fire-accent" />
+           Projection Input Assumptions
+         </h3>
+         <div className="flex flex-wrap gap-8 items-end">
+             <div>
+               <label className="block text-xs font-bold text-gray-500 mb-1">Timeframe (Years)</label>
+               <input 
+                  type="text" 
+                  defaultValue={projectionYears}
+                  onBlur={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (!isNaN(val) && val !== projectionYears) {
+                        setProjectionYears(val);
+                      }
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                  className="w-32 border border-gray-300 rounded px-2 py-1 text-sm text-black"
+               />
+             </div>
+             <div>
+               <label className="block text-xs font-bold text-gray-500 mb-1">Inflation</label>
+               <div className="relative w-32">
+                 <input 
+                    type="text"
+                    defaultValue={(Math.round(inflationRate * 1000) / 10).toString()}
+                    onBlur={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          setInflationRate(val/100);
+                        }
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm text-black pr-6"
+                 />
+                 <span className="absolute right-2 top-1 text-xs text-gray-400">%</span>
+               </div>
+             </div>
+             <div>
+               <label className="block text-xs font-bold text-gray-500 mb-1">Fees</label>
+               <div className="relative w-32">
+                 <input 
+                    type="text"
+                    defaultValue={(Math.round(adviceFee * 10000) / 100).toString()}
+                    onBlur={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          setAdviceFee(val/100);
+                        }
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm text-black pr-6"
+                 />
+                 <span className="absolute right-2 top-1 text-xs text-gray-400">%</span>
+               </div>
+             </div>
+         </div>
+      </div>
     </div>
   );
 
