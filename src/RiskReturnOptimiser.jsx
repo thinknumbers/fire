@@ -1,4 +1,4 @@
-// Deployment trigger: v1.206 - 2026-01-15
+// Deployment trigger: v1.207 - 2026-01-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -53,31 +53,31 @@ const NumberInput = ({ value, onChange, className, placeholder, prefix = "$" }) 
 };
 
 const DEFAULT_ASSETS = [
-  { id: 'aus_eq', name: 'Australian Equities', return: 0.087, stdev: 0.1742, incomeRatio: 0.67, minWeight: 0, maxWeight: 100, color: '#AEC6CF', active: true, isDefault: true }, // Pastel Blue
-  { id: 'us_large', name: 'US Large Cap Equities', return: 0.084, stdev: 0.1711, incomeRatio: 0.35, minWeight: 0, maxWeight: 100, color: '#FFB347', active: true, isDefault: true }, // Pastel Orange
-  { id: 'us_small', name: 'US Small Cap Equities', return: 0.077, stdev: 0.2081, incomeRatio: 0.40, minWeight: 0, maxWeight: 100, color: '#FF6961', active: true, isDefault: true }, // Pastel Red
-  { id: 'dev_world', name: 'Developed World Equities', return: 0.07, stdev: 0.1673, incomeRatio: 0.49, minWeight: 0, maxWeight: 100, color: '#CB99C9', active: true, isDefault: true }, // Pastel Violet
-  { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.083, stdev: 0.20, incomeRatio: 0.44, minWeight: 0, maxWeight: 100, color: '#779ECB', active: true, isDefault: true }, // Muted Blue
-  { id: 'reits', name: 'Global REITs', return: 0.06, stdev: 0.1519, incomeRatio: 0.63, minWeight: 0, maxWeight: 100, color: '#FDFD96', active: true, isDefault: true }, // Pastel Yellow
-  { id: 'hedge', name: 'Hedge Fund', return: 0.052, stdev: 0.1171, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#B39EB5', active: true, isDefault: true }, // Pastel Purple
-  { id: 'comm', name: 'Commodities', return: 0.042, stdev: 0.2084, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#C23B22', active: true, isDefault: true }, // Muted Red (Darker)
-  { id: 'aus_bond', name: 'Australian Bonds', return: 0.038, stdev: 0.0394, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#77DD77', active: true, isDefault: true }, // Pastel Green
-  { id: 'gl_bond', name: 'Global Bonds', return: 0.036, stdev: 0.0358, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#836953', active: true, isDefault: true }, // Pastel Brown
-  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054, stdev: 0.1112, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#FFD1DC', active: true, isDefault: true }, // Pastel Pink
-  { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.067, stdev: 0.1262, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#826d85', active: true, isDefault: true }, // Muted Grape
+  { id: 'aus_eq', name: 'Australian Equities', return: 0.087, stdev: 0.1742, incomeRatio: 0.67, minWeight: 0, maxWeight: 35, color: '#AEC6CF', active: true, isDefault: true }, // Pastel Blue
+  { id: 'us_large', name: 'US Large Cap Equities', return: 0.084, stdev: 0.1711, incomeRatio: 0.35, minWeight: 0, maxWeight: 35, color: '#FFB347', active: true, isDefault: true }, // Pastel Orange
+  { id: 'us_small', name: 'US Small Cap Equities', return: 0.077, stdev: 0.2081, incomeRatio: 0.40, minWeight: 0, maxWeight: 35, color: '#FF6961', active: true, isDefault: true }, // Pastel Red
+  { id: 'dev_world', name: 'Developed World Equities', return: 0.07, stdev: 0.1673, incomeRatio: 0.49, minWeight: 0, maxWeight: 35, color: '#CB99C9', active: true, isDefault: true }, // Pastel Violet
+  { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.083, stdev: 0.20, incomeRatio: 0.44, minWeight: 0, maxWeight: 35, color: '#779ECB', active: true, isDefault: true }, // Muted Blue
+  { id: 'reits', name: 'Global REITs', return: 0.06, stdev: 0.1519, incomeRatio: 0.63, minWeight: 0, maxWeight: 35, color: '#FDFD96', active: true, isDefault: true }, // Pastel Yellow
+  { id: 'hedge', name: 'Hedge Fund', return: 0.052, stdev: 0.1171, incomeRatio: 0.99, minWeight: 0, maxWeight: 15, color: '#B39EB5', active: true, isDefault: true }, // Pastel Purple
+  { id: 'comm', name: 'Commodities', return: 0.042, stdev: 0.2084, incomeRatio: 0.99, minWeight: 0, maxWeight: 15, color: '#C23B22', active: true, isDefault: true }, // Muted Red (Darker)
+  { id: 'aus_bond', name: 'Australian Bonds', return: 0.038, stdev: 0.0394, incomeRatio: 0.99, minWeight: 0, maxWeight: 35, color: '#77DD77', active: true, isDefault: true }, // Pastel Green
+  { id: 'gl_bond', name: 'Global Bonds', return: 0.036, stdev: 0.0358, incomeRatio: 1.0, minWeight: 0, maxWeight: 35, color: '#836953', active: true, isDefault: true }, // Pastel Brown
+  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054, stdev: 0.1112, incomeRatio: 0.99, minWeight: 0, maxWeight: 15, color: '#FFD1DC', active: true, isDefault: true }, // Pastel Pink
+  { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.067, stdev: 0.1262, incomeRatio: 0.99, minWeight: 0, maxWeight: 15, color: '#826d85', active: true, isDefault: true }, // Muted Grape
   { id: 'cash', name: 'Cash', return: 0.029, stdev: 0.0061, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#CFCFC4', active: true, isDefault: true }, // Pastel Grey
 ];
 
 const INITIAL_CORRELATIONS_DATA = {
   // Symmetric Data (Upper Triangle + Diagonals)
   // Format: "ROW_ID": { "COL_ID": value, ... }
-  "aus_eq": { "us_large": 0.462689, "us_small": 0.528396, "dev_world": 0.582217, "em_eq": 0.598446, "reits": 0.560008, "hedge": -0.16219, "comm": 0.123853, "aus_bond": 0.005883, "gl_bond": 0.139196, "hy_bond": 0.672802, "em_bond": 0.072523, "cash": -0.03929 },
+  "aus_eq": { "us_large": 0.462689, "us_small": 0.528396, "dev_world": 0.582217, "em_eq": 0.598446, "reits": 0.560008, "hedge": 0.50, "comm": 0.123853, "aus_bond": 0.005883, "gl_bond": 0.139196, "hy_bond": 0.672802, "em_bond": 0.40, "cash": -0.03929 },
   "us_large": { "us_small": 0.791495, "dev_world": 0.770658, "em_eq": 0.507356, "reits": 0.604173, "hedge": 0.467206, "comm": 0.100355, "aus_bond": 0.1073, "gl_bond": -0.00051, "hy_bond": 0.286807, "em_bond": 0.48789, "cash": -0.06655 },
   "us_small": { "dev_world": 0.664269, "em_eq": 0.525133, "reits": 0.606552, "hedge": 0.34373, "comm": 0.164277, "aus_bond": 0.047697, "gl_bond": -0.05806, "hy_bond": 0.375976, "em_bond": 0.349538, "cash": -0.03607 },
   "dev_world": { "em_eq": 0.61929, "reits": 0.627213, "hedge": 0.299626, "comm": 0.139579, "aus_bond": 0.068988, "gl_bond": 0.001715, "hy_bond": 0.42957, "em_bond": 0.364849, "cash": -0.05919 },
   "em_eq": { "reits": 0.485376, "hedge": 0.079337, "comm": 0.082088, "aus_bond": -0.02811, "gl_bond": -0.01552, "hy_bond": 0.59832, "em_bond": 0.324641, "cash": -0.02681 },
   "reits": { "hedge": 0.205612, "comm": 0.065917, "aus_bond": 0.230711, "gl_bond": 0.236395, "hy_bond": 0.470036, "em_bond": 0.412268, "cash": 0.002356 },
-  "hedge": { "comm": 0.188014, "aus_bond": 0.152706, "gl_bond": -0.11461, "hy_bond": -0.30198, "em_bond": 0.64591, "cash": 0.050603 },
+  "hedge": { "comm": 0.188014, "aus_bond": 0.152706, "gl_bond": 0.10, "hy_bond": 0.40, "em_bond": 0.64591, "cash": 0.050603 },
   "comm": { "aus_bond": -0.12671, "gl_bond": -0.19519, "hy_bond": 0.087571, "em_bond": 0.038482, "cash": 0.011105 },
   "aus_bond": { "gl_bond": 0.706525, "hy_bond": 0.079467, "em_bond": 0.446238, "cash": 0.230288 },
   "gl_bond": { "hy_bond": 0.282245, "em_bond": 0.244124, "cash": 0.22785 },
@@ -4088,7 +4088,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.206</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.207</span>
              </div>
           </div>
         </div>
