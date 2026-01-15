@@ -414,6 +414,16 @@ export default function RiskReturnOptimiser() {
   );
   const [entityTypes, setEntityTypes] = useState(DEFAULT_ENTITY_TYPES);
   const [correlations, setCorrelations] = useState(() => generateFullCorrelationMatrix(DEFAULT_ASSETS));
+
+  // FORCE RESET STATE for v1.207 Constraints
+  useEffect(() => {
+    const RESET_KEY = 'fire_wealth_v1.207_constraints_reset_v2';
+    if (!localStorage.getItem(RESET_KEY)) {
+      console.log('Forcing Asset Reset for new Constraints');
+      setAssets(DEFAULT_ASSETS);
+      localStorage.setItem(RESET_KEY, 'true');
+    }
+  }, []);
   
   // Cashflow Inputs
   const [incomeStreams, setIncomeStreams] = useState(DEFAULT_INCOME_STREAMS);
