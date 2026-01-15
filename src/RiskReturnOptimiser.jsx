@@ -2024,9 +2024,10 @@ export default function RiskReturnOptimiser() {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Application Title</label>
                                 <input 
                                     type="text" 
-                                    value={settingsDraft.title}
-                                    onChange={(e) => setSettingsDraft(prev => ({ ...prev, title: e.target.value }))}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-fire-accent/50 outline-none transition-all"
+                                    defaultValue={settingsDraft.title}
+                                    onBlur={(e) => setSettingsDraft(prev => ({ ...prev, title: e.target.value }))}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-fire-accent/50 outline-none transition-all"
                                 />
                             </div>
                             <div>
