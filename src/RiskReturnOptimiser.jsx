@@ -1,4 +1,4 @@
-// Deployment trigger: v1.210 - 2026-01-16
+// Deployment trigger: v1.211 - 2026-01-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -53,19 +53,19 @@ const NumberInput = ({ value, onChange, className, placeholder, prefix = "$" }) 
 };
 
 const DEFAULT_ASSETS = [
-  { id: 'aus_eq', name: 'Australian Equities', return: 0.087, stdev: 0.1742, incomeRatio: 0.67, minWeight: 0.5, maxWeight: 35, color: '#AEC6CF', active: true, isDefault: true }, // Pastel Blue
-  { id: 'us_large', name: 'US Large Cap Equities', return: 0.084, stdev: 0.1711, incomeRatio: 0.35, minWeight: 0.5, maxWeight: 35, color: '#FFB347', active: true, isDefault: true }, // Pastel Orange
-  { id: 'us_small', name: 'US Small Cap Equities', return: 0.077, stdev: 0.2081, incomeRatio: 0.40, minWeight: 0.5, maxWeight: 35, color: '#FF6961', active: true, isDefault: true }, // Pastel Red
-  { id: 'dev_world', name: 'Developed World Equities', return: 0.07, stdev: 0.1673, incomeRatio: 0.49, minWeight: 0.5, maxWeight: 35, color: '#CB99C9', active: true, isDefault: true }, // Pastel Violet
-  { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.083, stdev: 0.20, incomeRatio: 0.44, minWeight: 0.5, maxWeight: 35, color: '#779ECB', active: true, isDefault: true }, // Muted Blue
-  { id: 'reits', name: 'Global REITs', return: 0.06, stdev: 0.1519, incomeRatio: 0.63, minWeight: 0.5, maxWeight: 35, color: '#FDFD96', active: true, isDefault: true }, // Pastel Yellow
-  { id: 'hedge', name: 'Hedge Fund', return: 0.052, stdev: 0.1171, incomeRatio: 0.99, minWeight: 0.5, maxWeight: 15, color: '#B39EB5', active: true, isDefault: true }, // Pastel Purple
-  { id: 'comm', name: 'Commodities', return: 0.042, stdev: 0.2084, incomeRatio: 0.99, minWeight: 0.5, maxWeight: 15, color: '#C23B22', active: true, isDefault: true }, // Muted Red (Darker)
-  { id: 'aus_bond', name: 'Australian Bonds', return: 0.038, stdev: 0.0394, incomeRatio: 0.99, minWeight: 0.5, maxWeight: 35, color: '#77DD77', active: true, isDefault: true }, // Pastel Green
-  { id: 'gl_bond', name: 'Global Bonds', return: 0.036, stdev: 0.0358, incomeRatio: 1.0, minWeight: 0.5, maxWeight: 35, color: '#836953', active: true, isDefault: true }, // Pastel Brown
-  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054, stdev: 0.1112, incomeRatio: 0.99, minWeight: 0.5, maxWeight: 15, color: '#FFD1DC', active: true, isDefault: true }, // Pastel Pink
-  { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.067, stdev: 0.1262, incomeRatio: 0.99, minWeight: 0.5, maxWeight: 15, color: '#826d85', active: true, isDefault: true }, // Muted Grape
-  { id: 'cash', name: 'Cash', return: 0.029, stdev: 0.0061, incomeRatio: 1.0, minWeight: 0.5, maxWeight: 100, color: '#CFCFC4', active: true, isDefault: true }, // Pastel Grey
+  { id: 'aus_eq', name: 'Australian Equities', return: 0.087, stdev: 0.1742, incomeRatio: 0.67, minWeight: 0.1, maxWeight: 35, color: '#AEC6CF', active: true, isDefault: true }, // Pastel Blue
+  { id: 'us_large', name: 'US Large Cap Equities', return: 0.084, stdev: 0.1711, incomeRatio: 0.35, minWeight: 0.1, maxWeight: 35, color: '#FFB347', active: true, isDefault: true }, // Pastel Orange
+  { id: 'us_small', name: 'US Small Cap Equities', return: 0.077, stdev: 0.2081, incomeRatio: 0.40, minWeight: 0.1, maxWeight: 35, color: '#FF6961', active: true, isDefault: true }, // Pastel Red
+  { id: 'dev_world', name: 'Developed World Equities', return: 0.07, stdev: 0.1673, incomeRatio: 0.49, minWeight: 0.1, maxWeight: 35, color: '#CB99C9', active: true, isDefault: true }, // Pastel Violet
+  { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.083, stdev: 0.20, incomeRatio: 0.44, minWeight: 0.1, maxWeight: 35, color: '#779ECB', active: true, isDefault: true }, // Muted Blue
+  { id: 'reits', name: 'Global REITs', return: 0.06, stdev: 0.1519, incomeRatio: 0.63, minWeight: 0.1, maxWeight: 35, color: '#FDFD96', active: true, isDefault: true }, // Pastel Yellow
+  { id: 'hedge', name: 'Hedge Fund', return: 0.052, stdev: 0.1171, incomeRatio: 0.99, minWeight: 0.1, maxWeight: 15, color: '#B39EB5', active: true, isDefault: true }, // Pastel Purple
+  { id: 'comm', name: 'Commodities', return: 0.042, stdev: 0.2084, incomeRatio: 0.99, minWeight: 0.1, maxWeight: 15, color: '#C23B22', active: true, isDefault: true }, // Muted Red (Darker)
+  { id: 'aus_bond', name: 'Australian Bonds', return: 0.038, stdev: 0.0394, incomeRatio: 0.99, minWeight: 0.1, maxWeight: 35, color: '#77DD77', active: true, isDefault: true }, // Pastel Green
+  { id: 'gl_bond', name: 'Global Bonds', return: 0.036, stdev: 0.0358, incomeRatio: 1.0, minWeight: 0.1, maxWeight: 35, color: '#836953', active: true, isDefault: true }, // Pastel Brown
+  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054, stdev: 0.1112, incomeRatio: 0.99, minWeight: 0.1, maxWeight: 15, color: '#FFD1DC', active: true, isDefault: true }, // Pastel Pink
+  { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.067, stdev: 0.1262, incomeRatio: 0.99, minWeight: 0.1, maxWeight: 15, color: '#826d85', active: true, isDefault: true }, // Muted Grape
+  { id: 'cash', name: 'Cash', return: 0.029, stdev: 0.0061, incomeRatio: 1.0, minWeight: 0.1, maxWeight: 100, color: '#CFCFC4', active: true, isDefault: true }, // Pastel Grey
 ];
 
 const INITIAL_CORRELATIONS_DATA = {
@@ -1595,8 +1595,8 @@ export default function RiskReturnOptimiser() {
       return {
         ...asset,
         // Restore Math.max(0) to enforce STRICT non-negative constraints per user request
-        minWeight: Math.max(0, Math.round(weightedMin)),
-        maxWeight: Math.max(0, Math.round(weightedMax)) 
+        minWeight: Math.max(0, weightedMin),
+        maxWeight: Math.max(0, weightedMax) 
       };
     });
   };
@@ -1785,6 +1785,18 @@ export default function RiskReturnOptimiser() {
                         
                         perEntityFrontiers[entityType] = mappedEntityFrontier;
                         
+                        // Accumulate simulation cloud data for visualization
+                        if (entityResult.simulations) {
+                             entityResult.simulations.forEach(simFrontier => {
+                                simFrontier.forEach(p => {
+                                    cloud.push({
+                                        return: p.return, 
+                                        risk: p.risk
+                                    });
+                                });
+                            });
+                        }
+
                         // Store Personal or first available as fallback
                         if (entityType === 'PERSONAL' || !globalFallbackFrontier.length) {
                              globalFallbackFrontier = mappedEntityFrontier;
@@ -4206,7 +4218,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.210</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.211</span>
              </div>
           </div>
         </div>
