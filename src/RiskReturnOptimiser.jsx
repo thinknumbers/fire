@@ -1,4 +1,4 @@
-// Deployment trigger: v1.233 - 2026-01-16
+// Deployment trigger: v1.231 - 2026-01-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -3915,7 +3915,10 @@ export default function RiskReturnOptimiser() {
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div className="text-center p-3 bg-gray-50 rounded border border-gray-200">
                   <div className="text-xs text-gray-500">Return</div>
-                  <div className="text-xl font-bold text-black">{formatPercent(selectedPortfolio.return)}</div>
+                  {/* v1.231 FIX: Display GROSS Return per user request ("shows net which is too low") */}
+                  <div className="text-xl font-bold text-black">
+                     {formatPercent(activeAssets.reduce((sum, a) => sum + (a.weight * (a.return || 0)), 0))}
+                  </div>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded border border-gray-200">
                   <div className="text-xs text-gray-500">Risk</div>
@@ -4393,7 +4396,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.233</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.231</span>
              </div>
           </div>
         </div>
