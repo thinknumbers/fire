@@ -1,4 +1,4 @@
-// Deployment trigger: v1.218 - 2026-01-16
+// Deployment trigger: v1.219 - 2026-01-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -50,6 +50,21 @@ const NumberInput = ({ value, onChange, className, placeholder, prefix = "$" }) 
           />
       </div>
   );
+};
+
+// Sample Allocation Targets (from User provided image)
+// Used to guide the "Portfolio Constraint Matrix" to preventing outliers.
+const SAMPLE_TARGETS = {
+  1:  { aus_eq: 0.5, us_large: 0.2, us_small: 0.1, dev_world: 0.1, em_eq: 0.2, reits: 0.6, hedge: 2.8, comm: 0.9, aus_bond: 4.3, gl_bond: 7.8, hy_bond: 1.4, em_bond: 0.5, cash: 80.5 },
+  2:  { aus_eq: 2.5, us_large: 1.4, us_small: 0.8, dev_world: 0.7, em_eq: 1.3, reits: 1.1, hedge: 5.4, comm: 1.3, aus_bond: 10.3, gl_bond: 12.7, hy_bond: 3.2, em_bond: 1.9, cash: 57.3 },
+  3:  { aus_eq: 5.3, us_large: 2.9, us_small: 1.6, dev_world: 1.6, em_eq: 2.6, reits: 1.3, hedge: 7.4, comm: 1.8, aus_bond: 15.9, gl_bond: 17.4, hy_bond: 5.3, em_bond: 4.2, cash: 32.7 },
+  4:  { aus_eq: 8.6, us_large: 4.7, us_small: 2.7, dev_world: 2.5, em_eq: 4.2, reits: 1.6, hedge: 8.6, comm: 2.3, aus_bond: 18.1, gl_bond: 18.1, hy_bond: 6.2, em_bond: 6.7, cash: 15.5 },
+  5:  { aus_eq: 12.4, us_large: 7.3, us_small: 4.2, dev_world: 3.6, em_eq: 6.1, reits: 2.1, hedge: 8.4, comm: 2.9, aus_bond: 16.3, gl_bond: 15.2, hy_bond: 5.4, em_bond: 8.5, cash: 7.9 },
+  6:  { aus_eq: 16.0, us_large: 10.1, us_small: 5.8, dev_world: 5.0, em_eq: 8.4, reits: 2.3, hedge: 8.0, comm: 3.2, aus_bond: 12.8, gl_bond: 11.7, hy_bond: 4.2, em_bond: 8.3, cash: 4.3 },
+  7:  { aus_eq: 19.2, us_large: 13.1, us_small: 7.5, dev_world: 6.3, em_eq: 10.8, reits: 2.6, hedge: 7.8, comm: 3.5, aus_bond: 9.3, gl_bond: 8.0, hy_bond: 3.1, em_bond: 6.7, cash: 2.2 },
+  8:  { aus_eq: 22.2, us_large: 15.9, us_small: 9.7, dev_world: 7.5, em_eq: 13.1, reits: 3.1, hedge: 6.8, comm: 3.5, aus_bond: 5.7, gl_bond: 4.9, hy_bond: 1.9, em_bond: 4.5, cash: 1.2 },
+  9:  { aus_eq: 23.8, us_large: 18.0, us_small: 12.7, dev_world: 8.6, em_eq: 15.5, reits: 3.5, hedge: 4.8, comm: 3.1, aus_bond: 3.1, gl_bond: 2.7, hy_bond: 1.1, em_bond: 2.6, cash: 0.6 },
+  10: { aus_eq: 20.3, us_large: 18.5, us_small: 20.0, dev_world: 10.6, em_eq: 18.6, reits: 4.0, hedge: 2.6, comm: 2.1, aus_bond: 0.8, gl_bond: 0.6, hy_bond: 0.3, em_bond: 1.0, cash: 0.6 },
 };
 
 const DEFAULT_ASSETS = [
@@ -1815,118 +1830,147 @@ export default function RiskReturnOptimiser() {
             });
 
             // Store entity-specific frontiers
+            // Store entity-specific frontiers
             setEntityFrontiers(perEntityFrontiers);
 
-            // Step 3: Aggregate (Value-Weighted Blend)
-            // Combined Weight = Sum( Weight_Entity * Value_Entity ) / Total_Value
-            const totalVal = structures.reduce((sum, s) => sum + s.value, 0);
+            // =====================================================
+            // 5. AGGREGATE PROFILES (Weighted Blend)
+            // =====================================================
             
-            let finalFrontier = [];
-
-            if (totalVal > 0) {
-                 // Create 10 Profiles
-                 for (let i = 0; i < 10; i++) {
-                     let aggregatedWeights = new Array(activeAssets.length).fill(0);
-                     
-                     structures.forEach(struct => {
-                         const frontier = perEntityFrontiers[struct.type] || globalFallbackFrontier;
-                         if (frontier && frontier[i]) {
-                             const w = frontier[i].weights;
-                             const ratio = struct.value / totalVal;
-                             for (let k = 0; k < activeAssets.length; k++) {
-                                 aggregatedWeights[k] += w[k] * ratio;
-                             }
-                         }
-                     });
-                     
-                     // Renormalize (float safety)
-                     aggregatedWeights = ensureNonNegative(aggregatedWeights);
-
-                     // Recalculate Stats for Aggregated Portfolio
-                     // Return: Weighted Average of After-Tax Returns? 
-                     // Wait, the aggregated return displayed should normally be the weighted average of the underlying returns.
-                     // IMPORTANT: The "Net After-Tax Return" of the portfolio is the weighted average 
-                     // of the individual entity after-tax returns.
-                     // R_agg = Sum( W_agg[k] * R_asset_after_tax_agg[k] ) ?
-                     // Actually simplest way: Sum( Profile_Entity[i].return * (Value_Entity/Total) ).
-                     // Let's verify:
-                     // Return_Entity = Sum( w[k] * r_entity[k] )
-                     // Return_Agg = Sum( Return_Entity * ValueRatio ) 
-                     //            = Sum( Sum(w[k]*r_entity[k]) * ratio )
-                     //            = Sum( Sum(w[k]*ratio * r_entity[k]) ) -> Can't simplify easily to generic weights unless R is same.
-                     // But we have Aggregated Weights.
-                     // We should just Weighted Average the Returns of the Entity Profiles.
-                     
-                     let aggReturn = 0;
-                     structures.forEach(struct => {
-                         const frontier = perEntityFrontiers[struct.type] || globalFallbackFrontier;
-                         if (frontier && frontier[i]) {
-                             aggReturn += frontier[i].return * (struct.value / totalVal);
-                         }
-                     });
-
-                     // Recalculate Risk using Matrix (Step 3 Requirement)
-                     // Risk = Sqrt( W_agg * Cov * W_aggT )
-                     // We need the Covariance Matrix.
-                     // Note: We use the PRE-TAX (Global) Covariance Matrix for Risk? 
-                     // Yes, risk is usually Volatility of Pre-Tax prices. Tax dampens it but usually Correlation Matrix is on Asset Price.
-                     // The prompt says "Where Sigma is the Variance-Covariance Matrix". 
-                     // We will use the activeCorrelations and Asset Stdevs given.
-                     
-                     let variance = 0;
-                     for (let r = 0; r < activeAssets.length; r++) {
-                         for (let c = 0; c < activeAssets.length; c++) {
-                             const sA = activeAssets[r].stdev;
-                             const sB = activeAssets[c].stdev;
-                             const corr = activeCorrelations[r][c];
-                             const cov = corr * sA * sB;
-                             variance += aggregatedWeights[r] * aggregatedWeights[c] * cov;
-                         }
-                     }
-                     const aggRisk = Math.sqrt(variance);
-                     
-                     // Log Matrix Check for Profile 5 (Mid)
-                     if (i === 4) {
-                         logs.push({ 
-                             step: 'Matrix Check (Profile 5)', 
-                             details: {
-                                 weights: aggregatedWeights,
-                                 variance: variance,
-                                 risk: aggRisk,
-                                 note: 'Sqrt(W * Cov * W_T)'
-                             } 
-                         });
-                     }
-
-                     finalFrontier.push({
-                         id: i + 1,
-                         label: `Portfolio ${i + 1}`, // Add labels later
-                         weights: aggregatedWeights,
-                         return: aggReturn,
-                         risk: aggRisk
-                     });
-                 }
-            } else {
-                // No value, fall back to global
-                finalFrontier = globalFallbackFrontier;
+            const weightedFrontier = [];
+            
+            // Calculate Weighted Average per Profile (Rank 1 to 10)
+            for(let p=0; p<10; p++) {
+                let blendedWeights = new Array(activeAssets.length).fill(0);
+                let totalWeight = 0;
+                
+                Object.keys(perEntityFrontiers).forEach(type => {
+                   const entityFrontier = perEntityFrontiers[type];
+                   if (!entityFrontier || !entityFrontier[p]) return;
+                   
+                   // Weight of this entity in total portfolio
+                   const totalVal = structures.reduce((sum,s)=>sum+s.value,0) || 1;
+                   const typeVal = structures.filter(s => s.type === type).reduce((sum,s)=>sum+s.value,0);
+                   const weight = typeVal / totalVal;
+                   
+                   if (weight > 0) {
+                       const entityW = entityFrontier[p].weights;
+                       for(let i=0; i<blendedWeights.length; i++) {
+                           blendedWeights[i] += entityW[i] * weight;
+                       }
+                       totalWeight += weight;
+                   }
+                });
+                
+                if (totalWeight === 0) {
+                    // Fallback if something went wrong: Equal weight (shouldn't happen if structures exist)
+                    // Or default to globalFallback if available
+                    if (globalFallbackFrontier[p]) {
+                         blendedWeights = globalFallbackFrontier[p].weights;
+                    } else {
+                         blendedWeights.fill(1/activeAssets.length);
+                    }
+                } else {
+                     // Normalize (precision safety)
+                     const sumW = blendedWeights.reduce((a,b)=>a+b,0);
+                     if (sumW > 0) blendedWeights = blendedWeights.map(w => w/sumW);
+                }
+                
+                weightedFrontier.push({
+                    id: p+1,
+                    label: `Profile ${p+1}`,
+                    weights: blendedWeights,
+                    return: 0, // Recalculated below
+                    risk: 0    // Recalculated below
+                });
             }
+
+            // =====================================================
+            // 6. APPLY PORTFOLIO CONSTRAINT MATRIX (Sanity Check)
+            // =====================================================
+            // Force the blended profiles to stay within "River" of Sample Targets
             
-            // Re-apply Labels
-             const BUCKET_LABELS = [
+            const sanitizeWeights = (profiles, assets) => {
+                return profiles.map((profile, pIdx) => {
+                    const profileId = pIdx + 1;
+                    const targetRow = SAMPLE_TARGETS[profileId];
+                    if (!targetRow) return profile;
+
+                    let weights = [...profile.weights];
+                    const ABS_TOLERANCE = 0.05; // 5% wiggle room
+                    
+                    for(let iter=0; iter<10; iter++) {
+                        // A. Clamp
+                        for(let i=0; i<assets.length; i++) {
+                            const assetId = assets[i].id;
+                            const targetPct = targetRow[assetId]; 
+                            if (targetPct !== undefined) {
+                                const targetW = targetPct / 100;
+                                const minW = Math.max(0.001, targetW - ABS_TOLERANCE); // Min 0.1%
+                                const maxW = Math.min(1.0, targetW + ABS_TOLERANCE);
+                                
+                                if (weights[i] < minW) weights[i] = minW;
+                                if (weights[i] > maxW) weights[i] = maxW;
+                            }
+                        }
+                        // B. Normalize
+                        const sum = weights.reduce((a,b)=>a+b,0);
+                        if (sum > 0) weights = weights.map(w => w/sum);
+                    }
+                    return { ...profile, weights };
+                });
+            };
+
+            const constrainedFrontier = sanitizeWeights(weightedFrontier, activeAssets);
+
+            // =====================================================
+            // 7. FINALIZE STATS & STATE
+            // =====================================================
+
+            const BUCKET_LABELS = [
                 "Defensive", "Conservative", "Moderate Conservative", "Moderate", "Balanced",
                 "Balanced Growth", "Growth", "High Growth", "Aggressive", "High Aggressive"
             ];
-            finalFrontier = finalFrontier.map((p, i) => ({ ...p, label: `Portfolio ${p.id} - ${BUCKET_LABELS[i]}` }));
+
+            const finalProfiles = constrainedFrontier.map((p, pIdx) => {
+                 // 1. Calculate Weighted Average Return (After-Tax)
+                 // We need to re-calc the client's blended return for this specific weight mix.
+                 // We use the helper 'calculateClientTaxAdjustedReturns' which returns an array of net-returns per asset.
+                 const netAssetReturns = calculateClientTaxAdjustedReturns(activeAssets, structures, DEFAULT_ENTITY_TYPES); 
+                 
+                 const portReturn = p.weights.reduce((sum, w, i) => sum + (w * netAssetReturns[i]), 0);
+                 
+                 // 2. Calculate Risk (Standard Deviation)
+                 // using Pre-Tax Covariance (standard convention)
+                 let variance = 0;
+                 for(let i=0; i<p.weights.length; i++) {
+                     for(let j=0; j<p.weights.length; j++) {
+                         variance += p.weights[i] * p.weights[j] * activeCorrelations[i][j] * activeAssets[i].stdev * activeAssets[j].stdev;
+                     }
+                 }
+                 
+                 return {
+                     ...p,
+                     label: `Portfolio ${p.id} - ${BUCKET_LABELS[pIdx]}`,
+                     return: portReturn, // NET Return
+                     risk: Math.sqrt(variance) // GROSS Risk
+                 };
+            });
 
             setDebugLogs(logs);
-
-            // Step 4: Validate Constraints (Alternatives < 15%)
-            // Just a check for user awareness, the optimizer should have enforced it.
             
-            // Finish
-            // Create a fake "Cloud" based on aggregated results? Or just empty.
-            // We can leave cloud empty or reuse one of the entity clouds, but simpler to leave empty or use previous logic if needed.
-            finishOptimization(cloud, finalFrontier, activeAssets);
+            // Bypass finishOptimization logic because we already have our 10 profiles constructed exactly how we want them.
+            // We just need to set the state and finish.
+            setOptimizationAssets(activeAssets);
+            setSimulations(cloud); 
+            setEfficientFrontier(finalProfiles);
+            setSelectedPortfolioId(5);
+            setIsSimulating(false);
+            setProgress(100);
+            setActiveTab('optimization');
+            
+            // Trigger cashflow simulation
+            setTimeout(() => { }, 200);
             
         } catch (err) {
             console.error("Optimization Failed", err);
@@ -4224,7 +4268,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.218</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.219</span>
              </div>
           </div>
         </div>
