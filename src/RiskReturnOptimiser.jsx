@@ -1,4 +1,4 @@
-// Deployment trigger: v1.222 - 2026-01-16
+// Deployment trigger: v1.223 - 2026-01-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1618,7 +1618,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: 'Optimization Initiated (v1.210)', timestamp: Date.now() });
+    logs.push({ step: 'Start', details: 'Optimization Initiated (v1.223)', timestamp: Date.now() });
 
     // Helper to clamp negative weights and renormalize 
     const ensureNonNegative = (weights) => {
@@ -1892,6 +1892,8 @@ export default function RiskReturnOptimiser() {
             
             // Force the blended profiles to stay within "River" of Sample Targets
             
+            // Force the blended profiles to stay within "River" of Sample Targets
+            
             const sanitizeWeights = (profiles, assets) => {
                 const logs = [];
                 const sanitized = profiles.map((profile, pIdx) => {
@@ -1910,23 +1912,31 @@ export default function RiskReturnOptimiser() {
                         const asset = assets[i];
                         const targetPct = targetRow[asset.id];
                         
-                        // 1. Global Bounds (Hardest Constraint)
-                        const globalMax = (asset.maxWeight !== undefined ? asset.maxWeight : 100) / 100;
-                        const globalMin = (asset.minWeight || 0) / 100;
-                        
+                        // 1. Global Bounds (Hardest Constraint from State)
+                        let stateMax = (asset.maxWeight !== undefined ? asset.maxWeight : 100) / 100;
+                        let stateMin = (asset.minWeight || 0) / 100;
+
+                        // 1b. HARDCODED SYSTEM LIMIT CHECK (Anti-Stale State)
+                        // If user state allows 100% but Default says 9%, enforce 9% unless user explicitly changed it?
+                        // For now, let's enforce Default Max as a Safety Ceiling if reasonable.
+                        const def = DEFAULT_ASSETS.find(d => d.id === asset.id);
+                        if (def) {
+                             const sysMax = (def.maxWeight !== undefined ? def.maxWeight : 100) / 100;
+                             // We take the LOWER of State Max vs System Max to be safe
+                             // (Unless user Intended to raise it? Assume user wants constraints for now)
+                             if (sysMax < stateMax) stateMax = sysMax;
+                        }
+
                         // 2. Sample Target Bounds
-                        let minW = globalMin;
-                        let maxW = globalMax;
+                        let minW = stateMin;
+                        let maxW = stateMax;
 
                         if (targetPct !== undefined) {
                             const targetW = targetPct / 100;
                             // Target - Tolerance
-                            minW = Math.max(globalMin, targetW - ABS_TOLERANCE);
+                            minW = Math.max(stateMin, targetW - ABS_TOLERANCE);
                             // Target + Tolerance (clamped by Global Max)
-                            maxW = Math.min(globalMax, targetW + ABS_TOLERANCE);
-                        } else {
-                            // If asset is NOT in Sample Target (e.g. maybe user added one?), 
-                            // keep Global bounds.
+                            maxW = Math.min(stateMax, targetW + ABS_TOLERANCE);
                         }
                         
                         // Safety: Min must be <= Max
@@ -1937,12 +1947,6 @@ export default function RiskReturnOptimiser() {
                     }
 
                     // Use Dykstra's Algorithm (projectConstraints) to find closest valid weights
-                    // We pass 'weights' as the initial projection point.
-                    // We pass 'null' for mean and targetReturn because we don't want to enforce a specific return, 
-                    // just finding the closest point in the valid Min/Max box that sums to 1.
-                    
-                    // projectConstraints signature: (proj, mean, targetRet, minW, maxW, groupConstraints)
-                    // We mock 'mean' as zeroes since we pass targetRet=null.
                     const dummyMean = new Array(assets.length).fill(0);
                     
                     const cleanWeights = projectConstraints(
@@ -1951,7 +1955,7 @@ export default function RiskReturnOptimiser() {
                         null, // No return constraint
                         minWeights, 
                         maxWeights, 
-                        [] // No group constraints here, implicitly handled by optimization step, but could re-enforce if needed.
+                        [] 
                     );
                     
                     // Logging for Mid Profile
@@ -1965,7 +1969,7 @@ export default function RiskReturnOptimiser() {
                     
                     return { ...profile, weights: cleanWeights };
                 });
-                console.log("Sanitization Logs (ProjectConstraints):", logs);
+                console.log("Sanitization Logs (ProjectConstraints v1.223):", logs);
                 return sanitized;
             };
 
@@ -4316,7 +4320,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.222</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.223</span>
              </div>
           </div>
         </div>
