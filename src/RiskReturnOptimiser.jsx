@@ -1,4 +1,4 @@
-// Deployment trigger: v1.227 - 2026-01-16
+// Deployment trigger: v1.229 - 2026-01-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1616,6 +1616,9 @@ export default function RiskReturnOptimiser() {
     });
   };
 
+  // Helper: Round to 6 decimal places (for precision consistency)
+  const round6 = (num) => Math.round(num * 1000000) / 1000000;
+
   const handleRunOptimization = () => {
     const logs = [];
     logs.push({ step: 'Start', details: 'Optimization Initiated (v1.224)', timestamp: Date.now() });
@@ -1627,8 +1630,6 @@ export default function RiskReturnOptimiser() {
         if (sum === 0) return clamped; 
         return clamped.map(w => w / sum);
     };
-
-    const round6 = (num) => Math.round(num * 1000000) / 1000000;
 
     // Use global asset settings directly for constraints, ensuring defaults (0.1%) apply to all
     // Bypassing calculateEffectiveConstraints to strict enforcement of Settings
@@ -1678,21 +1679,9 @@ export default function RiskReturnOptimiser() {
     
     // Collect Constraints
     // Collect Constraints
-    // v1.227 FIX: Enforce System Defaults to override stale State
-    const constraints = {
-        minWeights: activeAssets.map(a => (a.minWeight || 0)/100),
-        maxWeights: activeAssets.map(a => {
-             let stateMax = (a.maxWeight !== undefined ? a.maxWeight : 100) / 100;
-             const def = DEFAULT_ASSETS.find(d => d.id === a.id);
-             if (def) {
-                 const sysMax = (def.maxWeight !== undefined ? def.maxWeight : 100) / 100;
-                 if (sysMax < stateMax) stateMax = sysMax;
-             }
-             return stateMax;
-        })
-    };
+    // Constraints are now built per-entity inside the loop to support conditional strict mode (v1.229)
     
-    // Forecast Confidence (T)
+     // Forecast Confidence (T)
     const T_MAP = { 1: 15, 2: 50, 3: 200 }; 
     const confidenceT = T_MAP[forecastConfidenceLevel] || 50;
     const numSimulations = Math.max(10, Math.min(simulationCount, 500));
@@ -1754,6 +1743,49 @@ export default function RiskReturnOptimiser() {
                     });
                     
                     logs.push({ step: `Entity Opt: ${entityType}`, details: detailLogs });
+
+                    // BUILD CONSTRAINTS (v1.230 Logic)
+                    // behavior: 
+                    // 1. If "Current Asset Allocation" is CHECKED -> Use the explicit inputs from that entity.
+                    // 2. If UNCHECKED -> Use "System Defaults" (Strict 9% Cap), ie. "Treatment to Date".
+                    
+                    const structWithAlloc = structures.find(s => s.type === entityType && s.useAssetAllocation);
+                    const useCustom = !!structWithAlloc;
+
+                    const constraints = {
+                        minWeights: [],
+                        maxWeights: []
+                    };
+
+                    if (useCustom && structWithAlloc.assetAllocation) {
+                         // CASE A: Checked (Custom Inputs)
+                         // We trust the user's manual inputs for this entity
+                         constraints.minWeights = activeAssets.map(a => {
+                             const row = structWithAlloc.assetAllocation.find(r => r.id === a.id);
+                             return (row && row.min !== undefined) ? row.min / 100 : 0;
+                         });
+                         constraints.maxWeights = activeAssets.map(a => {
+                             const row = structWithAlloc.assetAllocation.find(r => r.id === a.id);
+                             // If user left max blank/undefined, default to 100? Or System Default?
+                             // User said "uses whatever has been input". We assume explicit max.
+                             return (row && row.max !== undefined) ? row.max / 100 : 1.0; 
+                         });
+                    } else {
+                         // CASE B: Unchecked (System Defaults / "Treatment to Date")
+                         // We must enforce the Strict Caps (e.g. 9% EM Bond)
+                         constraints.minWeights = activeAssets.map(a => (a.minWeight || 0)/100);
+                         constraints.maxWeights = activeAssets.map(a => {
+                             let stateMax = (a.maxWeight !== undefined ? a.maxWeight : 100) / 100;
+                             
+                             // Enforce System Default (Anti-Stale / Strict Logic)
+                             const def = DEFAULT_ASSETS.find(d => d.id === a.id);
+                             if (def) {
+                                 const sysMax = (def.maxWeight !== undefined ? def.maxWeight : 100) / 100;
+                                 if (sysMax < stateMax) stateMax = sysMax;
+                             }
+                             return stateMax;
+                         });
+                    }
                     
                     // Step 2: Optimize (Maximize Return for fixed Risk)
                     // runResampledOptimization approximates the Efficient Frontier
@@ -2628,10 +2660,10 @@ export default function RiskReturnOptimiser() {
                   <td className="px-2 py-3 text-center">
                       <input 
                         type="text" 
-                        className="w-16 border rounded px-2 py-1 text-xs text-center text-black"
+                        className="w-20 border rounded px-2 py-1 text-xs text-center text-black"
                         disabled={!asset.active}
                         key={`return-${asset.id}-${asset.return}`}
-                        defaultValue={(asset.return * 100).toFixed(2)}
+                        defaultValue={(asset.return * 100).toFixed(6)}
                         onBlur={(e) => {
                            const val = parseFloat(e.target.value);
                            if (!isNaN(val) && val/100 !== asset.return) {
@@ -2644,10 +2676,10 @@ export default function RiskReturnOptimiser() {
                   <td className="px-2 py-3 text-center">
                     <input 
                       type="text" 
-                      className="w-16 border rounded px-2 py-1 text-xs text-center text-black"
+                      className="w-20 border rounded px-2 py-1 text-xs text-center text-black"
                       disabled={!asset.active}
                       key={`stdev-${asset.id}-${asset.stdev}`}
-                      defaultValue={(asset.stdev * 100).toFixed(2)}
+                      defaultValue={(asset.stdev * 100).toFixed(6)}
                       onBlur={(e) => {
                            const val = parseFloat(e.target.value);
                            if (!isNaN(val) && val/100 !== asset.stdev) {
@@ -3055,8 +3087,21 @@ export default function RiskReturnOptimiser() {
                                         {allocations.map(alloc => {
                                           const assetDef = assets.find(a => a.id === alloc.id);
                                           if(!assetDef) return null;
-                                          const weightedReturn = (alloc.weight || 0) / 100 * (assetDef.return || 0) * 100;
-                                          const weightedRisk = (alloc.weight || 0) / 100 * (assetDef.stdev || 0) * 100;
+                                          
+                                          // v1.231 FIX: Show the ENTITY SPECIFIC NET RATE (not weighted contribution)
+                                          // This allows user to see the "Real" return for this structure (e.g. Trust = 6.28%)
+                                          const entRates = entityTypes[struct.type] || { incomeTax: 0, ltCgt: 0 };
+                                          const incRatio = assetDef.incomeRatio !== undefined ? assetDef.incomeRatio : 1.0;
+                                          
+                                          // Use exact same rounding logic as Optimizer to ensure 1:1 match
+                                          const incomeComponent = round6(incRatio * (1 - entRates.incomeTax));
+                                          const growthComponent = round6((1 - incRatio) * (1 - entRates.ltCgt));
+                                          const netReturn = round6(assetDef.return * (incomeComponent + growthComponent));
+                                          
+                                          // Approx Net Risk (Ratio based)
+                                          const retention = assetDef.return > 0.0001 ? (netReturn / assetDef.return) : 1.0;
+                                          const netRisk = round6((assetDef.stdev || 0) * retention);
+
                                           return (
                                               <tr key={alloc.id}>
                                                   <td className="px-3 py-1 font-medium text-black">{assetDef.name}</td>
@@ -3074,8 +3119,8 @@ export default function RiskReturnOptimiser() {
                                                           onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                                                       />
                                                   </td>
-                                                  <td className="px-3 py-1 text-center text-black">{weightedReturn.toFixed(2)}</td>
-                                                  <td className="px-3 py-1 text-center text-black">{weightedRisk.toFixed(2)}</td>
+                                                  <td className="px-3 py-1 text-center text-black">{(netReturn * 100).toFixed(6)}</td>
+                                                  <td className="px-3 py-1 text-center text-black">{(netRisk * 100).toFixed(6)}</td>
                                                   <td className="px-3 py-1 text-center">
                                                       <input type="text" className="w-16 border rounded text-center text-black" 
                                                           key={`min-${alloc.id}-${alloc.min}`}
@@ -4348,7 +4393,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.227</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.229</span>
              </div>
           </div>
         </div>
