@@ -1,4 +1,4 @@
-// Deployment trigger: v1.224 - 2026-01-16
+// Deployment trigger: v1.225 - 2026-01-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1641,6 +1641,7 @@ export default function RiskReturnOptimiser() {
     setIsSimulating(true);
     setProgress(0);
     setSimulations([]);
+    setEfficientFrontier([]); // Clear stale results immediately
 
     // Prepare Data
     
@@ -1944,6 +1945,15 @@ export default function RiskReturnOptimiser() {
                         
                         minWeights.push(minW);
                         maxWeights.push(maxW);
+                    }
+                    
+                    if (profileId === 5) {
+                        console.log(`[v1.225] Profile 5 Bounds Debug:`, {
+                            assetIds: assets.map(a=>a.id),
+                            minWeights: minWeights.map(m=>m.toFixed(3)),
+                            maxWeights: maxWeights.map(m=>m.toFixed(3)),
+                            preWeights: weights.map(w=>w.toFixed(3))
+                        });
                     }
 
                     // Use Dykstra's Algorithm (projectConstraints) to find closest valid weights
@@ -4331,7 +4341,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.224</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.225</span>
              </div>
           </div>
         </div>
