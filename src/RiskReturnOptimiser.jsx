@@ -1,4 +1,4 @@
-// Deployment trigger: v1.226 - 2026-01-16
+// Deployment trigger: v1.227 - 2026-01-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1677,9 +1677,19 @@ export default function RiskReturnOptimiser() {
     // We will calculate After-tax returns per entity.
     
     // Collect Constraints
+    // Collect Constraints
+    // v1.227 FIX: Enforce System Defaults to override stale State
     const constraints = {
         minWeights: activeAssets.map(a => (a.minWeight || 0)/100),
-        maxWeights: activeAssets.map(a => (a.maxWeight || 100)/100)
+        maxWeights: activeAssets.map(a => {
+             let stateMax = (a.maxWeight !== undefined ? a.maxWeight : 100) / 100;
+             const def = DEFAULT_ASSETS.find(d => d.id === a.id);
+             if (def) {
+                 const sysMax = (def.maxWeight !== undefined ? def.maxWeight : 100) / 100;
+                 if (sysMax < stateMax) stateMax = sysMax;
+             }
+             return stateMax;
+        })
     };
     
     // Forecast Confidence (T)
@@ -3814,24 +3824,20 @@ export default function RiskReturnOptimiser() {
     // Calculate blended allocation weights from all entity-specific optimizations
     // Each entity uses its own tax-optimized frontier when available
     const globalWeights = selectedPortfolio.weights;
+    // v1.227 FIX: Use the Sanitized Weights directly for the Total Portfolio display
+    // instead of re-calculating from raw entities. This ensures the table matches the sanitization.
+    const blendedWeights = selectedPortfolio.weights; // Use the sanitized weights!
+
+    /* 
+    // OLD Logic: Re-calculated which bypassed sanitization
     const blendedWeights = optimizationAssets.map((asset, assetIdx) => {
       let totalWeightedAllocation = 0;
       structures.forEach(struct => {
-        // Try to get entity-specific weights from entityFrontiers
-        let entityWeights;
-        const entityTypeFrontier = entityFrontiers[struct.type];
-        if (entityTypeFrontier && entityTypeFrontier[selectedPortfolioId - 1]) {
-          // Use entity-specific optimized weights
-          entityWeights = entityTypeFrontier[selectedPortfolioId - 1].weights;
-        } else {
-          // Fallback to constrained global weights
-          entityWeights = getEntityConstrainedWeights(struct, globalWeights, optimizationAssets);
-        }
-        const entityWeight = entityWeights[assetIdx] || 0;
-        totalWeightedAllocation += entityWeight * (struct.value / totalWealth);
+         ...
       });
       return totalWeightedAllocation;
-    });
+    }); 
+    */
 
     const activeAssets = optimizationAssets.map((asset, idx) => ({
       ...asset,
@@ -4342,7 +4348,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.226</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.227</span>
              </div>
           </div>
         </div>
