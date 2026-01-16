@@ -1,4 +1,4 @@
-// Deployment trigger: v1.217 - 2026-01-16
+// Deployment trigger: v1.218 - 2026-01-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1613,7 +1613,7 @@ export default function RiskReturnOptimiser() {
         return clamped.map(w => w / sum);
     };
 
-    const round4 = (num) => Math.round(num * 10000) / 10000;
+    const round6 = (num) => Math.round(num * 1000000) / 1000000;
 
     // Use global asset settings directly for constraints, ensuring defaults (0.1%) apply to all
     // Bypassing calculateEffectiveConstraints to strict enforcement of Settings
@@ -1698,16 +1698,16 @@ export default function RiskReturnOptimiser() {
                         const capGainTax = entRates.ltCgt; 
 
                         // Formula: Ret * [ (Income% * (1-IncTax)) + (Growth% * (1-CGT)) ]
-                        // Round intermediates to 4 decimal places
-                        const incomeComponent = round4(incomeRatio * (1 - incomeTax));
-                        const growthComponent = round4((1 - incomeRatio) * (1 - capGainTax));
-                        const afterTaxReturn = round4(preTaxReturn * (incomeComponent + growthComponent));
+                        // Round intermediates to 6 decimal places
+                        const incomeComponent = round6(incomeRatio * (1 - incomeTax));
+                        const growthComponent = round6((1 - incomeRatio) * (1 - capGainTax));
+                        const afterTaxReturn = round6(preTaxReturn * (incomeComponent + growthComponent));
 
                         // Post-Tax Risk Adjustment
                         // If returns are dampened by tax, volatility of after-tax wealth is also dampened.
                         // Retention Rate = AfterTax / PreTax
                         const retentionRate = preTaxReturn > 0.0001 ? (afterTaxReturn / preTaxReturn) : 1.0;
-                        const afterTaxRisk = round4((asset.stdev || 0) * retentionRate);
+                        const afterTaxRisk = round6((asset.stdev || 0) * retentionRate);
 
                         detailLogs.push({
                             name: asset.name,
@@ -4224,7 +4224,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.217</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.218</span>
              </div>
           </div>
         </div>
