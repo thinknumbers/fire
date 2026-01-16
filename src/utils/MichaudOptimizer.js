@@ -54,7 +54,7 @@ function solveMarkowitz(mean, cov, targetReturn, minWeights, maxWeights, groupCo
     return { weights: w, risk, return: ret };
 }
 
-function projectConstraints(w, mean, targetRet, minW, maxW, groupConstraints = []) {
+export function projectConstraints(w, mean, targetRet, minW, maxW, groupConstraints = []) {
   let proj = [...w];
   const n = w.length;
   
