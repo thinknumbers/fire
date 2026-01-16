@@ -1,4 +1,4 @@
-// Deployment trigger: v1.219 - 2026-01-16
+// Deployment trigger: v1.219-debug - 2026-01-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1891,7 +1891,8 @@ export default function RiskReturnOptimiser() {
             // Force the blended profiles to stay within "River" of Sample Targets
             
             const sanitizeWeights = (profiles, assets) => {
-                return profiles.map((profile, pIdx) => {
+                const logs = [];
+                const sanitized = profiles.map((profile, pIdx) => {
                     const profileId = pIdx + 1;
                     const targetRow = SAMPLE_TARGETS[profileId];
                     if (!targetRow) return profile;
@@ -1899,6 +1900,10 @@ export default function RiskReturnOptimiser() {
                     let weights = [...profile.weights];
                     const ABS_TOLERANCE = 0.05; // 5% wiggle room
                     
+                    // Debug only Profile 5 (Mid) to reduce noise
+                    const doLog = profileId === 5; 
+                    if (doLog) logs.push(`Sanitizing Profile 5. Initial EM Bond: ${weights[assets.findIndex(a=>a.id==='em_bond')]}`);
+
                     for(let iter=0; iter<10; iter++) {
                         // A. Clamp
                         for(let i=0; i<assets.length; i++) {
@@ -1906,19 +1911,28 @@ export default function RiskReturnOptimiser() {
                             const targetPct = targetRow[assetId]; 
                             if (targetPct !== undefined) {
                                 const targetW = targetPct / 100;
-                                const minW = Math.max(0.001, targetW - ABS_TOLERANCE); // Min 0.1%
+                                const minW = Math.max(0.001, targetW - ABS_TOLERANCE); 
                                 const maxW = Math.min(1.0, targetW + ABS_TOLERANCE);
                                 
-                                if (weights[i] < minW) weights[i] = minW;
-                                if (weights[i] > maxW) weights[i] = maxW;
+                                if (weights[i] < minW) {
+                                     // if (doLog) logs.push(`Clamp Min ${assetId}: ${weights[i]} -> ${minW}`);
+                                     weights[i] = minW;
+                                }
+                                if (weights[i] > maxW) {
+                                     if (doLog && assetId === 'em_bond') logs.push(`Clamping EM Bond Max: ${weights[i]} -> ${maxW} (Target ${targetPct}%)`);
+                                     weights[i] = maxW;
+                                }
                             }
                         }
                         // B. Normalize
                         const sum = weights.reduce((a,b)=>a+b,0);
                         if (sum > 0) weights = weights.map(w => w/sum);
                     }
+                    if (doLog) logs.push(`Final EM Bond: ${weights[assets.findIndex(a=>a.id==='em_bond')]}`);
                     return { ...profile, weights };
                 });
+                console.log("Sanitization Logs:", logs);
+                return sanitized;
             };
 
             const constrainedFrontier = sanitizeWeights(weightedFrontier, activeAssets);
@@ -4268,7 +4282,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.219</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.219-debug</span>
              </div>
           </div>
         </div>
