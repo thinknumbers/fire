@@ -1,4 +1,4 @@
-// Deployment trigger: v1.223 - 2026-01-16
+// Deployment trigger: v1.224 - 2026-01-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1618,7 +1618,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: 'Optimization Initiated (v1.223)', timestamp: Date.now() });
+    logs.push({ step: 'Start', details: 'Optimization Initiated (v1.224)', timestamp: Date.now() });
 
     // Helper to clamp negative weights and renormalize 
     const ensureNonNegative = (weights) => {
@@ -1958,18 +1958,29 @@ export default function RiskReturnOptimiser() {
                         [] 
                     );
                     
-                    // Logging for Mid Profile
-                    if (profileId === 5) {
-                        const emIdx = assets.findIndex(a=>a.id==='em_bond');
-                        const oldW = weights[emIdx];
-                        const newW = cleanWeights[emIdx];
-                        const globMax = maxWeights[emIdx];
-                        logs.push(`Profile 5 Sanitize: EM Bond ${oldW.toFixed(4)} -> ${newW.toFixed(4)} (Max Allowed: ${globMax.toFixed(4)})`);
+                    // PARANOID LOGGING v1.224
+                    const emIdx = assets.findIndex(a=>a.id==='em_bond');
+                    if (emIdx >= 0) {
+                         const oldW = weights[emIdx];
+                         const newW = cleanWeights[emIdx];
+                         const maxAllowed = maxWeights[emIdx];
+                         const defMax = DEFAULT_ASSETS.find(d=>d.id==='em_bond')?.maxWeight;
+                         
+                         // Only log if violation or interesting
+                         if (newW > maxAllowed + 0.001 || doLog) {
+                             console.warn(`[v1.224] Profile ${profileId} EM_BOND Check:`, {
+                                 oldWeight: (oldW*100).toFixed(2)+'%',
+                                 newWeight: (newW*100).toFixed(2)+'%',
+                                 maxConstraint: (maxAllowed*100).toFixed(2)+'%',
+                                 systemDefaultMax: defMax,
+                                 sampleTarget: targetRow['em_bond']
+                             });
+                         }
                     }
                     
                     return { ...profile, weights: cleanWeights };
                 });
-                console.log("Sanitization Logs (ProjectConstraints v1.223):", logs);
+                console.log("Sanitization Logs (v1.224 Check):", logs);
                 return sanitized;
             };
 
@@ -4320,7 +4331,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.223</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.224</span>
              </div>
           </div>
         </div>
