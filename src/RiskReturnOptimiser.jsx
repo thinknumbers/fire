@@ -1,4 +1,4 @@
-// Deployment trigger: v1.225 - 2026-01-16
+// Deployment trigger: v1.226 - 2026-01-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1904,6 +1904,7 @@ export default function RiskReturnOptimiser() {
 
                     let weights = [...profile.weights];
                     const ABS_TOLERANCE = 0.025; // 2.5% wiggle room
+                    const doLog = profileId === 5; // Define doLog for debug
                     
                     // Build Dynamic Constraint Sets per Profile
                     const minWeights = [];
@@ -4341,7 +4342,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.225</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.226</span>
              </div>
           </div>
         </div>
