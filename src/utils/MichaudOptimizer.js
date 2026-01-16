@@ -63,7 +63,7 @@ function projectConstraints(w, mean, targetRet, minW, maxW, groupConstraints = [
   // 2. Hyperplane (Sum = 1)
   // 3. Hyperplane (Return = Target)
   
-  for(let k=0; k<10; k++) { // 10 cycles usually enough
+  for(let k=0; k<50; k++) { // Increased to 50 for better convergence with group constraints
       
       // 1. Box
       for(let i=0; i<n; i++) {
@@ -72,39 +72,27 @@ function projectConstraints(w, mean, targetRet, minW, maxW, groupConstraints = [
       }
       
       // 2. Sum Constraint (Scalar shift)
-      // w_new = w_old - (sum(w_old) - 1)/n
       let currentSum = proj.reduce((a,b)=>a+b, 0);
       let diff = (currentSum - 1);
-      // Determine active set (who can move) to be smarter? 
-      // Simple scalar shift first:
+      // Determine active set - Shift only those not at bounds? 
+      // Simple shift is stable enough if we iterate.
       for(let i=0; i<n; i++) proj[i] -= diff/n;
       
-      // 3. Return Constraint
-      // Projection onto w'Mu = R
-      // w_new = w_old - (w_old'Mu - R)/||Mu||^2 * Mu
-      // Only do this if we are targeting a specific return point
+      // 3. Return Constraint (if needed logic)
       if (targetRet !== null) {
           const currentRet = dot(proj, mean);
           const muNormSq = dot(mean, mean) || 1e-9;
           const lambda = (currentRet - targetRet) / muNormSq;
-          
           const step = mean.map(m => lambda * m); 
           for(let i=0; i<n; i++) proj[i] -= step[i];
       }
 
-      // 4. Group Constraints (Linear Inequality: Sum(w_subset) <= Max)
+      // 4. Group Constraints
       if (groupConstraints && groupConstraints.length > 0) {
           groupConstraints.forEach(gc => {
-             // gc = { message: "...", indices: [0, 4, 5], max: 0.15 }
              let subsetSum = 0;
              gc.indices.forEach(idx => subsetSum += proj[idx]);
-             
              if (subsetSum > gc.max) {
-                 // Violated. Project back.
-                 // Ideally proportional to weights? or equal subtraction?
-                 // Dykstra usually does projection onto convex set.
-                 // Projection of x onto sum(x) <= C is: x_new = x_old - (sum - C)/k * 1  (if all equal)
-                 // But we have bounds 0..1. The Box step in next iteration handles bounds.
                  const diff = subsetSum - gc.max;
                  const k = gc.indices.length;
                  if (k > 0) {
@@ -115,6 +103,15 @@ function projectConstraints(w, mean, targetRet, minW, maxW, groupConstraints = [
           });
       }
   }
+
+  // Final Strict Box Clamp (Safety Net)
+  // This violates Sum=1 slightly if projection failed to converge, but ensures Max Constraint compliance.
+  // Better to have 99.9% portfolio than 17% allocation violating 9% max.
+  for(let i=0; i<n; i++) {
+        if (proj[i] < minW[i]) proj[i] = minW[i];
+        if (proj[i] > maxW[i]) proj[i] = maxW[i];
+  }
+  
   return proj;
 }
 
