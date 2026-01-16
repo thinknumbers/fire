@@ -1,4 +1,4 @@
-// Deployment trigger: v1.219-debug - 2026-01-16
+// Deployment trigger: v1.220 - 2026-01-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1898,7 +1898,7 @@ export default function RiskReturnOptimiser() {
                     if (!targetRow) return profile;
 
                     let weights = [...profile.weights];
-                    const ABS_TOLERANCE = 0.05; // 5% wiggle room
+                    const ABS_TOLERANCE = 0.025; // 2.5% wiggle room (Tighter)
                     
                     // Debug only Profile 5 (Mid) to reduce noise
                     const doLog = profileId === 5; 
@@ -1907,21 +1907,36 @@ export default function RiskReturnOptimiser() {
                     for(let iter=0; iter<10; iter++) {
                         // A. Clamp
                         for(let i=0; i<assets.length; i++) {
-                            const assetId = assets[i].id;
-                            const targetPct = targetRow[assetId]; 
+                            const asset = assets[i];
+                            const assetId = asset.id;
+                            const targetPct = targetRow[assetId];
+                            
+                            // Global Hard Cap (from Settings)
+                            const globalMax = (asset.maxWeight !== undefined ? asset.maxWeight : 100) / 100;
+                            const globalMin = (asset.minWeight || 0) / 100;
+
                             if (targetPct !== undefined) {
                                 const targetW = targetPct / 100;
-                                const minW = Math.max(0.001, targetW - ABS_TOLERANCE); 
-                                const maxW = Math.min(1.0, targetW + ABS_TOLERANCE);
+                                let minW = Math.max(0.001, targetW - ABS_TOLERANCE); 
+                                let maxW = Math.min(1.0, targetW + ABS_TOLERANCE);
+                                
+                                // Enforce Global Settings as Outer Bounds
+                                minW = Math.max(minW, globalMin);
+                                maxW = Math.min(maxW, globalMax);
                                 
                                 if (weights[i] < minW) {
                                      // if (doLog) logs.push(`Clamp Min ${assetId}: ${weights[i]} -> ${minW}`);
                                      weights[i] = minW;
                                 }
                                 if (weights[i] > maxW) {
-                                     if (doLog && assetId === 'em_bond') logs.push(`Clamping EM Bond Max: ${weights[i]} -> ${maxW} (Target ${targetPct}%)`);
+                                     if (doLog && assetId === 'em_bond') logs.push(`Clamping EM Bond Max: ${weights[i]} -> ${maxW} (Target ${targetPct}%, GlobalMax ${asset.maxWeight}%)`);
                                      weights[i] = maxW;
                                 }
+                            } else {
+                                // No specific target, but respect Global Max/Min?
+                                // Usually if not in Sample, we leave it alone? 
+                                // Or should we Clamp to Global Max anyway? Yes.
+                                if (weights[i] > globalMax) weights[i] = globalMax;
                             }
                         }
                         // B. Normalize
@@ -4282,7 +4297,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.219-debug</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.220</span>
              </div>
           </div>
         </div>
