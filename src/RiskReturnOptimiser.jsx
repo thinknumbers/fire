@@ -1,4 +1,4 @@
-// Deployment trigger: v1.233 - 2026-01-18
+// Deployment trigger: v1.234 - 2026-01-18
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -4569,11 +4569,62 @@ const DebugLogsModal = ({ open, onClose, logs }) => {
             <div className="p-8 text-center text-gray-500">No logs available. Run an optimization first.</div>
           ) : (
             <div className="p-4 space-y-4">
-              {logs.map((log, idx) => (
+              {logs.map((log, idx) => {
+                // Special handling for Entity Optimization logs to show "Tax Drag Proof" table
+                if (log.step.startsWith('Entity Opt:') && Array.isArray(log.details)) {
+                    return (
+                        <div key={idx} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                          <div className="bg-blue-50 px-4 py-2 border-b border-blue-100 flex justify-between items-center">
+                            <span className="font-bold text-sm text-blue-900">{log.step} - Tax Drag Analysis</span>
+                            <span className="text-xs text-blue-400 font-mono">Proof of Logic</span>
+                          </div>
+                          <div className="p-0 overflow-x-auto">
+                            <table className="min-w-full text-xs text-left">
+                                <thead className="bg-gray-50 text-gray-500 font-medium border-b">
+                                    <tr>
+                                        <th className="px-4 py-2">Asset</th>
+                                        <th className="px-2 py-2 text-right">Pre-Tax Ret</th>
+                                        <th className="px-2 py-2 text-center">Inc / Growth</th>
+                                        <th className="px-2 py-2 text-center">Tax Rates</th>
+                                        <th className="px-2 py-2 text-right font-bold text-gray-700">Net Return</th>
+                                        <th className="px-2 py-2 text-center border-l text-gray-400">Risk Input</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {log.details.map((row, rIdx) => (
+                                        <tr key={rIdx} className="hover:bg-gray-50">
+                                            <td className="px-4 py-2 font-medium text-gray-700">{row.name}</td>
+                                            <td className="px-2 py-2 text-right font-mono text-gray-500">{(row.preTax * 100).toFixed(2)}%</td>
+                                            <td className="px-2 py-2 text-center text-gray-400">
+                                                {(row.incomeRatio * 100).toFixed(0)} / {((1-row.incomeRatio)*100).toFixed(0)}
+                                            </td>
+                                            <td className="px-2 py-2 text-center text-gray-400">
+                                                {(row.incTaxRate*100).toFixed(0)}% / {(row.cgtRate*100).toFixed(0)}%
+                                            </td>
+                                            <td className="px-2 py-2 text-right font-mono font-bold text-blue-700">
+                                                {(row.postTax * 100).toFixed(4)}%
+                                                <span className="block text-[9px] text-red-400 font-normal">
+                                                    Drag: -{((row.preTax - row.postTax)*100).toFixed(2)}%
+                                                </span>
+                                            </td>
+                                            <td className="px-2 py-2 text-center font-mono border-l text-gray-600">
+                                                {(row.riskUsed * 100).toFixed(2)}%
+                                                {/* Verify against PreTaxRisk if available in log, or just show Used */}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                          </div>
+                        </div>
+                    );
+                }
+
+                return (
                 <div key={idx} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                   <div className="bg-gray-100 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
                     <span className="font-mono text-xs font-bold text-gray-700 uppercase">{log.step}</span>
-                    <span className="text-xs text-gray-400 font-mono">{new Date(log.timestamp).toLocaleTimeString()}.{new Date(log.timestamp).getMilliseconds()}</span>
+                    <span className="text-xs text-gray-400 font-mono">{new Date(log.timestamp || Date.now()).toLocaleTimeString()}</span>
                   </div>
                   <div className="p-4 overflow-x-auto">
                     <pre className="text-xs font-mono text-gray-600 whitespace-pre-wrap leading-relaxed">
@@ -4581,7 +4632,7 @@ const DebugLogsModal = ({ open, onClose, logs }) => {
                     </pre>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>
