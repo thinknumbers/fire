@@ -1,4 +1,4 @@
-// Deployment trigger: v1.239 - 2026-01-18
+// Deployment trigger: v1.240 - 2026-01-18
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
