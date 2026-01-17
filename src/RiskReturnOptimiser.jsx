@@ -1,4 +1,4 @@
-// Deployment trigger: v1.238 - 2026-01-18
+// Deployment trigger: v1.239 - 2026-01-18
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -2064,7 +2064,7 @@ export default function RiskReturnOptimiser() {
                  // 1. Calculate Weighted Average Return (After-Tax)
                  // We need to re-calc the client's blended return for this specific weight mix.
                  // We use the helper 'calculateClientTaxAdjustedReturns' which returns an array of net-returns per asset.
-                 const netAssetReturns = calculateClientTaxAdjustedReturns(activeAssets, structures, DEFAULT_ENTITY_TYPES); 
+                 const netAssetReturns = calculateClientTaxAdjustedReturns(activeAssets, structures, entityTypes); 
                  
                  const portReturn = p.weights.reduce((sum, w, i) => sum + (w * netAssetReturns[i]), 0);
                  
