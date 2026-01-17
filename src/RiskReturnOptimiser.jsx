@@ -1,4 +1,4 @@
-// Deployment trigger: v1.232 - 2026-01-16
+// Deployment trigger: v1.233 - 2026-01-18
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -453,7 +453,7 @@ export default function RiskReturnOptimiser() {
   const [entityFrontiers, setEntityFrontiers] = useState({}); // Per-entity-type frontiers: { PERSONAL: [...], TRUST: [...], etc }
   const [isSimulating, setIsSimulating] = useState(false);
   const [progress, setProgress] = useState(0); // 0-100
-  const [simulationCount, setSimulationCount] = useState(50); // Default number of simulations
+  const [simulationCount, setSimulationCount] = useState(5); // Default number of simulations
 
 
   const [selectedPortfolioId, setSelectedPortfolioId] = useState(5);
@@ -1336,7 +1336,7 @@ export default function RiskReturnOptimiser() {
       setAdviceFee(0.008);
       setCorrelations(generateFullCorrelationMatrix(DEFAULT_ASSETS));
       setSelectedPortfolioId(5);
-      setSimulationCount(1000);
+      setSimulationCount(5);
       
       // Reset simulation state
       setSimulations([]);
@@ -1719,10 +1719,9 @@ export default function RiskReturnOptimiser() {
                         const afterTaxReturn = round6(preTaxReturn * (incomeComponent + growthComponent));
 
                         // Post-Tax Risk Adjustment
-                        // If returns are dampened by tax, volatility of after-tax wealth is also dampened.
-                        // Retention Rate = AfterTax / PreTax
-                        const retentionRate = preTaxReturn > 0.0001 ? (afterTaxReturn / preTaxReturn) : 1.0;
-                        const afterTaxRisk = round6((asset.stdev || 0) * retentionRate);
+                        // UPDATE (v1.233): User feedback confirms SD should NOT be tax-adjusted. 
+                        // Risk remains Pre-Tax. Only Return is Tax-Adjusted.
+                        const riskInput = asset.stdev || 0;
 
                         detailLogs.push({
                             name: asset.name,
@@ -1731,14 +1730,13 @@ export default function RiskReturnOptimiser() {
                             incTaxRate: incomeTax,
                             cgtRate: capGainTax,
                             postTax: afterTaxReturn,
-                            preTaxRisk: asset.stdev,
-                            postTaxRisk: afterTaxRisk
+                            riskUsed: riskInput
                         });
 
                         return {
                             ...asset,
                             return: afterTaxReturn,
-                            stdev: afterTaxRisk
+                            stdev: riskInput
                         };
                     });
                     
@@ -4396,7 +4394,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.232</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.233</span>
              </div>
           </div>
         </div>
