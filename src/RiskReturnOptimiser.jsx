@@ -1,4 +1,4 @@
-// Deployment trigger: v1.234 - 2026-01-18
+// Deployment trigger: v1.235 - 2026-01-18
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1863,6 +1863,18 @@ export default function RiskReturnOptimiser() {
                         // Store Personal or first available as fallback
                         if (entityType === 'PERSONAL' || !globalFallbackFrontier.length) {
                              globalFallbackFrontier = mappedEntityFrontier;
+                        }
+
+                        // Log the resulting Allocations for verification (v1.235)
+                        const port5 = mappedEntityFrontier.find(p => p.id === 5);
+                        if (port5) {
+                            logs.push({
+                                step: `Entity Allocations: ${entityType}`,
+                                details: activeAssets.map((a, i) => ({
+                                    asset: a.name,
+                                    weight: port5.weights[i]
+                                }))
+                            });
                         }
                     }
                 } catch (entityErr) {
@@ -4394,7 +4406,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.234</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.235</span>
              </div>
           </div>
         </div>
@@ -4576,7 +4588,7 @@ const DebugLogsModal = ({ open, onClose, logs }) => {
                         <div key={idx} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                           <div className="bg-blue-50 px-4 py-2 border-b border-blue-100 flex justify-between items-center">
                             <span className="font-bold text-sm text-blue-900">{log.step} - Tax Drag Analysis</span>
-                            <span className="text-xs text-blue-400 font-mono">Proof of Logic</span>
+                            <span className="text-xs text-blue-400 font-mono">Proof of Logic (Returns)</span>
                           </div>
                           <div className="p-0 overflow-x-auto">
                             <table className="min-w-full text-xs text-left">
@@ -4609,12 +4621,52 @@ const DebugLogsModal = ({ open, onClose, logs }) => {
                                             </td>
                                             <td className="px-2 py-2 text-center font-mono border-l text-gray-600">
                                                 {(row.riskUsed * 100).toFixed(2)}%
-                                                {/* Verify against PreTaxRisk if available in log, or just show Used */}
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
+                          </div>
+                        </div>
+                    );
+                }
+
+                // Handling for Entity Allocations (v1.235) - "How funds get allocated"
+                if (log.step.startsWith('Entity Allocations:') && Array.isArray(log.details)) {
+                    return (
+                        <div key={idx} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                          <div className="bg-green-50 px-4 py-2 border-b border-green-100 flex justify-between items-center">
+                            <span className="font-bold text-sm text-green-900">{log.step} (Balanced - Port 5)</span>
+                            <span className="text-xs text-green-600 font-mono">Proof of Allocation</span>
+                          </div>
+                          <div className="p-0 overflow-x-auto">
+                             <table className="min-w-full text-xs text-left">
+                                <thead className="bg-gray-50 text-gray-500 font-medium border-b">
+                                    <tr>
+                                        <th className="px-4 py-2">Asset Class</th>
+                                        <th className="px-4 py-2 text-right">Allocation</th>
+                                        <th className="px-4 py-2 w-full">Visual</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {log.details.map((row, rIdx) => (
+                                        <tr key={rIdx} className="hover:bg-gray-50">
+                                            <td className="px-4 py-2 font-medium text-gray-700">{row.asset}</td>
+                                            <td className="px-4 py-2 text-right font-mono font-bold text-green-700">
+                                                {(row.weight * 100).toFixed(2)}%
+                                            </td>
+                                            <td className="px-4 py-2">
+                                                <div className="h-2 bg-gray-100 rounded-full w-24 overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-green-500" 
+                                                        style={{ width: `${row.weight * 100}%` }}
+                                                    />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                             </table>
                           </div>
                         </div>
                     );
