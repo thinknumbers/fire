@@ -1,4 +1,4 @@
-// Deployment trigger: v1.237 - 2026-01-18
+// Deployment trigger: v1.238 - 2026-01-18
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1621,7 +1621,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: 'Optimization Initiated (v1.224)', timestamp: Date.now() });
+    logs.push({ step: 'Start', details: 'Optimization Initiated (v1.238)', timestamp: Date.now() });
 
     // Helper to clamp negative weights and renormalize 
     const ensureNonNegative = (weights) => {
@@ -1865,17 +1865,19 @@ export default function RiskReturnOptimiser() {
                              globalFallbackFrontier = mappedEntityFrontier;
                         }
 
-                        // Log the resulting Allocations for verification (v1.235)
-                        const port5 = mappedEntityFrontier.find(p => p.id === 5);
-                        if (port5) {
-                            logs.push({
-                                step: `Entity Allocations: ${entityType}`,
-                                details: activeAssets.map((a, i) => ({
-                                    asset: a.name,
-                                    weight: port5.weights[i]
+                        // Log the resulting Allocations for verification (v1.238)
+                        // Capture matrix of all 10 portfolios
+                        logs.push({
+                            step: `Entity Allocations: ${entityType}`,
+                            details: {
+                                assets: activeAssets.map(a => a.name),
+                                portfolios: mappedEntityFrontier.map(p => ({
+                                    id: p.id,
+                                    label: p.label,
+                                    weights: p.weights
                                 }))
-                            });
-                        }
+                            }
+                        });
                     }
                 } catch (entityErr) {
                     console.warn(`Entity optimization for ${entityType} failed:`, entityErr);
@@ -4406,7 +4408,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.237</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.238</span>
              </div>
           </div>
         </div>
@@ -4631,41 +4633,56 @@ const DebugLogsModal = ({ open, onClose, logs }) => {
                     );
                 }
 
-                // Handling for Entity Allocations (v1.235) - "How funds get allocated"
-                if (log.step.startsWith('Entity Allocations:') && Array.isArray(log.details)) {
+                // Handling for Entity Allocations (v1.238) - Full Matrix 10 Ports
+                if (log.step.startsWith('Entity Allocations:') && log.details && log.details.assets && log.details.portfolios) {
+                    const { assets, portfolios } = log.details;
+                    
                     return (
                         <div key={idx} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                           <div className="bg-green-50 px-4 py-2 border-b border-green-100 flex justify-between items-center">
-                            <span className="font-bold text-sm text-green-900">{log.step} (Balanced - Port 5)</span>
-                            <span className="text-xs text-green-600 font-mono">Proof of Allocation</span>
+                            <span className="font-bold text-sm text-green-900">{log.step}</span>
+                            <span className="text-xs text-green-600 font-mono">Full Allocation Matrix</span>
                           </div>
                           <div className="p-0 overflow-x-auto">
-                             <table className="min-w-full text-xs text-left">
+                             <table className="min-w-full text-[10px] text-left">
                                 <thead className="bg-gray-50 text-gray-500 font-medium border-b">
                                     <tr>
-                                        <th className="px-4 py-2">Asset Class</th>
-                                        <th className="px-4 py-2 text-right">Allocation</th>
-                                        <th className="px-4 py-2 w-full">Visual</th>
+                                        <th className="px-2 py-1 sticky left-0 bg-gray-50 z-10">Asset Class</th>
+                                        {portfolios.map(p => (
+                                            <th key={p.id} className="px-1 py-1 text-center w-12 font-normal">
+                                                P{p.id}
+                                            </th>
+                                        ))}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {log.details.map((row, rIdx) => (
-                                        <tr key={rIdx} className="hover:bg-gray-50">
-                                            <td className="px-4 py-2 font-medium text-gray-700">{row.asset}</td>
-                                            <td className="px-4 py-2 text-right font-mono font-bold text-green-700">
-                                                {(row.weight * 100).toFixed(2)}%
-                                            </td>
-                                            <td className="px-4 py-2">
-                                                <div className="h-2 bg-gray-100 rounded-full w-24 overflow-hidden">
-                                                    <div 
-                                                        className="h-full bg-green-500" 
-                                                        style={{ width: `${row.weight * 100}%` }}
-                                                    />
-                                                </div>
-                                            </td>
+                                    {assets.map((assetName, rowIdx) => (
+                                        <tr key={rowIdx} className="hover:bg-gray-50">
+                                            <td className="px-2 py-1 font-medium text-gray-700 sticky left-0 bg-white z-10 border-r">{assetName}</td>
+                                            {portfolios.map(p => {
+                                                const cw = p.weights[rowIdx];
+                                                return (
+                                                    <td key={p.id} className={`px-1 py-1 text-center font-mono ${cw > 0.001 ? 'text-black' : 'text-gray-200'}`}>
+                                                        {(cw * 100).toFixed(1)}%
+                                                    </td>
+                                                );
+                                            })}
                                         </tr>
                                     ))}
                                 </tbody>
+                                <tfoot className="bg-gray-100 font-bold border-t border-gray-200">
+                                    <tr>
+                                        <td className="px-2 py-1 sticky left-0 bg-gray-100 z-10 border-r">Total</td>
+                                        {portfolios.map(p => {
+                                             const total = p.weights.reduce((a,b) => a+b, 0);
+                                             return (
+                                                 <td key={p.id} className="px-1 py-1 text-center font-mono">
+                                                     {(total * 100).toFixed(0)}%
+                                                 </td>
+                                             );
+                                        })}
+                                    </tr>
+                                </tfoot>
                              </table>
                           </div>
                         </div>
