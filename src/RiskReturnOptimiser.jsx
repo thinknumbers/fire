@@ -1,4 +1,4 @@
-// Deployment trigger: v1.249 - 2026-01-19
+// Deployment trigger: v1.251 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -4493,7 +4493,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.244</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.251</span>
              </div>
           </div>
         </div>
