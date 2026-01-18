@@ -1,4 +1,4 @@
-// Deployment trigger: v1.257 - 2026-01-19
+// Deployment trigger: v1.258 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -526,7 +526,7 @@ export default function RiskReturnOptimiser() {
 
   const [savedScenarios, setSavedScenarios] = useState([]);
   const [showLoadMenu, setShowLoadMenu] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
+
   const [lastDeleted, setLastDeleted] = useState(null); // For Undo
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState(null);
@@ -1740,7 +1740,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.257)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.258)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights and renormalize 
     const ensureNonNegative = (weights) => {
@@ -4512,8 +4512,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.257 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.257</span>
+                {/* Deployment trigger: v1.258 - 2026-01-19 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.258</span>
              </div>
           </div>
         </div>
