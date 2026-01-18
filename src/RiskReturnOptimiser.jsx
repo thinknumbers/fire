@@ -1729,7 +1729,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: 'Optimization Initiated (v1.243)', timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.253)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights and renormalize 
     const ensureNonNegative = (weights) => {
@@ -1880,10 +1880,12 @@ export default function RiskReturnOptimiser() {
                          // CASE B: Unchecked (System Defaults / "Treatment to Date")
                          // We must enforce the Strict Caps (e.g. 9% EM Bond)
                          constraints.minWeights = activeAssets.map(a => {
-                             if (a.minWeight !== undefined) return (a.minWeight)/100;
-                             // Fallback to System Default if missing in state (Old Scenarios)
+                             // System Defaults Mode: Always prefer the defined default if it exists
                              const def = DEFAULT_ASSETS.find(d => d.id === a.id);
-                             return (def && def.minWeight !== undefined ? def.minWeight : 0) / 100;
+                             if (def && def.minWeight !== undefined) return def.minWeight / 100;
+                             
+                             // Fallback for custom assets or if default missing
+                             return (a.minWeight !== undefined ? a.minWeight : 0) / 100;
                          });
                          constraints.maxWeights = activeAssets.map(a => {
                              let stateMax = (a.maxWeight !== undefined ? a.maxWeight : 100) / 100;
@@ -4498,8 +4500,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.252 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.252</span>
+                {/* Deployment trigger: v1.253 - 2026-01-19 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.253</span>
              </div>
           </div>
         </div>
