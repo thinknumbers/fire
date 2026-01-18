@@ -1,4 +1,4 @@
-// Deployment trigger: v1.241 - 2026-01-18
+// Deployment trigger: v1.242 - 2026-01-18
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1185,7 +1185,19 @@ export default function RiskReturnOptimiser() {
         pdf.setFontSize(6); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0, 72, 118);
         
         const globalWeights = selectedPortfolio?.weights || [];
-        const entityWeights = getEntityConstrainedWeights(struct, globalWeights, activeOnly);
+        
+        // v1.242 FIX: Use actual optimized entity weights if available
+        let entityWeights;
+        if (entityFrontiers && entityFrontiers[struct.type]) {
+             const entPort = entityFrontiers[struct.type].find(p => p.id === selectedPortfolio.id);
+             if (entPort) {
+                 entityWeights = entPort.weights;
+             }
+        }
+        
+        if (!entityWeights) {
+             entityWeights = getEntityConstrainedWeights(struct, globalWeights, activeOnly);
+        }
         
         activeOnly.forEach((asset, aIdx) => {
           // Recommended
@@ -1621,7 +1633,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: 'Optimization Initiated (v1.241)', timestamp: Date.now() });
+    logs.push({ step: 'Start', details: 'Optimization Initiated (v1.242)', timestamp: Date.now() });
 
     // Helper to clamp negative weights and renormalize 
     const ensureNonNegative = (weights) => {
@@ -3926,10 +3938,10 @@ export default function RiskReturnOptimiser() {
 
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div className="text-center p-3 bg-gray-50 rounded border border-gray-200">
-                  <div className="text-xs text-gray-500">Return</div>
-                  {/* v1.231 FIX: Display GROSS Return per user request ("shows net which is too low") */}
+                  <div className="text-xs text-gray-500">Return (Net)</div>
+                  {/* v1.242 FIX: Reverted to display Net Return (selectedPortfolio.return) for consistency with PDF */}
                   <div className="text-xl font-bold text-black">
-                     {formatPercent(activeAssets.reduce((sum, a) => sum + (a.weight * (a.return || 0)), 0))}
+                     {formatPercent(selectedPortfolio.return)}
                   </div>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded border border-gray-200">
