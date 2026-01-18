@@ -1,4 +1,4 @@
-// Deployment trigger: v1.248 - 2026-01-19
+// Deployment trigger: v1.249 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -4594,7 +4594,7 @@ export default function RiskReturnOptimiser() {
             </button>
             <button 
               onClick={handleExportExcel}
-              className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium ml-2"
+              className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium"
               title="Export CSV"
             >
                <FileText className="w-4 h-4 mr-2"/> Export Excel
