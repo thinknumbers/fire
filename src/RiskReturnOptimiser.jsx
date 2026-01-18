@@ -1985,8 +1985,7 @@ export default function RiskReturnOptimiser() {
                             });
                         });
                         
-                        // v1.244 Fix: Match Global Logic (Slice off P1, re-index)
-                        const finalEntityFrontier = mappedEntityFrontier.slice(1).map((p, idx) => ({
+                        const finalEntityFrontier = mappedEntityFrontier.map((p, idx) => ({
                             ...p,
                             id: idx + 1,
                             label: `Portfolio ${idx + 1} - ${p.label.split(' - ')[1]}`
@@ -2159,11 +2158,11 @@ export default function RiskReturnOptimiser() {
                  };
             });
             
-            // Slice off the first one (Index 0), Keep 1..9, re-index IDs to 1..9
-            const finalProfiles = rawProfiles.slice(1).map((p, idx) => ({
+            // Re-instating 10 portfolios (v1.249 Fix)
+            const finalProfiles = rawProfiles.map((p, idx) => ({
                 ...p,
                 id: idx + 1,
-                label: `Portfolio ${idx + 1}` // Simple Numbering
+                label: `Portfolio ${idx + 1}`
             }));
 
             setDebugLogs(logs);
@@ -2238,8 +2237,8 @@ export default function RiskReturnOptimiser() {
         });
     });
     
-    // Slice off P1, re-index
-    const mappedFrontier = rawMapped.slice(1).map((p, idx) => ({
+    // Re-instating 10 portfolios
+    const mappedFrontier = rawMapped.map((p, idx) => ({
         ...p,
         id: idx + 1,
         label: `Portfolio ${idx + 1}`
