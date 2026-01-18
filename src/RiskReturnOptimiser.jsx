@@ -1,4 +1,4 @@
-// Deployment trigger: v1.244 - 2026-01-19
+// Deployment trigger: v1.248 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1347,6 +1347,7 @@ export default function RiskReturnOptimiser() {
   };
 
   const handleExportExcel = () => {
+      const activeAssets = assets.filter(a => a.active);
       try {
         // Fallback or Alert if no portfolio
         // If efficientFrontier is empty, we might not have a "selectedPortfolio" with stats. 
@@ -2040,7 +2041,10 @@ export default function RiskReturnOptimiser() {
             const weightedFrontier = [];
             
             // Calculate Weighted Average per Profile (Rank 1 to 10)
-            for(let p=0; p<10; p++) {
+            // Calculate Weighted Average per Profile (Rank 1 to 10)
+            const numProfiles = perEntityFrontiers[Object.keys(perEntityFrontiers)[0]]?.length || 9;
+            
+            for(let p=0; p<numProfiles; p++) {
                 let blendedWeights = new Array(activeAssets.length).fill(0);
                 let totalWeight = 0;
                 

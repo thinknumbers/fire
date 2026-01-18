@@ -107,6 +107,38 @@ export function projectConstraints(w, mean, targetRet, minW, maxW, groupConstrai
   // Final Strict Box Clamp (Safety Net)
   // This violates Sum=1 slightly if projection failed to converge, but ensures Max Constraint compliance.
   // Better to have 99.9% portfolio than 17% allocation violating 9% max.
+  // Final Smart Normalization (Safety Net)
+  // Ensure we satisfy Min/Max AND Sum=1
+  for(let attempt=0; attempt<5; attempt++) {
+      let sum = proj.reduce((a,b)=>a+b, 0);
+      if (Math.abs(sum - 1.0) < 1e-6) break;
+
+      const diff = 1.0 - sum;
+      // Distribute diff to assets that have room
+      // If diff > 0 (need to add weight), add to those < maxW
+      // If diff < 0 (need to cut weight), cut from those > minW
+      
+      const eligibleIndices = [];
+      if (diff > 0) {
+          for(let i=0; i<n; i++) if (proj[i] < maxW[i] - 1e-6) eligibleIndices.push(i);
+      } else {
+          for(let i=0; i<n; i++) if (proj[i] > minW[i] + 1e-6) eligibleIndices.push(i);
+      }
+      
+      if (eligibleIndices.length > 0) {
+          const share = diff / eligibleIndices.length;
+          eligibleIndices.forEach(idx => {
+             proj[idx] += share;
+             // Clamp immediately
+             if (proj[idx] < minW[idx]) proj[idx] = minW[idx];
+             if (proj[idx] > maxW[idx]) proj[idx] = maxW[idx];
+          });
+      } else {
+          break; // Cannot satisfy
+      }
+  }
+
+  // Absolute fallback: strict clamp (priority min > max)
   for(let i=0; i<n; i++) {
         if (proj[i] < minW[i]) proj[i] = minW[i];
         if (proj[i] > maxW[i]) proj[i] = maxW[i];
