@@ -1,4 +1,4 @@
-// Deployment trigger: v1.258 - 2026-01-19
+// Deployment trigger: v1.259 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1740,7 +1740,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.258)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.259)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights and renormalize 
     const ensureNonNegative = (weights) => {
@@ -1879,7 +1879,13 @@ export default function RiskReturnOptimiser() {
                          // We trust the user's manual inputs for this entity
                          constraints.minWeights = activeAssets.map(a => {
                              const row = structWithAlloc.assetAllocation.find(r => r.id === a.id);
-                             return (row && row.min !== undefined) ? row.min / 100 : 0;
+                             const userMin = (row && row.min !== undefined) ? row.min / 100 : 0;
+                             
+                             // Enforce System Floor (0.1%) even in Custom Mode to prevent zeroing
+                             const def = DEFAULT_ASSETS.find(d => d.id === a.id);
+                             const sysMin = (def && def.minWeight !== undefined) ? def.minWeight / 100 : 0.001;
+                             
+                             return Math.max(userMin, sysMin);
                          });
                          constraints.maxWeights = activeAssets.map(a => {
                              const row = structWithAlloc.assetAllocation.find(r => r.id === a.id);
@@ -4512,8 +4518,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.258 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.258</span>
+                {/* Deployment trigger: v1.259 - 2026-01-19 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.259</span>
              </div>
           </div>
         </div>
