@@ -3841,9 +3841,9 @@ export default function RiskReturnOptimiser() {
                   onChange={(e) => setForecastConfidenceLevel(parseInt(e.target.value))}
                   className="w-32 text-right border border-gray-300 rounded px-2 py-1 text-sm bg-white"
                >
-                   <option value={1}>Low (20 Sims)</option>
+                   <option value={1}>Low</option>
                    <option value={2}>Medium</option>
-                   <option value={3}>High (100 Sims)</option>
+                   <option value={3}>High</option>
                </select>
              </div>
 
@@ -4493,7 +4493,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.251</span>
+                {/* Deployment trigger: v1.252 - 2026-01-19 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.252</span>
              </div>
           </div>
         </div>
