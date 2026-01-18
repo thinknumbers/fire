@@ -1,4 +1,4 @@
-// Deployment trigger: v1.243 - 2026-01-18
+// Deployment trigger: v1.244 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -497,6 +497,21 @@ export default function RiskReturnOptimiser() {
   const [optimizationAssets, setOptimizationAssets] = useState([]);
   const [scenarioName, setScenarioName] = useState('My Scenario');
   
+  // Privacy: Local Device ID for filtering scenarios
+  const [localUserId] = useState(() => {
+    let uid = localStorage.getItem('fire_wealth_device_id');
+    if (!uid) {
+        // Simple random ID if crypto.randomUUID not available (older browsers)
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            uid = crypto.randomUUID();
+        } else {
+            uid = 'user_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        }
+        localStorage.setItem('fire_wealth_device_id', uid);
+    }
+    return uid;
+  });
+  
   // Cashflow Result State
   const [cfSimulationResults, setCfSimulationResults] = useState([]);
   
@@ -547,9 +562,11 @@ export default function RiskReturnOptimiser() {
   }, [appSettings.font]);
 
   const fetchScenarios = async () => {
+    // Privacy: Only fetch scenarios owned by this device/local_user
     const { data, error } = await supabase
       .from('scenarios')
       .select('id, name, created_at')
+      .eq('owner_id', localUserId) 
       .order('created_at', { ascending: false });
     
     if (data) setSavedScenarios(data);
@@ -732,7 +749,8 @@ export default function RiskReturnOptimiser() {
         projection_years: projectionYears,
         inflation_rate: inflationRate,
         advice_fee: adviceFee,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        owner_id: localUserId // Privacy Link
       };
 
       console.log('Attempting save with payload:', payload);
@@ -1328,6 +1346,79 @@ export default function RiskReturnOptimiser() {
     }
   };
 
+  const handleExportExcel = () => {
+      // Create CSV Content
+      let csvContent = "data:text/csv;charset=utf-8,";
+      
+      // 1. Scenario Info
+      csvContent += `Scenario Name,${scenarioName}\n`;
+      csvContent += `Client Name,${clientName}\n`;
+      csvContent += `Date,${new Date().toLocaleDateString()}\n`;
+      csvContent += `Inflation Rate,${(inflationRate * 100).toFixed(2)}%\n`;
+      csvContent += `Advice Fee,${(adviceFee * 100).toFixed(2)}%\n\n`;
+
+      // 2. Asset Allocation (Selected Portfolio)
+      const portName = selectedPortfolio.label || `Portfolio ${selectedPortfolioId}`;
+      csvContent += `Selected Portfolio,${portName}\n`;
+      csvContent += `Expected Return (Net),${(selectedPortfolio.return * 100).toFixed(2)}%\n`;
+      csvContent += `Expected Risk,${(selectedPortfolio.risk * 100).toFixed(2)}%\n`;
+      
+      csvContent += `\nAsset Allocation\n`;
+      csvContent += `Asset Class,Weight (%),Value ($),Return (%),Risk (%)\n`;
+      activeAssets.forEach(asset => {
+           // Find weight in selected portfolio
+           const portIdx = efficientFrontier.findIndex(p => p.id === selectedPortfolioId);
+           let weight = 0;
+           if (portIdx !== -1 && efficientFrontier[portIdx].weights) {
+                // Map back to optimization assets index
+                // Note: activeAssets might differ from optimizationAssets if changed after opt.
+                // But efficientFrontier weights align with optimizationAssets.
+                // Best effort: match by ID
+                const optIdx = optimizationAssets.findIndex(oa => oa.id === asset.id);
+                if (optIdx !== -1) {
+                    weight = efficientFrontier[portIdx].weights[optIdx];
+                }
+           }
+           // Fallback if not optimized yet, use current weight? 
+           // If optimized, weight is from frontier. If purely current state, usage might differ.
+           // Let's use the 'activeAssets' current weight property if available or 0.
+           // Actually, activeAssets contains the *current settings* weights if we are in Client Input mode,
+           // but mapped weights if we are in Optimization Result mode.
+           
+           // If we are in Output/Optimization tab, activeAssets usually has the selected portfolio weights applied if we implemented that sync.
+           // In this codebase, 'selectedPortfolio' has 'weights' array.
+           // Use selectedPortfolio weights if available.
+           
+           if (!weight && selectedPortfolio.weights && optimizationAssets.length > 0) {
+                const optIdx = optimizationAssets.findIndex(oa => oa.id === asset.id);
+                if (optIdx >= 0) weight = selectedPortfolio.weights[optIdx];
+           }
+           
+           // If we still don't have it (e.g. manual mode), use asset.weight
+           if (weight === 0 && asset.weight) weight = asset.weight;
+
+           csvContent += `${asset.name},${(weight * 100).toFixed(2)}%,${(weight * totalWealth).toFixed(0)},${(asset.return * 100).toFixed(2)}%,${(asset.stdev * 100).toFixed(2)}%\n`;
+      });
+
+      // 3. Projections
+      if (cfSimulationResults.length > 0) {
+          csvContent += `\nWealth Projections\n`;
+          csvContent += `Year,Downside (2nd),Median (50th),Upside (84th)\n`;
+          cfSimulationResults.forEach(res => {
+               csvContent += `${res.year},${res.p02.toFixed(0)},${res.p50.toFixed(0)},${res.p84.toFixed(0)}\n`;
+          });
+      }
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `${scenarioName.replace(/\s+/g, '_')}_data.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
+
+
   const handleNewScenario = () => {
     if (window.confirm('Are you sure you want to create a new scenario? All unsaved changes will be lost.')) {
       setScenarioName('My Scenario');
@@ -1797,6 +1888,37 @@ export default function RiskReturnOptimiser() {
                          });
                     }
                     
+                    // Parse Group Constraints from UI Inputs (v1.244)
+                    // Format: "GroupName:Limit" (e.g., "Defensive:30" => Max 30% for all assets marked "Defensive")
+                    const groupConstraints = [];
+                    const groupMap = {}; // { "Name": { max: 1.0, indices: [] } }
+                    
+                    if (useCustom && structWithAlloc.assetAllocation) {
+                        activeAssets.forEach((asset, idx) => {
+                             const row = structWithAlloc.assetAllocation.find(r => r.id === asset.id);
+                             if (row && row.groupLimit) {
+                                  // Parse "Name:Limit" or just "Name" (if Limit defined elsewhere? No, explicit here)
+                                  // We take the strictest limit found for the group name.
+                                  const parts = row.groupLimit.split(':');
+                                  const gName = parts[0].trim();
+                                  let gLimit = 1.0;
+                                  
+                                  if (parts.length > 1) {
+                                      const val = parseFloat(parts[1]);
+                                      if (!isNaN(val)) gLimit = val / 100;
+                                  }
+                                  
+                                  if (gName) {
+                                      if (!groupMap[gName]) groupMap[gName] = { max: 1.0, indices: [] };
+                                      groupMap[gName].indices.push(idx);
+                                      // Take minimum valid limit seen for this group
+                                      if (gLimit < groupMap[gName].max) groupMap[gName].max = gLimit;
+                                  }
+                             }
+                        });
+                        Object.values(groupMap).forEach(g => groupConstraints.push(g));
+                    }
+
                     // Step 2: Optimize (Maximize Return for fixed Risk)
                     // runResampledOptimization approximates the Efficient Frontier
                     const entityResult = runResampledOptimization(
@@ -1805,7 +1927,7 @@ export default function RiskReturnOptimiser() {
                         constraints, 
                         confidenceT, 
                         Math.max(10, Math.floor(numSimulations / 2)),
-                        groupConstraints // Pass 15% Cap
+                        groupConstraints // Pass Parsed Groups
                     );
                     
                     // Map to 10 buckets (Risk-based distribution)
@@ -1959,107 +2081,32 @@ export default function RiskReturnOptimiser() {
             
             // Force the blended profiles to stay within "River" of Sample Targets
             
-            // Force the blended profiles to stay within "River" of Sample Targets
+            // v1.244: Simplified Sanitize Weights
+            // The previous logic enforced "River" constraints and System Defaults which conflicted with User Inputs.
+            // We now rely on the Optimizer to handle constraints correctly.
+            // This function just cleans up floating point noise (0..1 clamp).
             
             const sanitizeWeights = (profiles, assets) => {
-                const logs = [];
-                const sanitized = profiles.map((profile, pIdx) => {
-                    const profileId = pIdx + 1;
-                    const targetRow = SAMPLE_TARGETS[profileId];
-                    if (!targetRow) return profile;
-
+                return profiles.map(profile => {
                     let weights = [...profile.weights];
-                    const ABS_TOLERANCE = 0.025; // 2.5% wiggle room
-                    const doLog = profileId === 5; // Define doLog for debug
                     
-                    // Build Dynamic Constraint Sets per Profile
-                    const minWeights = [];
-                    const maxWeights = [];
+                    // Simple Clamp 0..1
+                    const clean = weights.map(w => {
+                        let val = w;
+                        if (val < 0) val = 0;
+                        if (val > 1) val = 1;
+                        return val;
+                    });
                     
-                    for(let i=0; i<assets.length; i++) {
-                        const asset = assets[i];
-                        const targetPct = targetRow[asset.id];
-                        
-                        // 1. Global Bounds (Hardest Constraint from State)
-                        let stateMax = (asset.maxWeight !== undefined ? asset.maxWeight : 100) / 100;
-                        let stateMin = (asset.minWeight || 0) / 100;
-
-                        // 1b. HARDCODED SYSTEM LIMIT CHECK (Anti-Stale State)
-                        // If user state allows 100% but Default says 9%, enforce 9% unless user explicitly changed it?
-                        // For now, let's enforce Default Max as a Safety Ceiling if reasonable.
-                        const def = DEFAULT_ASSETS.find(d => d.id === asset.id);
-                        if (def) {
-                             const sysMax = (def.maxWeight !== undefined ? def.maxWeight : 100) / 100;
-                             // We take the LOWER of State Max vs System Max to be safe
-                             // (Unless user Intended to raise it? Assume user wants constraints for now)
-                             if (sysMax < stateMax) stateMax = sysMax;
-                        }
-
-                        // 2. Sample Target Bounds
-                        let minW = stateMin;
-                        let maxW = stateMax;
-
-                        if (targetPct !== undefined) {
-                            const targetW = targetPct / 100;
-                            // Target - Tolerance
-                            minW = Math.max(stateMin, targetW - ABS_TOLERANCE);
-                            // Target + Tolerance (clamped by Global Max)
-                            maxW = Math.min(stateMax, targetW + ABS_TOLERANCE);
-                        }
-                        
-                        // Safety: Min must be <= Max
-                        if (minW > maxW) maxW = minW; 
-                        
-                        minWeights.push(minW);
-                        maxWeights.push(maxW);
-                    }
+                    // Normalize Sum to 1
+                    const sum = clean.reduce((a,b) => a+b, 0);
+                    const final = sum > 0 ? clean.map(w => w/sum) : clean;
                     
-                    if (profileId === 5) {
-                        console.log(`[v1.225] Profile 5 Bounds Debug:`, {
-                            assetIds: assets.map(a=>a.id),
-                            minWeights: minWeights.map(m=>m.toFixed(3)),
-                            maxWeights: maxWeights.map(m=>m.toFixed(3)),
-                            preWeights: weights.map(w=>w.toFixed(3))
-                        });
-                    }
-
-                    // Use Dykstra's Algorithm (projectConstraints) to find closest valid weights
-                    const dummyMean = new Array(assets.length).fill(0);
-                    
-                    const cleanWeights = projectConstraints(
-                        weights, 
-                        dummyMean, 
-                        null, // No return constraint
-                        minWeights, 
-                        maxWeights, 
-                        [] 
-                    );
-                    
-                    // PARANOID LOGGING v1.224
-                    const emIdx = assets.findIndex(a=>a.id==='em_bond');
-                    if (emIdx >= 0) {
-                         const oldW = weights[emIdx];
-                         const newW = cleanWeights[emIdx];
-                         const maxAllowed = maxWeights[emIdx];
-                         const defMax = DEFAULT_ASSETS.find(d=>d.id==='em_bond')?.maxWeight;
-                         
-                         // Only log if violation or interesting
-                         if (newW > maxAllowed + 0.001 || doLog) {
-                             console.warn(`[v1.224] Profile ${profileId} EM_BOND Check:`, {
-                                 oldWeight: (oldW*100).toFixed(2)+'%',
-                                 newWeight: (newW*100).toFixed(2)+'%',
-                                 maxConstraint: (maxAllowed*100).toFixed(2)+'%',
-                                 systemDefaultMax: defMax,
-                                 sampleTarget: targetRow['em_bond']
-                             });
-                         }
-                    }
-                    
-                    return { ...profile, weights: cleanWeights };
+                    return { ...profile, weights: final };
                 });
-                console.log("Sanitization Logs (v1.224 Check):", logs);
-                return sanitized;
             };
+
+
 
             const constrainedFrontier = sanitizeWeights(weightedFrontier, activeAssets);
 
@@ -2071,17 +2118,17 @@ export default function RiskReturnOptimiser() {
                 "Defensive", "Conservative", "Moderate Conservative", "Moderate", "Balanced",
                 "Balanced Growth", "Growth", "High Growth", "Aggressive", "High Aggressive"
             ];
-
-            const finalProfiles = constrainedFrontier.map((p, pIdx) => {
+            
+            // v1.244 Change: User requested removal of Portfolio 1.
+            // We generate 10 steps as before to maintain the risk curve, but discard the first (Defensive/Cash-heavy).
+            // We also remove the descriptive text labels.
+            
+            const rawProfiles = constrainedFrontier.map((p, pIdx) => {
                  // 1. Calculate Weighted Average Return (After-Tax)
-                 // We need to re-calc the client's blended return for this specific weight mix.
-                 // We use the helper 'calculateClientTaxAdjustedReturns' which returns an array of net-returns per asset.
                  const netAssetReturns = calculateClientTaxAdjustedReturns(activeAssets, structures, entityTypes); 
-                 
                  const portReturn = p.weights.reduce((sum, w, i) => sum + (w * netAssetReturns[i]), 0);
                  
                  // 2. Calculate Risk (Standard Deviation)
-                 // using Pre-Tax Covariance (standard convention)
                  let variance = 0;
                  for(let i=0; i<p.weights.length; i++) {
                      for(let j=0; j<p.weights.length; j++) {
@@ -2091,20 +2138,25 @@ export default function RiskReturnOptimiser() {
                  
                  return {
                      ...p,
-                     label: `Portfolio ${p.id} - ${BUCKET_LABELS[pIdx]}`,
-                     return: portReturn, // NET Return
-                     risk: Math.sqrt(variance) // GROSS Risk
+                     label: `Portfolio ${p.id}`, // Placeholder
+                     return: portReturn,
+                     risk: Math.sqrt(variance)
                  };
             });
+            
+            // Slice off the first one (Index 0), Keep 1..9, re-index IDs to 1..9
+            const finalProfiles = rawProfiles.slice(1).map((p, idx) => ({
+                ...p,
+                id: idx + 1,
+                label: `Portfolio ${idx + 1}` // Simple Numbering
+            }));
 
             setDebugLogs(logs);
             
-            // Bypass finishOptimization logic because we already have our 10 profiles constructed exactly how we want them.
-            // We just need to set the state and finish.
             setOptimizationAssets(activeAssets);
             setSimulations(cloud); 
             setEfficientFrontier(finalProfiles);
-            setSelectedPortfolioId(5);
+            setSelectedPortfolioId(5); // Default to middle (was 5, now maybe 4 or 5 in new scale)
             setIsSimulating(false);
             setProgress(100);
             setActiveTab('optimization');
@@ -2145,7 +2197,9 @@ export default function RiskReturnOptimiser() {
     const maxRisk = frontier[frontier.length - 1].risk;
     
     // We want 10 points distributed by Risk
-    const mappedFrontier = [];
+    // v1.244: Generate 10 buckets, then slice off the first one.
+    // We want 10 points distributed by Risk
+    const rawMapped = [];
     const step = (maxRisk - minRisk) / (BUCKET_LABELS.length - 1 || 1);
 
     BUCKET_LABELS.forEach((label, idx) => {
@@ -2162,16 +2216,26 @@ export default function RiskReturnOptimiser() {
             }
         }
         
-        mappedFrontier.push({
+        rawMapped.push({
             ...closest,
             id: idx + 1,
-            label: `Portfolio ${idx + 1} - ${label}`
+            label: `Portfolio ${idx + 1}` // Placeholder name
         });
     });
+    
+    // Slice off P1, re-index
+    const mappedFrontier = rawMapped.slice(1).map((p, idx) => ({
+        ...p,
+        id: idx + 1,
+        label: `Portfolio ${idx + 1}`
+    }));
 
     setOptimizationAssets(activeAssets);
     setSimulations(sims); // The Cloud
-    setEfficientFrontier(mappedFrontier); // The 10 Named Buckets
+    setEfficientFrontier(mappedFrontier);
+    
+    // Default to middle (Portfolio 5)
+    setSelectedPortfolioId(5);
     
     // Default to "Balanced" (Index 4 => ID 5)
     setSelectedPortfolioId(5);
@@ -2379,8 +2443,12 @@ export default function RiskReturnOptimiser() {
         balance += annualNetFlows[y];
         
         if (balance < 0) balance = 0;
+
+        // v1.244: Handle Nominal vs Real (Inflation Adjustment)
+        // If showNominal is FALSE, we want REAL values (Deflated).
+        const reportBalance = showNominal ? balance : (balance / Math.pow(1 + inflationRate, y));
         
-        results[y].paths.push(balance);
+        results[y].paths.push(reportBalance);
       }
     }
 
@@ -2392,7 +2460,7 @@ export default function RiskReturnOptimiser() {
     }));
 
     setCfSimulationResults(finalData);
-  }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, projectionYears, inflationRate, adviceFee, structures, entityTypes, showBeforeTax, optimizationAssets, assets, correlations]);
+  }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, projectionYears, inflationRate, adviceFee, structures, entityTypes, showBeforeTax, showNominal, optimizationAssets, assets, correlations]);
 
   useEffect(() => {
     // Run simulation immediately when portfolio is selected (after optimization or tab change)
@@ -3078,6 +3146,19 @@ export default function RiskReturnOptimiser() {
                           </div>
                           <div className="ml-3 text-sm font-medium text-gray-700">Current Asset Allocation</div>
                       </label>
+                      <button 
+                          onClick={() => {
+                              const resetAlloc = struct.assetAllocation.map(a => ({
+                                  ...a,
+                                  weight: a.id === 'cash' ? 100 : 0
+                              }));
+                              setStructures(structures.map(s => s.id === struct.id ? {...s, assetAllocation: resetAlloc} : s));
+                          }}
+                          className="ml-auto text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded border border-gray-300"
+                          title="Set Cash to 100%, others to 0%"
+                      >
+                          Reset to Cash
+                      </button>
                   </div>
 
                   {struct.useAssetAllocation && (
@@ -3088,9 +3169,10 @@ export default function RiskReturnOptimiser() {
                                       <th className="px-3 py-2 text-left">Asset Class</th>
                                       <th className="px-3 py-2 text-center">Allocation (%)</th>
                                       <th className="px-3 py-2 text-center">Expected Return (%)</th>
-                                      <th className="px-3 py-2 text-center">Expected Risk (%)</th>
-                                      <th className="px-3 py-2 text-center">Constraints (Min %)</th>
-                                      <th className="px-3 py-2 text-center">Constraints (Max %)</th>
+                                      {/* Risk Removed v1.244 */}
+                                      <th className="px-3 py-2 text-center">Tolerance (Min %)</th>
+                                      <th className="px-3 py-2 text-center">Tolerance (Max %)</th>
+                                      <th className="px-3 py-2 text-center">Group Constraint</th>
                                   </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100">
@@ -3144,7 +3226,8 @@ export default function RiskReturnOptimiser() {
                                                       />
                                                   </td>
                                                   <td className="px-3 py-1 text-center text-black">{(netReturn * 100).toFixed(6)}</td>
-                                                  <td className="px-3 py-1 text-center text-black">{(netRisk * 100).toFixed(6)}</td>
+                                                  <td className="px-3 py-1 text-center text-black">{(netReturn * 100).toFixed(6)}</td>
+                                                  {/* Risk Removed v1.244 */}
                                                   <td className="px-3 py-1 text-center">
                                                       <input type="text" className="w-16 border rounded text-center text-black" 
                                                           key={`min-${alloc.id}-${alloc.min}`}
@@ -3173,17 +3256,34 @@ export default function RiskReturnOptimiser() {
                                                           onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                                                       />
                                                   </td>
+                                                  <td className="px-3 py-1 text-center">
+                                                      <input type="text" className="w-16 border rounded text-center text-black" 
+                                                          key={`group-${alloc.id}-${alloc.groupLimit}`}
+                                                          defaultValue={alloc.groupLimit || ''}
+                                                          placeholder="-"
+                                                          onBlur={(e) => {
+                                                              const val = e.target.value;
+                                                              if (val !== alloc.groupLimit) {
+                                                                const newAlloc = allocations.map(x => x.id === alloc.id ? {...x, groupLimit: val} : x);
+                                                                setStructures(structures.map(s => s.id === struct.id ? {...s, assetAllocation: newAlloc} : s));
+                                                              }
+                                                          }}
+                                                          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                                      />
+                                                  </td>
                                               </tr>
                                           );
                                         })}
-                                        <tr className={`font-bold ${Math.abs(totalWeight - 100) > 0.01 ? 'bg-red-100 text-red-600' : 'bg-gray-100'}`}>
-                                          <td className="px-3 py-2">Total</td>
-                                          <td className={`px-3 py-2 text-center ${Math.abs(totalWeight - 100) > 0.01 ? 'text-red-600' : 'text-black'}`}>{totalWeight.toFixed(1)}%</td>
-                                          <td className="px-3 py-2 text-center">{totalExpectedReturn.toFixed(2)}%</td>
-                                          <td className="px-3 py-2 text-center">{totalExpectedRisk.toFixed(2)}%</td>
-                                          <td className="px-3 py-2"></td>
-                                          <td className="px-3 py-2"></td>
-                                        </tr>
+                                          <tr className={`font-bold ${Math.abs(totalWeight - 100) > 0.01 ? 'bg-red-100 text-red-600' : 'bg-gray-100'}`}>
+                                            <td className="px-3 py-2">Total</td>
+                                            <td className={`px-3 py-2 text-center ${Math.abs(totalWeight - 100) > 0.01 ? 'text-red-600' : 'text-black'}`}>{totalWeight.toFixed(1)}%</td>
+                                            {/* v1.244 Removed Total Returns/Risk */}
+                                            <td className="px-3 py-2 text-center"></td>
+                                            <td className="px-3 py-2"></td>
+                                            <td className="px-3 py-2"></td>
+                                            <td className="px-3 py-2"></td>
+                                            <td className="px-3 py-2"></td>
+                                          </tr>
                                       </>
                                     );
                                   })()}
@@ -3222,66 +3322,7 @@ export default function RiskReturnOptimiser() {
         </div>
       </div>
 
-      {/* Projection Input Assumptions */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-           <Calculator className="w-5 h-5 mr-2 text-fire-accent" />
-           Projection Input Assumptions
-         </h3>
-         <div className="flex flex-wrap gap-8 items-end">
-             <div>
-               <label className="block text-xs font-bold text-gray-500 mb-1">Timeframe (Years)</label>
-               <input 
-                  type="text" 
-                  defaultValue={projectionYears}
-                  onBlur={(e) => {
-                      const val = parseInt(e.target.value);
-                      if (!isNaN(val) && val !== projectionYears) {
-                        setProjectionYears(val);
-                      }
-                  }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                  className="w-32 border border-gray-300 rounded px-2 py-1 text-sm text-black"
-               />
-             </div>
-             <div>
-               <label className="block text-xs font-bold text-gray-500 mb-1">Inflation</label>
-               <div className="relative w-32">
-                 <input 
-                    type="text"
-                    defaultValue={(Math.round(inflationRate * 1000) / 10).toString()}
-                    onBlur={(e) => {
-                        const val = parseFloat(e.target.value);
-                        if (!isNaN(val)) {
-                          setInflationRate(val/100);
-                        }
-                    }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm text-black pr-6"
-                 />
-                 <span className="absolute right-2 top-1 text-xs text-gray-400">%</span>
-               </div>
-             </div>
-             <div>
-               <label className="block text-xs font-bold text-gray-500 mb-1">Fees</label>
-               <div className="relative w-32">
-                 <input 
-                    type="text"
-                    defaultValue={(Math.round(adviceFee * 10000) / 100).toString()}
-                    onBlur={(e) => {
-                        const val = parseFloat(e.target.value);
-                        if (!isNaN(val)) {
-                          setAdviceFee(val/100);
-                        }
-                    }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm text-black pr-6"
-                 />
-                 <span className="absolute right-2 top-1 text-xs text-gray-400">%</span>
-               </div>
-             </div>
-         </div>
-      </div>
+      {/* Projection Input Assumptions REMOVED (Moved to Projections Tab) */}
 
       {/* Cashflow Projections */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -3511,6 +3552,7 @@ export default function RiskReturnOptimiser() {
 
     return (
       <div className="space-y-6 animate-in fade-in">
+
         {/* Projection Parameters */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -3761,7 +3803,22 @@ export default function RiskReturnOptimiser() {
             {/* Removed heading and descriptive text */}
           </div>
           
-          <div className="flex items-center gap-4">
+           <div className="flex items-center gap-4">
+             <div className="text-right">
+                <label className="block text-xs font-bold text-gray-500 mb-1">Tax View</label>
+                <div className="flex items-center h-[30px]">
+                    <label className="text-xs text-gray-700 flex items-center cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            checked={showPreTaxFrontier} 
+                            onChange={(e) => setShowPreTaxFrontier(e.target.checked)}
+                            className="mr-2"
+                        />
+                        <span>Pre-Tax</span>
+                    </label>
+                </div>
+             </div>
+
              <div className="text-right">
                <label className="block text-xs font-bold text-gray-500 mb-1">Forecast Confidence</label>
                <select 
@@ -3769,9 +3826,9 @@ export default function RiskReturnOptimiser() {
                   onChange={(e) => setForecastConfidenceLevel(parseInt(e.target.value))}
                   className="w-32 text-right border border-gray-300 rounded px-2 py-1 text-sm bg-white"
                >
-                   <option value={1}>Low (Robust)</option>
+                   <option value={1}>Low (20 Sims)</option>
                    <option value={2}>Medium</option>
-                   <option value={3}>High (Precise)</option>
+                   <option value={3}>High (100 Sims)</option>
                </select>
              </div>
 
@@ -4233,7 +4290,7 @@ export default function RiskReturnOptimiser() {
                     className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-fire-accent focus:border-fire-accent"
                   >
                     {efficientFrontier.map((p, i) => (
-                      <option key={i+1} value={i+1}>Portfolio {i+1} - {MODEL_NAMES[i+1] || 'Custom'}</option>
+                      <option key={i+1} value={i+1}>Portfolio {i+1}</option>
                     ))}
                   </select>
                </div>
@@ -4329,7 +4386,8 @@ export default function RiskReturnOptimiser() {
         {selectedPortfolio && cfSimulationResults.length > 0 && (
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             {/* Estimating Outcomes Chart */}
-            <h4 className="font-semibold text-gray-900 mb-4">Estimating Outcomes</h4>
+            {/* Estimating Outcomes Chart */}
+            <h4 className="font-semibold text-gray-900 mb-4">Estimating Outcomes ({projectionYears} Years)</h4>
             <div id="estimating-outcomes-chart" className="h-[400px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart 
@@ -4420,7 +4478,7 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.243</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.244</span>
              </div>
           </div>
         </div>
@@ -4517,6 +4575,13 @@ export default function RiskReturnOptimiser() {
               className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium"
             >
                <FileText className="w-4 h-4 mr-2"/> Export PDF
+            </button>
+            <button 
+              onClick={handleExportExcel}
+              className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium ml-2"
+              title="Export CSV"
+            >
+               <FileText className="w-4 h-4 mr-2 text-green-600"/> Excel
             </button>
              <button 
               onClick={() => setActiveTab('data')}
