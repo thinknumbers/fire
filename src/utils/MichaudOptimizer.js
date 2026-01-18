@@ -3,49 +3,43 @@ import { cholesky, generateCorrelatedSample, getStats, dot, matMul } from './mat
 // ---------------------------------------------------------
 // 1. PROJECTED GRADIENT DESCENT (PGD) SOLVER for Markowitz
 // ---------------------------------------------------------
-// Minimizes Variance w'Cw subject to w'Mu = TargetReturn AND Sum(w)=1 AND 0<=w<=1
-// Note: We use a penalty method or direct projection for equality constraints.
+// ---------------------------------------------------------
+// 1. PROJECTED GRADIENT DESCENT (PGD) SOLVER for Markowitz
+// ---------------------------------------------------------
 
 function solveMarkowitz(mean, cov, targetReturn, minWeights, maxWeights, groupConstraints = []) {
     const n = mean.length;
     // Initial guess: Equal weights (normalized to constraints if needed)
     let w = new Array(n).fill(1/n); 
+    w = projectConstraints(w, mean, targetReturn, minWeights, maxWeights, groupConstraints); // Valid start
     
     // Hyperparameters
-    // Hyperparameters
-    const LR = 0.2; // Balanced for decimal inputs
-    const MAX_ITER = 1000;
+    const LR = 0.1; // Reduced for stability
+    const MAX_ITER = 150; // Reduced from 1000 for performance (500 sims * 51 points is heavy)
+    const TOL = 1e-6; // Convergence tolerance
     
-    // Simple Gradient Descent with Projection
+    // Simple Projected Gradient Descent
     for(let iter=0; iter<MAX_ITER; iter++) {
-        // Gradient of Variance: 2 * C * w
-        // But we want to Minimize 0.5 * w'Cw - lambda*(w'Mu - R) - gamma*(sum w - 1)
-        // Let's use a simpler approach: Min Variance, then Project to satisfy Return & Budget
-        
-        // 1. Calculate Gradient of Risk (Variance)
-        // Grad = 2 * Cov * w
-        // Actually, let's minimize Risk w.r.t constraints directly?
-        // It's hard to do purely with projection if we have double equality constraints.
-        // Alternative: Use "Critical Line Algorithm" logic or simplified iterative approach.
-        // Simplified: 
-        // Gradient Update -> w = w - lr * (Cov * w)
-        // Then Project w to satisfy Sum=1, w'Mu=Target, Min<=w<=Max.
-        
         // Step A: Gradient Step (Minimize Variance)
+        // Grad(0.5 * w'Cw) = Cw
         const Cw = new Array(n).fill(0);
         for(let i=0; i<n; i++) {
             for(let j=0; j<n; j++) Cw[i] += cov[i][j] * w[j];
         }
         
-        // Update w
-        for(let i=0; i<n; i++) w[i] -= LR * Cw[i];
+        // Momentum or purely gradient? Standard PGD ok.
+        let w_new = [...w];
+        for(let i=0; i<n; i++) w_new[i] -= LR * Cw[i];
         
         // Step B: Project to constraints
-        // Iterative Projection to satisfy:
-        // 1. Bounds (Min/Max)
-        // 2. Sum = 1
-        // 3. Return = Target
-        w = projectConstraints(w, mean, targetReturn, minWeights, maxWeights, groupConstraints);
+        w_new = projectConstraints(w_new, mean, targetReturn, minWeights, maxWeights, groupConstraints);
+        
+        // Check Convergence (Change in w)
+        let diff = 0;
+        for(let i=0; i<n; i++) diff += Math.abs(w_new[i] - w[i]);
+        w = w_new;
+        
+        if (diff < TOL) break; // Early exit for performance
     }
     
     const risk = Math.sqrt(dot(w, matMul(cov, w.map(v=>[v])).map(r=>r[0])));
@@ -59,32 +53,40 @@ export function projectConstraints(w, mean, targetRet, minW, maxW, groupConstrai
   const n = w.length;
   
   // Dykstra's Alternating Projections for intersection of convex sets
-  // 1. Box Constraints (Min/Max)
-  // 2. Hyperplane (Sum = 1)
-  // 3. Hyperplane (Return = Target)
+  const MAX_PROJ_ITER = 20; // Reduced from 50 (usually converges in 5-10)
   
-  for(let k=0; k<50; k++) { // Increased to 50 for better convergence with group constraints
+  for(let k=0; k<MAX_PROJ_ITER; k++) { 
       
-      // 1. Box
+      let changed = false;
+
+      // 1. Box Constraints (Strict Clamp)
       for(let i=0; i<n; i++) {
-          if (proj[i] < minW[i]) proj[i] = minW[i];
-          if (proj[i] > maxW[i]) proj[i] = maxW[i];
+          let val = proj[i];
+          if (val < minW[i]) { val = minW[i]; changed = true; }
+          if (val > maxW[i]) { val = maxW[i]; changed = true; }
+          proj[i] = val;
       }
       
       // 2. Sum Constraint (Scalar shift)
       let currentSum = proj.reduce((a,b)=>a+b, 0);
-      let diff = (currentSum - 1);
-      // Determine active set - Shift only those not at bounds? 
-      // Simple shift is stable enough if we iterate.
-      for(let i=0; i<n; i++) proj[i] -= diff/n;
+      let diff = (currentSum - 1.0);
+      if (Math.abs(diff) > 1e-6) {
+          // Determine active set (assets not at boundary)? 
+          // Simple uniform shift is robust enough if we iterate.
+          for(let i=0; i<n; i++) proj[i] -= diff/n;
+          changed = true;
+      }
       
-      // 3. Return Constraint (if needed logic)
+      // 3. Return Constraint
       if (targetRet !== null) {
           const currentRet = dot(proj, mean);
-          const muNormSq = dot(mean, mean) || 1e-9;
-          const lambda = (currentRet - targetRet) / muNormSq;
-          const step = mean.map(m => lambda * m); 
-          for(let i=0; i<n; i++) proj[i] -= step[i];
+          if (Math.abs(currentRet - targetRet) > 1e-6) {
+             const muNormSq = dot(mean, mean) || 1e-9;
+             const lambda = (currentRet - targetRet) / muNormSq;
+             const step = mean.map(m => lambda * m); 
+             for(let i=0; i<n; i++) proj[i] -= step[i];
+             changed = true;
+          }
       }
 
       // 4. Group Constraints
@@ -92,36 +94,36 @@ export function projectConstraints(w, mean, targetRet, minW, maxW, groupConstrai
           groupConstraints.forEach(gc => {
              let subsetSum = 0;
              gc.indices.forEach(idx => subsetSum += proj[idx]);
-             if (subsetSum > gc.max) {
+             if (subsetSum > gc.max + 1e-6) { // Tolerance check
                  const diff = subsetSum - gc.max;
                  const k = gc.indices.length;
                  if (k > 0) {
                      const sub = diff / k;
                      gc.indices.forEach(idx => proj[idx] -= sub);
+                     changed = true;
                  }
              }
           });
       }
+      
+      if (!changed && k > 2) break; // Early exit
   }
 
-  // Final Strict Box Clamp (Safety Net)
-  // This violates Sum=1 slightly if projection failed to converge, but ensures Max Constraint compliance.
-  // Better to have 99.9% portfolio than 17% allocation violating 9% max.
-  // Final Smart Normalization (Safety Net)
+  // Final Smart Normalization (Safety Net for Sum=1)
   // Ensure we satisfy Min/Max AND Sum=1
-  for(let attempt=0; attempt<5; attempt++) {
+  for(let attempt=0; attempt<10; attempt++) {
       let sum = proj.reduce((a,b)=>a+b, 0);
       if (Math.abs(sum - 1.0) < 1e-6) break;
 
-      const diff = 1.0 - sum;
-      // Distribute diff to assets that have room
-      // If diff > 0 (need to add weight), add to those < maxW
-      // If diff < 0 (need to cut weight), cut from those > minW
+      const diff = 1.0 - sum; // Positive means we need to ADD weight
       
+      // Distribute diff to assets that have room
       const eligibleIndices = [];
       if (diff > 0) {
+          // Add to those below max
           for(let i=0; i<n; i++) if (proj[i] < maxW[i] - 1e-6) eligibleIndices.push(i);
       } else {
+          // Subtract from those above min
           for(let i=0; i<n; i++) if (proj[i] > minW[i] + 1e-6) eligibleIndices.push(i);
       }
       
@@ -129,7 +131,7 @@ export function projectConstraints(w, mean, targetRet, minW, maxW, groupConstrai
           const share = diff / eligibleIndices.length;
           eligibleIndices.forEach(idx => {
              proj[idx] += share;
-             // Clamp immediately
+             // Clamp immediately to stay valid
              if (proj[idx] < minW[idx]) proj[idx] = minW[idx];
              if (proj[idx] > maxW[idx]) proj[idx] = maxW[idx];
           });
@@ -138,7 +140,8 @@ export function projectConstraints(w, mean, targetRet, minW, maxW, groupConstrai
       }
   }
 
-  // Absolute fallback: strict clamp (priority min > max)
+  // Absolute fallback: strict clamp (priority min > others)
+  // This guarantees Min Constraints are NEVER violated, even if Sum != 1 slightly.
   for(let i=0; i<n; i++) {
         if (proj[i] < minW[i]) proj[i] = minW[i];
         if (proj[i] > maxW[i]) proj[i] = maxW[i];

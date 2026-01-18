@@ -1,4 +1,4 @@
-// Deployment trigger: v1.255 - 2026-01-19
+// Deployment trigger: v1.256 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1729,7 +1729,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.255)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.256)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights and renormalize 
     const ensureNonNegative = (weights) => {
@@ -4501,8 +4501,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.255 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.255</span>
+                {/* Deployment trigger: v1.256 - 2026-01-19 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.256</span>
              </div>
           </div>
         </div>
