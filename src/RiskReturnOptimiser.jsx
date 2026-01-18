@@ -1879,7 +1879,12 @@ export default function RiskReturnOptimiser() {
                     } else {
                          // CASE B: Unchecked (System Defaults / "Treatment to Date")
                          // We must enforce the Strict Caps (e.g. 9% EM Bond)
-                         constraints.minWeights = activeAssets.map(a => (a.minWeight || 0)/100);
+                         constraints.minWeights = activeAssets.map(a => {
+                             if (a.minWeight !== undefined) return (a.minWeight)/100;
+                             // Fallback to System Default if missing in state (Old Scenarios)
+                             const def = DEFAULT_ASSETS.find(d => d.id === a.id);
+                             return (def && def.minWeight !== undefined ? def.minWeight : 0) / 100;
+                         });
                          constraints.maxWeights = activeAssets.map(a => {
                              let stateMax = (a.maxWeight !== undefined ? a.maxWeight : 100) / 100;
                              
