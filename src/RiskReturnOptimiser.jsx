@@ -566,7 +566,7 @@ export default function RiskReturnOptimiser() {
     const { data, error } = await supabase
       .from('scenarios')
       .select('id, name, created_at')
-      .eq('owner_id', localUserId) 
+      // .eq('owner_id', localUserId) // Reverted privacy constraint per user request
       .order('created_at', { ascending: false });
     
     if (data) setSavedScenarios(data);
@@ -1347,75 +1347,79 @@ export default function RiskReturnOptimiser() {
   };
 
   const handleExportExcel = () => {
-      // Create CSV Content
-      let csvContent = "data:text/csv;charset=utf-8,";
-      
-      // 1. Scenario Info
-      csvContent += `Scenario Name,${scenarioName}\n`;
-      csvContent += `Client Name,${clientName}\n`;
-      csvContent += `Date,${new Date().toLocaleDateString()}\n`;
-      csvContent += `Inflation Rate,${(inflationRate * 100).toFixed(2)}%\n`;
-      csvContent += `Advice Fee,${(adviceFee * 100).toFixed(2)}%\n\n`;
+      try {
+        // Fallback or Alert if no portfolio
+        // If efficientFrontier is empty, we might not have a "selectedPortfolio" with stats. 
+        // We can still export current inputs.
+        
+        let activePort = selectedPortfolio;
+        if (!activePort || !activePort.weights) {
+             // Try to find by ID
+             if (efficientFrontier.length > 0) {
+                 activePort = efficientFrontier.find(p => p.id === selectedPortfolioId) || efficientFrontier[0];
+             }
+        }
+        
+        // Create CSV Content
+        let csvContent = "data:text/csv;charset=utf-8,";
+        
+        // 1. Scenario Info
+        csvContent += `Scenario Name,${scenarioName}\n`;
+        csvContent += `Client Name,${clientName}\n`;
+        csvContent += `Date,${new Date().toLocaleDateString()}\n`;
+        csvContent += `Inflation Rate,${(inflationRate * 100).toFixed(2)}%\n`;
+        csvContent += `Advice Fee,${(adviceFee * 100).toFixed(2)}%\n\n`;
 
-      // 2. Asset Allocation (Selected Portfolio)
-      const portName = selectedPortfolio.label || `Portfolio ${selectedPortfolioId}`;
-      csvContent += `Selected Portfolio,${portName}\n`;
-      csvContent += `Expected Return (Net),${(selectedPortfolio.return * 100).toFixed(2)}%\n`;
-      csvContent += `Expected Risk,${(selectedPortfolio.risk * 100).toFixed(2)}%\n`;
-      
-      csvContent += `\nAsset Allocation\n`;
-      csvContent += `Asset Class,Weight (%),Value ($),Return (%),Risk (%)\n`;
-      activeAssets.forEach(asset => {
-           // Find weight in selected portfolio
-           const portIdx = efficientFrontier.findIndex(p => p.id === selectedPortfolioId);
-           let weight = 0;
-           if (portIdx !== -1 && efficientFrontier[portIdx].weights) {
-                // Map back to optimization assets index
-                // Note: activeAssets might differ from optimizationAssets if changed after opt.
-                // But efficientFrontier weights align with optimizationAssets.
-                // Best effort: match by ID
-                const optIdx = optimizationAssets.findIndex(oa => oa.id === asset.id);
-                if (optIdx !== -1) {
-                    weight = efficientFrontier[portIdx].weights[optIdx];
-                }
-           }
-           // Fallback if not optimized yet, use current weight? 
-           // If optimized, weight is from frontier. If purely current state, usage might differ.
-           // Let's use the 'activeAssets' current weight property if available or 0.
-           // Actually, activeAssets contains the *current settings* weights if we are in Client Input mode,
-           // but mapped weights if we are in Optimization Result mode.
-           
-           // If we are in Output/Optimization tab, activeAssets usually has the selected portfolio weights applied if we implemented that sync.
-           // In this codebase, 'selectedPortfolio' has 'weights' array.
-           // Use selectedPortfolio weights if available.
-           
-           if (!weight && selectedPortfolio.weights && optimizationAssets.length > 0) {
-                const optIdx = optimizationAssets.findIndex(oa => oa.id === asset.id);
-                if (optIdx >= 0) weight = selectedPortfolio.weights[optIdx];
-           }
-           
-           // If we still don't have it (e.g. manual mode), use asset.weight
-           if (weight === 0 && asset.weight) weight = asset.weight;
+        // 2. Asset Allocation
+        if (activePort && activePort.weights) {
+            const portName = activePort.label || `Portfolio ${activePort.id}`;
+            csvContent += `Selected Portfolio,${portName}\n`;
+            csvContent += `Expected Return (Net),${(activePort.return * 100).toFixed(2)}%\n`;
+            csvContent += `Expected Risk,${(activePort.risk * 100).toFixed(2)}%\n`;
+        } else {
+            csvContent += `Selected Portfolio,Current/Manual Inputs\n`;
+        }
+        
+        csvContent += `\nAsset Allocation\n`;
+        csvContent += `Asset Class,Weight (%),Value ($),Return (%),Risk (%)\n`;
+        activeAssets.forEach(asset => {
+             // Find weight
+             let weight = 0;
+             if (activePort && activePort.weights && optimizationAssets.length > 0) {
+                 const optIdx = optimizationAssets.findIndex(oa => oa.id === asset.id);
+                 if (optIdx >= 0) weight = activePort.weights[optIdx];
+             }
+             
+             // Fallback
+             if (!weight && weight !== 0) {
+                 // Check activeAssets current state?
+                 if (asset.weight) weight = asset.weight / 100; // asset.weight is usually 0-100 in state
+             }
 
-           csvContent += `${asset.name},${(weight * 100).toFixed(2)}%,${(weight * totalWealth).toFixed(0)},${(asset.return * 100).toFixed(2)}%,${(asset.stdev * 100).toFixed(2)}%\n`;
-      });
+             csvContent += `${asset.name},${(weight * 100).toFixed(2)}%,${(weight * totalWealth).toFixed(0)},${(asset.return * 100).toFixed(2)}%,${(asset.stdev * 100).toFixed(2)}%\n`;
+        });
 
-      // 3. Projections
-      if (cfSimulationResults.length > 0) {
-          csvContent += `\nWealth Projections\n`;
-          csvContent += `Year,Downside (2nd),Median (50th),Upside (84th)\n`;
-          cfSimulationResults.forEach(res => {
-               csvContent += `${res.year},${res.p02.toFixed(0)},${res.p50.toFixed(0)},${res.p84.toFixed(0)}\n`;
-          });
+        // 3. Projections
+        if (cfSimulationResults.length > 0) {
+            csvContent += `\nWealth Projections\n`;
+            csvContent += `Year,Downside (2nd),Median (50th),Upside (84th)\n`;
+            cfSimulationResults.forEach(res => {
+                 csvContent += `${res.year},${res.p02.toFixed(0)},${res.p50.toFixed(0)},${res.p84.toFixed(0)}\n`;
+            });
+        }
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `${scenarioName.replace(/\s+/g, '_')}_data.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+      } catch (e) {
+          console.error("Export Excel Error:", e);
+          alert("Failed to export Excel: " + e.message);
       }
-
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `${scenarioName.replace(/\s+/g, '_')}_data.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
   };
 
 
@@ -3226,7 +3230,8 @@ export default function RiskReturnOptimiser() {
                                                       />
                                                   </td>
                                                   <td className="px-3 py-1 text-center text-black">{(netReturn * 100).toFixed(6)}</td>
-                                                  <td className="px-3 py-1 text-center text-black">{(netReturn * 100).toFixed(6)}</td>
+                                                  {/* Duplicate return column removed v1.244 */}
+                                                  {/* Duplicate return column removed v1.244 */}
                                                   {/* Risk Removed v1.244 */}
                                                   <td className="px-3 py-1 text-center">
                                                       <input type="text" className="w-16 border rounded text-center text-black" 
@@ -4581,7 +4586,7 @@ export default function RiskReturnOptimiser() {
               className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium ml-2"
               title="Export CSV"
             >
-               <FileText className="w-4 h-4 mr-2 text-green-600"/> Excel
+               <FileText className="w-4 h-4 mr-2"/> Excel
             </button>
              <button 
               onClick={() => setActiveTab('data')}
