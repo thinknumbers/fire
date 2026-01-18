@@ -1984,7 +1984,14 @@ export default function RiskReturnOptimiser() {
                             });
                         });
                         
-                        perEntityFrontiers[entityType] = mappedEntityFrontier;
+                        // v1.244 Fix: Match Global Logic (Slice off P1, re-index)
+                        const finalEntityFrontier = mappedEntityFrontier.slice(1).map((p, idx) => ({
+                            ...p,
+                            id: idx + 1,
+                            label: `Portfolio ${idx + 1} - ${p.label.split(' - ')[1]}`
+                        }));
+
+                        perEntityFrontiers[entityType] = finalEntityFrontier;
                         
                         // Accumulate simulation cloud data for visualization
                         if (entityResult.simulations) {
@@ -2000,7 +2007,7 @@ export default function RiskReturnOptimiser() {
 
                         // Store Personal or first available as fallback
                         if (entityType === 'PERSONAL' || !globalFallbackFrontier.length) {
-                             globalFallbackFrontier = mappedEntityFrontier;
+                             globalFallbackFrontier = finalEntityFrontier;
                         }
 
                         // Log the resulting Allocations for verification (v1.238)
@@ -2009,7 +2016,7 @@ export default function RiskReturnOptimiser() {
                             step: `Entity Allocations: ${entityType}`,
                             details: {
                                 assets: activeAssets.map(a => a.name),
-                                portfolios: mappedEntityFrontier.map(p => ({
+                                portfolios: finalEntityFrontier.map(p => ({
                                     id: p.id,
                                     label: p.label,
                                     weights: p.weights
