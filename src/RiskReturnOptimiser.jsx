@@ -1,4 +1,4 @@
-// Deployment trigger: v1.263 - 2026-01-19
+// Deployment trigger: v1.264 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1740,7 +1740,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.263)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.264)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights and renormalize 
     const ensureNonNegative = (weights) => {
@@ -1835,7 +1835,23 @@ export default function RiskReturnOptimiser() {
                         // Round intermediates to 6 decimal places
                         const incomeComponent = round6(incomeRatio * (1 - incomeTax));
                         const growthComponent = round6((1 - incomeRatio) * (1 - capGainTax));
-                        const afterTaxReturn = round6(preTaxReturn * (incomeComponent + growthComponent));
+                        
+                        // v1.264: Apply Tax Location Preference Bias
+                        // User Preference: Income Assets (>50% Income) prefer Super > Trust > Company > Personal
+                        let locationBias = 1.0;
+                        if (incomeRatio > 0.50) {
+                            switch(entityType) {
+                                case 'PENSION':       locationBias = 1.05; break; // +5% Encouragement
+                                case 'SUPER_ACCUM':   locationBias = 1.02; break; // +2% Encouragement
+                                case 'TRUST':         locationBias = 0.95; break; // -5% Penalty
+                                case 'COMPANY':       locationBias = 0.90; break; // -10% Penalty
+                                case 'PERSONAL':      
+                                case 'WIFE':          locationBias = 0.85; break; // -15% Penalty
+                                default:              locationBias = 1.0; 
+                            }
+                        }
+
+                        const afterTaxReturn = round6((preTaxReturn * (incomeComponent + growthComponent)) * locationBias);
 
                         // Post-Tax Risk Adjustment
                         // UPDATE (v1.233): User feedback confirms SD should NOT be tax-adjusted. 
@@ -4533,8 +4549,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.263 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.263</span>
+                {/* Deployment trigger: v1.264 - 2026-01-19 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.264</span>
              </div>
           </div>
         </div>
