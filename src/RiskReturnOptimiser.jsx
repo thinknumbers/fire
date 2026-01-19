@@ -1,4 +1,4 @@
-// Deployment trigger: v1.269 - 2026-01-19
+// Deployment trigger: v1.270 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1740,11 +1740,15 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.269)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.270)`, timestamp: Date.now() });
 
-    // Helper to clamp negative weights and renormalize 
+    // Helper to clamp negative weights, remove dust (<0.1%), and renormalize 
     const ensureNonNegative = (weights) => {
-        let clamped = weights.map(w => Math.max(0, w));
+        // v1.270: Dust Cleanup
+        let clamped = weights.map(w => {
+            if (w < 0.001) return 0; // Filter dust (<0.1%)
+            return Math.max(0, w);
+        });
         const sum = clamped.reduce((a, b) => a + b, 0);
         if (sum === 0) return clamped; 
         return clamped.map(w => w / sum);
@@ -4564,8 +4568,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.269 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.269</span>
+                {/* Deployment trigger: v1.270 - 2026-01-19 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.270</span>
              </div>
           </div>
         </div>
