@@ -1,4 +1,4 @@
-// Deployment trigger: v1.265 - 2026-01-19
+// Deployment trigger: v1.266 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -75,7 +75,7 @@ const DEFAULT_ASSETS = [
   { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.083000, stdev: 0.200000, incomeRatio: 0.44, minWeight: 0.1, maxWeight: 100, color: '#779ECB', active: true, isDefault: true },
   { id: 'reits', name: 'Global REITs', return: 0.060000, stdev: 0.151877, incomeRatio: 0.63, minWeight: 0.1, maxWeight: 100, color: '#FDFD96', active: true, isDefault: true }, // SD: 15.18769% -> 0.151877
   { id: 'hedge', name: 'Hedge Fund', return: 0.052000, stdev: 0.117100, incomeRatio: 0.99, minWeight: 0.1, maxWeight: 100, color: '#B39EB5', active: true, isDefault: true },
-  { id: 'comm', name: 'Commodities', return: 0.042000, stdev: 0.208375, incomeRatio: 0.99, minWeight: 0.1, maxWeight: 100, color: '#C23B22', active: true, isDefault: true }, // SD: 20.83749% -> 0.208375
+  { id: 'comm', name: 'Commodities', return: 0.042000, stdev: 0.208375, incomeRatio: 0.0, minWeight: 0.1, maxWeight: 100, color: '#C23B22', active: true, isDefault: true }, // SD: 20.83749% -> 0.208375
   { id: 'aus_bond', name: 'Australian Bonds', return: 0.038000, stdev: 0.039376, incomeRatio: 0.99, minWeight: 0.1, maxWeight: 100, color: '#77DD77', active: true, isDefault: true }, // SD: 3.93760% -> 0.039376
   { id: 'gl_bond', name: 'Global Bonds', return: 0.036000, stdev: 0.035757, incomeRatio: 1.0, minWeight: 0.1, maxWeight: 100, color: '#836953', active: true, isDefault: true }, // SD: 3.57570% -> 0.035757
   { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054000, stdev: 0.111227, incomeRatio: 0.99, minWeight: 0.1, maxWeight: 100, color: '#FFD1DC', active: true, isDefault: true }, // SD: 11.12267% -> 0.111227
@@ -1740,7 +1740,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.265)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.266)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights and renormalize 
     const ensureNonNegative = (weights) => {
@@ -1836,18 +1836,32 @@ export default function RiskReturnOptimiser() {
                         const incomeComponent = round6(incomeRatio * (1 - incomeTax));
                         const growthComponent = round6((1 - incomeRatio) * (1 - capGainTax));
                         
-                        // v1.264: Apply Tax Location Preference Bias
-                        // User Preference: Income Assets (>50% Income) prefer Super > Trust > Company > Personal
+                        // v1.266: Aggressive Tax Location Preference Bias
+                        // User Request: PROMINENT skew. Income > Super, Growth > Personal.
+                        
                         let locationBias = 1.0;
+                        
                         if (incomeRatio > 0.50) {
+                            // INCOME ASSETS: Push to Super, Repel from Personal
                             switch(entityType) {
-                                case 'PENSION':       locationBias = 1.05; break; // +5% Encouragement
-                                case 'SUPER_ACCUM':   locationBias = 1.02; break; // +2% Encouragement
-                                case 'TRUST':         locationBias = 0.95; break; // -5% Penalty
-                                case 'COMPANY':       locationBias = 0.90; break; // -10% Penalty
+                                case 'PENSION':       locationBias = 1.25; break; // +25% Super Bonus
+                                case 'SUPER_ACCUM':   locationBias = 1.15; break; // +15% Accum Bonus
+                                case 'TRUST':         locationBias = 0.90; break; // -10% Penalty
+                                case 'COMPANY':       locationBias = 0.80; break; // -20% Penalty
                                 case 'PERSONAL':      
-                                case 'WIFE':          locationBias = 0.85; break; // -15% Penalty
+                                case 'WIFE':          locationBias = 0.60; break; // -40% Strong Penalty (Repel)
                                 default:              locationBias = 1.0; 
+                            }
+                        } else {
+                             // GROWTH ASSETS: Push to Personal, Repel from Super (to make room)
+                             switch(entityType) {
+                                case 'PENSION':       locationBias = 0.90; break; // -10% Penalty (Save room for Income)
+                                case 'SUPER_ACCUM':   locationBias = 0.95; break;
+                                case 'TRUST':         locationBias = 1.10; break; // +10% Bonus
+                                case 'COMPANY':       locationBias = 1.15; break; // +15% Bonus
+                                case 'PERSONAL':      
+                                case 'WIFE':          locationBias = 1.25; break; // +25% Strong Bonus (Attract Growth)
+                                default:              locationBias = 1.0;
                             }
                         }
 
@@ -4549,8 +4563,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.265 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.265</span>
+                {/* Deployment trigger: v1.266 - 2026-01-19 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.266</span>
              </div>
           </div>
         </div>
