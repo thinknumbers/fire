@@ -1,4 +1,4 @@
-// Deployment trigger: v1.259 - 2026-01-19
+// Deployment trigger: v1.261 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1740,7 +1740,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.259)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.261)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights and renormalize 
     const ensureNonNegative = (weights) => {
@@ -1877,15 +1877,27 @@ export default function RiskReturnOptimiser() {
                     if (useCustom && structWithAlloc.assetAllocation) {
                          // CASE A: Checked (Custom Inputs)
                          // We trust the user's manual inputs for this entity
+                         // Calculate Sum of User Mins to see if they are fully allocated
+                         const totalUserMin = activeAssets.reduce((sum, a) => {
+                             const row = structWithAlloc.assetAllocation.find(r => r.id === a.id);
+                             return sum + ((row && row.min !== undefined) ? row.min : 0);
+                         }, 0);
+                         
+                         const isFullyAllocated = totalUserMin >= 99.9;
+
                          constraints.minWeights = activeAssets.map(a => {
                              const row = structWithAlloc.assetAllocation.find(r => r.id === a.id);
                              const userMin = (row && row.min !== undefined) ? row.min / 100 : 0;
                              
-                             // Enforce System Floor (0.1%) even in Custom Mode to prevent zeroing
-                             const def = DEFAULT_ASSETS.find(d => d.id === a.id);
-                             const sysMin = (def && def.minWeight !== undefined) ? def.minWeight / 100 : 0.001;
-                             
-                             return Math.max(userMin, sysMin);
+                             if (isFullyAllocated) {
+                                 // User explicitly allocated ~100%, trust them completely (even if Cash=0)
+                                 return userMin;
+                             } else {
+                                 // Otherwise, Enforce System Floor (0.1%) to prevent zeroing
+                                 const def = DEFAULT_ASSETS.find(d => d.id === a.id);
+                                 const sysMin = (def && def.minWeight !== undefined) ? def.minWeight / 100 : 0.001;
+                                 return Math.max(userMin, sysMin);
+                             }
                          });
                          constraints.maxWeights = activeAssets.map(a => {
                              const row = structWithAlloc.assetAllocation.find(r => r.id === a.id);
@@ -4518,8 +4530,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.259 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.259</span>
+                {/* Deployment trigger: v1.261 - 2026-01-19 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.261</span>
              </div>
           </div>
         </div>
