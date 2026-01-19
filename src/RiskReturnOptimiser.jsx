@@ -1,4 +1,4 @@
-// Deployment trigger: v1.271 - 2026-01-19
+// Deployment trigger: v1.272 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1226,6 +1226,15 @@ export default function RiskReturnOptimiser() {
         if (!entityWeights) {
              entityWeights = getEntityConstrainedWeights(struct, globalWeights, activeOnly);
         }
+
+        // v1.272: Force Clean PDF Weights (Dust Removal <0.1%)
+        // Ensure PDF matches the On-Screen Table
+        if (entityWeights && entityWeights.length > 0) {
+            let w = entityWeights.map(val => val < 0.001 ? 0 : val);
+            const sum = w.reduce((a,b)=>a+b, 0);
+            if (sum > 0) entityWeights = w.map(val => val/sum);
+            else entityWeights = w;
+        }
         
         activeOnly.forEach((asset, aIdx) => {
           // Recommended
@@ -1740,7 +1749,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.271)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.272)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights, remove dust (<0.1%), and renormalize 
     const ensureNonNegative = (weights) => {
@@ -4609,8 +4618,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.271 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.271</span>
+                {/* Deployment trigger: v1.272 - 2026-01-19 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.272</span>
              </div>
           </div>
         </div>
