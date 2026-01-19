@@ -1,4 +1,4 @@
-// Deployment trigger: v1.270 - 2026-01-19
+// Deployment trigger: v1.271 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1740,7 +1740,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.270)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.271)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights, remove dust (<0.1%), and renormalize 
     const ensureNonNegative = (weights) => {
@@ -2100,7 +2100,17 @@ export default function RiskReturnOptimiser() {
                 }
             });
 
-            // Store entity-specific frontiers
+            // v1.271: Force Clean Entity Frontiers (Double Check)
+            // Ensure no dust <0.1% exists in the final state
+            Object.keys(perEntityFrontiers).forEach(key => {
+                perEntityFrontiers[key] = perEntityFrontiers[key].map(p => {
+                    let w = p.weights.map(val => val < 0.001 ? 0 : val);
+                    const sum = w.reduce((a,b)=>a+b, 0);
+                    if (sum > 0) w = w.map(val => val/sum);
+                    return { ...p, weights: w };
+                });
+            });
+
             // Store entity-specific frontiers
             setEntityFrontiers(perEntityFrontiers);
 
@@ -4111,16 +4121,47 @@ export default function RiskReturnOptimiser() {
                     </tr>
                   </thead>
                    <tbody className="divide-y divide-gray-100">
-                    {activeAssets.map((asset) => (
+                    {activeAssets.map((asset, idx) => {
+                      // v1.271: Derive Total Weight from Entity Sums to ensure 100% tie-out
+                      let displayWeight = asset.weight;
+                      
+                      if (structures.length > 0 && selectedPortfolio) {
+                          let totalVal = 0;
+                          structures.forEach(struct => {
+                              // Get entity weight for this asset
+                              const entFrontier = entityFrontiers[struct.type];
+                              let w = 0;
+                              if (entFrontier && entFrontier[selectedPortfolioId - 1]) {
+                                  // Use Optimization Result
+                                  // Need to match asset ID to optimization assets index
+                                  // Assuming activeAssets order matches optimizationAssets usually, 
+                                  // but safest to find index by ID if possible. 
+                                  // optimizationAssets isn't consistently available here in render scope with clean mapping.
+                                  // Fallback: activeAssets index SHOULD match if optimization used activeAssets.
+                                  // We will use the same logic as the Entity Pie Chart:
+                                  const fullIdx = optimizationAssets.findIndex(a => a.id === asset.id);
+                                  if (fullIdx >= 0) w = entFrontier[selectedPortfolioId - 1].weights[fullIdx];
+                              } else {
+                                  // Fallback (Constraint)
+                                   const weights = getEntityConstrainedWeights(struct, selectedPortfolio.weights, activeAssets);
+                                   const fullIdx = optimizationAssets.findIndex(a => a.id === asset.id);
+                                   if (fullIdx >= 0) w = weights[fullIdx];
+                              }
+                              totalVal += (w || 0) * struct.value;
+                          });
+                          displayWeight = totalVal / totalWealth;
+                      }
+
+                      return (
                       <tr key={asset.id}>
                         <td className="px-3 py-1 font-medium text-black flex items-center whitespace-nowrap overflow-hidden text-ellipsis">
                           <div className="w-2 h-2 rounded-full mr-2 shrink-0" style={{backgroundColor:asset.color}}/>
                           {asset.name}
                         </td>
-                        <td className="px-3 py-1 text-right text-black font-mono text-[11px]">{formatCurrency(asset.weight * totalWealth)}</td>
-                        <td className="px-3 py-1 text-right text-black font-mono text-[11px]">{(asset.weight * 100).toFixed(1)}%</td>
+                        <td className="px-3 py-1 text-right text-black font-mono text-[11px]">{formatCurrency(displayWeight * totalWealth)}</td>
+                        <td className="px-3 py-1 text-right text-black font-mono text-[11px]">{(displayWeight * 100).toFixed(1)}%</td>
                       </tr>
-                    ))}
+                    )})}
                     <tr className="bg-gray-50 border-t-2 border-gray-200">
                       <td className="px-3 py-1 text-left text-xs font-bold text-gray-900">Total</td>
                       <td className="px-3 py-1 text-right text-xs font-bold text-gray-900 font-mono">{formatCurrency(totalWealth)}</td>
@@ -4568,8 +4609,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.270 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.270</span>
+                {/* Deployment trigger: v1.271 - 2026-01-19 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.271</span>
              </div>
           </div>
         </div>
