@@ -1,4 +1,4 @@
-// Deployment trigger: v1.262 - 2026-01-19
+// Deployment trigger: v1.263 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1740,7 +1740,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.262)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.263)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights and renormalize 
     const ensureNonNegative = (weights) => {
@@ -2317,43 +2317,46 @@ export default function RiskReturnOptimiser() {
 
     if (showBeforeTax) {
          // Calculate Pre-Tax Stats roughly based on weighted average of raw asset returns
-         // Re-use calculation logic but with raw returns
-         const weights = selectedPortfolio.weights || [];
-         if (weights.length === optimizationAssets.length) {
+         
+         // 1. Map Weights to Asset IDs
+         // optimizationAssets *should* align with weights, but we verify active status.
+         if (selectedPortfolio.weights && selectedPortfolio.weights.length > 0) {
              let expectedReturn = 0;
              let variance = 0;
              
-             // Calculate Return
-             for (let i = 0; i < weights.length; i++) {
-                 expectedReturn += weights[i] * optimizationAssets[i].return;
-             }
+             // Calculate Return (Weighted Average of Pre-Tax Returns)
+             expectedReturn = selectedPortfolio.weights.reduce((sum, w, i) => {
+                 const asset = optimizationAssets[i]; // Assumption: Indices match (safe if optimizationAssets passed from optimiser)
+                 return sum + (w * (asset ? asset.return : 0));
+             }, 0);
 
-             // Calculate Risk (variance) - using same correlations
-             // Note: Correlations are same pre/post tax generally for this model level
-             for (let i = 0; i < weights.length; i++) {
-                 for (let j = 0; j < weights.length; j++) {
-                     const activeIndices = assets.map((a, idx) => a.active ? idx : -1).filter(idx => idx !== -1);
-                     // Need to map optimizationAssets index back to global assets index to get correlation
-                     // optimizationAssets is subset of assets. Assuming order is preserved from activeAssets check.
-                     // The 'optimizationAssets' state might need to be robust. 
-                     // Let's use the 'activeAssets' derived inside handleRunOptimization if possible, 
-                     // but here we rely on 'optimizationAssets' state saved after optimization.
+             // Calculate Risk (Variance) using Global Correlations
+             // Note: 'optimizationAssets' must be used to find IDs for correlation lookup
+             for (let i = 0; i < selectedPortfolio.weights.length; i++) {
+                 for (let j = 0; j < selectedPortfolio.weights.length; j++) {
+                     const w_i = selectedPortfolio.weights[i];
+                     const w_j = selectedPortfolio.weights[j];
+                     const asset_i = optimizationAssets[i];
+                     const asset_j = optimizationAssets[j];
                      
-                     // Helper: find asset ID to look up correlation
-                     const idA = optimizationAssets[i].id;
-                     const idB = optimizationAssets[j].id;
-                     
-                     // activeCorrelations logic is complex to reconstruct here without the matrix.
-                     // However, 'selectedPortfolio.risk' is after-tax risk. 
-                     // Pre-tax risk should generally be higher or similar. 
-                     // Approximation: Scale risk by ratio of Returns? No, that's not accurate.
-                     // Better approach: Since we don't have the full covariance matrix handy easily without 
-                     // re-deriving 'activeCorrelations' (which is local in handleRunOptimization),
-                     // and 'correlations' state is global...
-                     
-                     const val = (idA === idB) ? 1.0 : (correlations[idA] && correlations[idA][idB] !== undefined ? correlations[idA][idB] : 0.3);
-                     const cov = val * (optimizationAssets[i].stdev || 0) * (optimizationAssets[j].stdev || 0);
-                     variance += weights[i] * weights[j] * cov;
+                     if (asset_i && asset_j) {
+                         // Lookup Correlation
+                         let rho = 0.3; // Default
+                         if (asset_i.id === asset_j.id) {
+                             rho = 1.0;
+                         } else {
+                             // Global 'correlations' object: { "idA": { "idB": val } }
+                             // Check both directions A->B and B->A
+                             if (correlations[asset_i.id] && correlations[asset_i.id][asset_j.id] !== undefined) {
+                                  rho = correlations[asset_i.id][asset_j.id];
+                             } else if (correlations[asset_j.id] && correlations[asset_j.id][asset_i.id] !== undefined) {
+                                  rho = correlations[asset_j.id][asset_i.id];
+                             }
+                         }
+                         
+                         const cov = rho * asset_i.stdev * asset_j.stdev;
+                         variance += w_i * w_j * cov;
+                     }
                  }
              }
              
@@ -4530,8 +4533,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.262 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.262</span>
+                {/* Deployment trigger: v1.263 - 2026-01-19 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.263</span>
              </div>
           </div>
         </div>
