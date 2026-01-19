@@ -1,4 +1,4 @@
-// Deployment trigger: v1.268 - 2026-01-19
+// Deployment trigger: v1.269 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1740,7 +1740,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.268)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.269)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights and renormalize 
     const ensureNonNegative = (weights) => {
@@ -2171,15 +2171,16 @@ export default function RiskReturnOptimiser() {
                 return profiles.map(profile => {
                     let weights = [...profile.weights];
                     
-                    // Simple Clamp 0..1
+                    // v1.269: Allocation Cleanup
+                    // If allocation is < 0.1%, zero it out and put it back in the pool (re-normalize).
                     const clean = weights.map(w => {
                         let val = w;
-                        if (val < 0) val = 0;
+                        if (val < 0.001) val = 0; // Filter out dust (<0.1%)
                         if (val > 1) val = 1;
                         return val;
                     });
                     
-                    // Normalize Sum to 1
+                    // Normalize Sum to 1 (Effectively returns dust to the pool)
                     const sum = clean.reduce((a,b) => a+b, 0);
                     const final = sum > 0 ? clean.map(w => w/sum) : clean;
                     
@@ -4563,8 +4564,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.268 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.268</span>
+                {/* Deployment trigger: v1.269 - 2026-01-19 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.269</span>
              </div>
           </div>
         </div>
