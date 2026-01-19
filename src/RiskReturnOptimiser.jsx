@@ -1,4 +1,4 @@
-// Deployment trigger: v1.266 - 2026-01-19
+// Deployment trigger: v1.267 - 2026-01-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -68,18 +68,18 @@ const SAMPLE_TARGETS = {
 };
 
 const DEFAULT_ASSETS = [
-  { id: 'aus_eq', name: 'Australian Equities', return: 0.087000, stdev: 0.174200, incomeRatio: 0.67, minWeight: 0.1, maxWeight: 100, color: '#AEC6CF', active: true, isDefault: true },
-  { id: 'us_large', name: 'US Large Cap Equities', return: 0.084000, stdev: 0.171100, incomeRatio: 0.35, minWeight: 0.1, maxWeight: 100, color: '#FFB347', active: true, isDefault: true },
-  { id: 'us_small', name: 'US Small Cap Equities', return: 0.077000, stdev: 0.208100, incomeRatio: 0.40, minWeight: 0.1, maxWeight: 100, color: '#FF6961', active: true, isDefault: true },
-  { id: 'dev_world', name: 'Developed World Equities', return: 0.070000, stdev: 0.167300, incomeRatio: 0.49, minWeight: 0.1, maxWeight: 100, color: '#CB99C9', active: true, isDefault: true },
-  { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.083000, stdev: 0.200000, incomeRatio: 0.44, minWeight: 0.1, maxWeight: 100, color: '#779ECB', active: true, isDefault: true },
-  { id: 'reits', name: 'Global REITs', return: 0.060000, stdev: 0.151877, incomeRatio: 0.63, minWeight: 0.1, maxWeight: 100, color: '#FDFD96', active: true, isDefault: true }, // SD: 15.18769% -> 0.151877
-  { id: 'hedge', name: 'Hedge Fund', return: 0.052000, stdev: 0.117100, incomeRatio: 0.99, minWeight: 0.1, maxWeight: 100, color: '#B39EB5', active: true, isDefault: true },
-  { id: 'comm', name: 'Commodities', return: 0.042000, stdev: 0.208375, incomeRatio: 0.0, minWeight: 0.1, maxWeight: 100, color: '#C23B22', active: true, isDefault: true }, // SD: 20.83749% -> 0.208375
-  { id: 'aus_bond', name: 'Australian Bonds', return: 0.038000, stdev: 0.039376, incomeRatio: 0.99, minWeight: 0.1, maxWeight: 100, color: '#77DD77', active: true, isDefault: true }, // SD: 3.93760% -> 0.039376
-  { id: 'gl_bond', name: 'Global Bonds', return: 0.036000, stdev: 0.035757, incomeRatio: 1.0, minWeight: 0.1, maxWeight: 100, color: '#836953', active: true, isDefault: true }, // SD: 3.57570% -> 0.035757
-  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054000, stdev: 0.111227, incomeRatio: 0.99, minWeight: 0.1, maxWeight: 100, color: '#FFD1DC', active: true, isDefault: true }, // SD: 11.12267% -> 0.111227
-  { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.067000, stdev: 0.126213, incomeRatio: 0.99, minWeight: 0.1, maxWeight: 100, color: '#826d85', active: true, isDefault: true }, // SD: 12.62131% -> 0.126213
+  { id: 'aus_eq', name: 'Australian Equities', return: 0.087000, stdev: 0.174200, incomeRatio: 0.67, minWeight: 0, maxWeight: 100, color: '#AEC6CF', active: true, isDefault: true },
+  { id: 'us_large', name: 'US Large Cap Equities', return: 0.084000, stdev: 0.171100, incomeRatio: 0.35, minWeight: 0, maxWeight: 100, color: '#FFB347', active: true, isDefault: true },
+  { id: 'us_small', name: 'US Small Cap Equities', return: 0.077000, stdev: 0.208100, incomeRatio: 0.40, minWeight: 0, maxWeight: 100, color: '#FF6961', active: true, isDefault: true },
+  { id: 'dev_world', name: 'Developed World Equities', return: 0.070000, stdev: 0.167300, incomeRatio: 0.49, minWeight: 0, maxWeight: 100, color: '#CB99C9', active: true, isDefault: true },
+  { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.083000, stdev: 0.200000, incomeRatio: 0.44, minWeight: 0, maxWeight: 100, color: '#779ECB', active: true, isDefault: true },
+  { id: 'reits', name: 'Global REITs', return: 0.060000, stdev: 0.151877, incomeRatio: 0.63, minWeight: 0, maxWeight: 100, color: '#FDFD96', active: true, isDefault: true }, // SD: 15.18769% -> 0.151877
+  { id: 'hedge', name: 'Hedge Fund', return: 0.052000, stdev: 0.117100, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#B39EB5', active: true, isDefault: true },
+  { id: 'comm', name: 'Commodities', return: 0.042000, stdev: 0.208375, incomeRatio: 0.0, minWeight: 0, maxWeight: 100, color: '#C23B22', active: true, isDefault: true }, // SD: 20.83749% -> 0.208375
+  { id: 'aus_bond', name: 'Australian Bonds', return: 0.038000, stdev: 0.039376, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#77DD77', active: true, isDefault: true }, // SD: 3.93760% -> 0.039376
+  { id: 'gl_bond', name: 'Global Bonds', return: 0.036000, stdev: 0.035757, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#836953', active: true, isDefault: true }, // SD: 3.57570% -> 0.035757
+  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054000, stdev: 0.111227, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#FFD1DC', active: true, isDefault: true }, // SD: 11.12267% -> 0.111227
+  { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.067000, stdev: 0.126213, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#826d85', active: true, isDefault: true }, // SD: 12.62131% -> 0.126213
   { id: 'cash', name: 'Cash', return: 0.029000, stdev: 0.006139, incomeRatio: 1.0, minWeight: 0.1, maxWeight: 100, color: '#CFCFC4', active: true, isDefault: true }, // SD: 0.61391% -> 0.006139
 ];
 
@@ -1740,7 +1740,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.266)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.267)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights and renormalize 
     const ensureNonNegative = (weights) => {
@@ -4563,8 +4563,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.266 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.266</span>
+                {/* Deployment trigger: v1.267 - 2026-01-19 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.267</span>
              </div>
           </div>
         </div>
