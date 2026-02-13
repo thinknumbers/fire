@@ -1749,7 +1749,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.272)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.273)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights, remove dust (<0.1%), and renormalize 
     const ensureNonNegative = (weights) => {
