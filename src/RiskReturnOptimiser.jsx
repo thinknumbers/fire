@@ -1,4 +1,4 @@
-// Deployment trigger: v1.272 - 2026-01-19
+// Deployment trigger: v1.273 - 2026-02-13
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -55,16 +55,16 @@ const NumberInput = ({ value, onChange, className, placeholder, prefix = "$" }) 
 // Sample Allocation Targets (from User provided image)
 // Used to guide the "Portfolio Constraint Matrix" to preventing outliers.
 const SAMPLE_TARGETS = {
-  1:  { aus_eq: 0.5, us_large: 0.2, us_small: 0.1, dev_world: 0.1, em_eq: 0.2, reits: 0.6, hedge: 2.8, comm: 0.9, aus_bond: 4.3, gl_bond: 7.8, hy_bond: 1.4, em_bond: 0.5, cash: 80.5 },
-  2:  { aus_eq: 2.5, us_large: 1.4, us_small: 0.8, dev_world: 0.7, em_eq: 1.3, reits: 1.1, hedge: 5.4, comm: 1.3, aus_bond: 10.3, gl_bond: 12.7, hy_bond: 3.2, em_bond: 1.9, cash: 57.3 },
-  3:  { aus_eq: 5.3, us_large: 2.9, us_small: 1.6, dev_world: 1.6, em_eq: 2.6, reits: 1.3, hedge: 7.4, comm: 1.8, aus_bond: 15.9, gl_bond: 17.4, hy_bond: 5.3, em_bond: 4.2, cash: 32.7 },
-  4:  { aus_eq: 8.6, us_large: 4.7, us_small: 2.7, dev_world: 2.5, em_eq: 4.2, reits: 1.6, hedge: 8.6, comm: 2.3, aus_bond: 18.1, gl_bond: 18.1, hy_bond: 6.2, em_bond: 6.7, cash: 15.5 },
-  5:  { aus_eq: 12.4, us_large: 7.3, us_small: 4.2, dev_world: 3.6, em_eq: 6.1, reits: 2.1, hedge: 8.4, comm: 2.9, aus_bond: 16.3, gl_bond: 15.2, hy_bond: 5.4, em_bond: 8.5, cash: 7.9 },
-  6:  { aus_eq: 16.0, us_large: 10.1, us_small: 5.8, dev_world: 5.0, em_eq: 8.4, reits: 2.3, hedge: 8.0, comm: 3.2, aus_bond: 12.8, gl_bond: 11.7, hy_bond: 4.2, em_bond: 8.3, cash: 4.3 },
-  7:  { aus_eq: 19.2, us_large: 13.1, us_small: 7.5, dev_world: 6.3, em_eq: 10.8, reits: 2.6, hedge: 7.8, comm: 3.5, aus_bond: 9.3, gl_bond: 8.0, hy_bond: 3.1, em_bond: 6.7, cash: 2.2 },
-  8:  { aus_eq: 22.2, us_large: 15.9, us_small: 9.7, dev_world: 7.5, em_eq: 13.1, reits: 3.1, hedge: 6.8, comm: 3.5, aus_bond: 5.7, gl_bond: 4.9, hy_bond: 1.9, em_bond: 4.5, cash: 1.2 },
-  9:  { aus_eq: 23.8, us_large: 18.0, us_small: 12.7, dev_world: 8.6, em_eq: 15.5, reits: 3.5, hedge: 4.8, comm: 3.1, aus_bond: 3.1, gl_bond: 2.7, hy_bond: 1.1, em_bond: 2.6, cash: 0.6 },
-  10: { aus_eq: 20.3, us_large: 18.5, us_small: 20.0, dev_world: 10.6, em_eq: 18.6, reits: 4.0, hedge: 2.6, comm: 2.1, aus_bond: 0.8, gl_bond: 0.6, hy_bond: 0.3, em_bond: 1.0, cash: 0.6 },
+  1:  { aus_eq: 2.5, us_large: 1.4, us_small: 0.8, dev_world: 0.7, em_eq: 1.3, reits: 1.1, hedge: 5.4, comm: 1.3, aus_bond: 10.3, gl_bond: 12.7, hy_bond: 3.2, em_bond: 1.9, cash: 57.3 },
+  2:  { aus_eq: 5.3, us_large: 2.9, us_small: 1.6, dev_world: 1.6, em_eq: 2.6, reits: 1.3, hedge: 7.4, comm: 1.8, aus_bond: 15.9, gl_bond: 17.4, hy_bond: 5.3, em_bond: 4.2, cash: 32.7 },
+  3:  { aus_eq: 8.6, us_large: 4.7, us_small: 2.7, dev_world: 2.5, em_eq: 4.2, reits: 1.6, hedge: 8.6, comm: 2.3, aus_bond: 18.1, gl_bond: 18.1, hy_bond: 6.2, em_bond: 6.7, cash: 15.5 },
+  4:  { aus_eq: 12.4, us_large: 7.3, us_small: 4.2, dev_world: 3.6, em_eq: 6.1, reits: 2.1, hedge: 8.4, comm: 2.9, aus_bond: 16.3, gl_bond: 15.2, hy_bond: 5.4, em_bond: 8.5, cash: 7.9 },
+  5:  { aus_eq: 16.0, us_large: 10.1, us_small: 5.8, dev_world: 5.0, em_eq: 8.4, reits: 2.3, hedge: 8.0, comm: 3.2, aus_bond: 12.8, gl_bond: 11.7, hy_bond: 4.2, em_bond: 8.3, cash: 4.3 },
+  6:  { aus_eq: 19.2, us_large: 13.1, us_small: 7.5, dev_world: 6.3, em_eq: 10.8, reits: 2.6, hedge: 7.8, comm: 3.5, aus_bond: 9.3, gl_bond: 8.0, hy_bond: 3.1, em_bond: 6.7, cash: 2.2 },
+  7:  { aus_eq: 22.2, us_large: 15.9, us_small: 9.7, dev_world: 7.5, em_eq: 13.1, reits: 3.1, hedge: 6.8, comm: 3.5, aus_bond: 5.7, gl_bond: 4.9, hy_bond: 1.9, em_bond: 4.5, cash: 1.2 },
+  8:  { aus_eq: 23.8, us_large: 18.0, us_small: 12.7, dev_world: 8.6, em_eq: 15.5, reits: 3.5, hedge: 4.8, comm: 3.1, aus_bond: 3.1, gl_bond: 2.7, hy_bond: 1.1, em_bond: 2.6, cash: 0.6 },
+  9:  { aus_eq: 20.3, us_large: 18.5, us_small: 20.0, dev_world: 10.6, em_eq: 18.6, reits: 4.0, hedge: 2.6, comm: 2.1, aus_bond: 0.8, gl_bond: 0.6, hy_bond: 0.3, em_bond: 1.0, cash: 0.6 },
+  10: { aus_eq: 22.0, us_large: 20.0, us_small: 22.0, dev_world: 11.5, em_eq: 20.0, reits: 4.5, hedge: 0.0, comm: 0.0, aus_bond: 0.0, gl_bond: 0.0, hy_bond: 0.0, em_bond: 0.0, cash: 0.0 },
 };
 
 const DEFAULT_ASSETS = [
@@ -132,16 +132,16 @@ const DEFAULT_ENTITY_TYPES = {
 };
 
 const MODEL_NAMES = {
-  1: "Defensive",
-  2: "Conservative",
-  3: "Moderate Conservative",
-  4: "Moderate",
-  5: "Balanced",
-  6: "Balanced Growth",
-  7: "Growth",
-  8: "High Growth",
-  9: "Aggressive",
-  10: "High Aggressive"
+  1: "Conservative",
+  2: "Moderate Conservative",
+  3: "Moderate",
+  4: "Balanced",
+  5: "Balanced Growth",
+  6: "Growth",
+  7: "High Growth",
+  8: "Aggressive",
+  9: "High Aggressive",
+  10: "Ultra Aggressive"
 };
 
 const DEFAULT_STRUCTURES = [
@@ -567,7 +567,7 @@ export default function RiskReturnOptimiser() {
     const { data, error } = await supabase
       .from('scenarios')
       .select('id, name, created_at')
-      // .eq('owner_id', localUserId) // Reverted privacy constraint per user request
+      .eq('owner_id', localUserId) // v1.273: Re-enabled privacy constraint
       .order('created_at', { ascending: false });
     
     if (data) setSavedScenarios(data);
@@ -2768,6 +2768,28 @@ export default function RiskReturnOptimiser() {
                             </div>
                         </div>
                     </div>
+
+                    <div className="border-t border-gray-100"></div>
+
+                    {/* Optimisation Section */}
+                    <div className="space-y-4">
+                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                             <Cpu className="w-4 h-4" /> Optimisation
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Simulations</label>
+                                <NumberInput 
+                                  value={simulationCount} 
+                                  onChange={(val) => setSimulationCount(val || 50)}
+                                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
+                                  placeholder="50"
+                                  prefix=""
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Number of Monte Carlo simulations (recommended: 500+)</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-center rounded-b-xl">
@@ -3280,7 +3302,7 @@ export default function RiskReturnOptimiser() {
                                       {/* Risk Removed v1.244 */}
                                       <th className="px-3 py-2 text-center">Tolerance (Min %)</th>
                                       <th className="px-3 py-2 text-center">Tolerance (Max %)</th>
-                                      <th className="px-3 py-2 text-center">Group Constraint</th>
+                                      <th className="px-3 py-2 text-center">Group Constraint (Max %)</th>
                                   </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100">
@@ -3941,16 +3963,7 @@ export default function RiskReturnOptimiser() {
                </select>
              </div>
 
-             <div className="text-right">
-               <label className="block text-xs font-bold text-gray-500 mb-1">Simulations</label>
-               <NumberInput 
-                 value={simulationCount} 
-                 onChange={(val) => setSimulationCount(val || 50)}
-                 className="w-24 text-right border border-gray-300 rounded px-2 py-1 text-sm text-black"
-                 placeholder="50"
-                 prefix=""
-               />
-             </div>
+             {/* Simulations moved to Settings Modal in v1.273 */}
 
 
 
@@ -4001,7 +4014,7 @@ export default function RiskReturnOptimiser() {
                   unit="" 
                   tickFormatter={(val) => formatPercent(val)}
                   label={{ value: 'Risk', position: 'bottom', offset: 0, fill: '#004876' }}
-                  domain={['auto', 'auto']}
+                  domain={[0, 'auto']}
                   tick={{ fill: '#004876' }}
                   stroke="#004876"
                 />
@@ -4097,7 +4110,7 @@ export default function RiskReturnOptimiser() {
               >
                 {efficientFrontier.map((p, i) => (
                   <option key={i+1} value={i+1}>
-                    Portfolio {i+1}
+                    {MODEL_NAMES[i+1] || `Portfolio ${i+1}`}
                   </option>
                 ))}
               </select>
@@ -4312,7 +4325,7 @@ export default function RiskReturnOptimiser() {
                <div key={struct.id} className="border border-gray-200 rounded-lg p-3">
                  <div className="font-bold text-sm text-gray-800 mb-2 border-b pb-1">{struct.name}</div>
                  <div className="space-y-1">
-                   <div className="grid grid-cols-12 text-[10px] font-bold text-gray-400 uppercase mb-1 border-b pb-1">
+                   <div className="grid grid-cols-12 text-[10px] font-bold text-gray-400 mb-1 border-b pb-1">
                      <div className="col-span-4"></div>
                      <div className="col-span-2 text-center">Current</div>
                      <div className="col-span-2 text-center">%</div>
@@ -4400,7 +4413,7 @@ export default function RiskReturnOptimiser() {
         // Before tax would require running with pre-tax returns
         
         return {
-          year: `${yr} Year`,
+          year: `${yr}`,
           p02: res.p02 * inflationFactor,
           p50: res.p50 * inflationFactor,
           p84: res.p84 * inflationFactor,
@@ -4430,7 +4443,7 @@ export default function RiskReturnOptimiser() {
                     className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-fire-accent focus:border-fire-accent"
                   >
                     {efficientFrontier.map((p, i) => (
-                      <option key={i+1} value={i+1}>Portfolio {i+1}</option>
+                      <option key={i+1} value={i+1}>{MODEL_NAMES[i+1] || `Portfolio ${i+1}`}</option>
                     ))}
                   </select>
                </div>
@@ -4459,7 +4472,7 @@ export default function RiskReturnOptimiser() {
             </div>
           </div>
           
-          <div id="wealth-projection-chart" className="h-[400px] w-full">
+          <div id="wealth-projection-chart" className="h-[400px] min-h-[400px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={cfSimulationResults} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                 <defs>
@@ -4581,10 +4594,10 @@ export default function RiskReturnOptimiser() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Year</th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Downside</th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Median</th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Upside</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 tracking-wider">Year</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 tracking-wider">Downside</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 tracking-wider">Median</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-500 tracking-wider">Upside</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -4619,7 +4632,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.272</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.273</span>
              </div>
           </div>
         </div>
@@ -4687,7 +4700,7 @@ export default function RiskReturnOptimiser() {
             <button 
               onClick={() => handleSaveScenario(true)}
               disabled={isSaving}
-              className="flex items-center px-3 py-2 bg-fire-accent text-white border border-red-700 rounded hover:bg-red-700 text-sm font-medium disabled:opacity-50"
+              className="flex items-center px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium disabled:opacity-50"
             >
                {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin"/> : <Cloud className="w-4 h-4 mr-2"/>}
                {isSaving ? 'Saving...' : 'Save As'}
