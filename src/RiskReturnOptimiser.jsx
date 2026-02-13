@@ -563,14 +563,22 @@ export default function RiskReturnOptimiser() {
   }, [appSettings.font]);
 
   const fetchScenarios = async () => {
-    // Privacy: Only fetch scenarios owned by this device/local_user
-    const { data, error } = await supabase
-      .from('scenarios')
-      .select('id, name, created_at')
-      .eq('owner_id', localUserId) // v1.273: Re-enabled privacy constraint
-      .order('created_at', { ascending: false });
-    
-    if (data) setSavedScenarios(data);
+    try {
+      // Privacy: Only fetch scenarios owned by this device/local_user
+      const { data, error } = await supabase
+        .from('scenarios')
+        .select('id, name, created_at')
+        .eq('owner_id', localUserId) // v1.273: Re-enabled privacy constraint
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.warn('Failed to fetch scenarios:', error.message);
+        return;
+      }
+      if (data) setSavedScenarios(data);
+    } catch (err) {
+      console.warn('Scenario fetch failed (network/DNS):', err.message);
+    }
   };
 
   // --- Helpers ---
