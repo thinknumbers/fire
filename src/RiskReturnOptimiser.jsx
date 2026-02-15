@@ -1,4 +1,4 @@
-// Deployment trigger: v1.306 - 2026-02-15
+// Deployment trigger: v1.307 - 2026-02-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -509,6 +509,7 @@ export default function RiskReturnOptimiser() {
   
   // Cashflow Result State
   const [cfSimulationResults, setCfSimulationResults] = useState([]);
+  const [maxProjectionY, setMaxProjectionY] = useState(0); // v1.307: Lock axis to max value
   
   // Projections Tab State
   const [selectedCashflowEntity, setSelectedCashflowEntity] = useState('all'); // 'all' or entity id
@@ -1015,26 +1016,57 @@ export default function RiskReturnOptimiser() {
         y += entityPieSize + 15;
       }
 
-      // Legend - Moved to underneath Allocation by Entity
+      // Legend - High Level Groups (v1.307)
       pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
+      
+      const pdfGroups = {
+          'Australian Equities': ['aus_eq'],
+          'Global Equities': ['us_large', 'us_small', 'dev_world', 'em_eq'],
+          'Property': ['reits'],
+          'Fixed Interest': ['aus_bond', 'gl_bond', 'hy_bond', 'em_bond'],
+          'Alternatives': ['hedge', 'comm'],
+          'Cash': ['cash']
+      };
+      
+      const pdfGroupColors = {
+          'Australian Equities': '#AEC6CF',
+          'Global Equities': '#FFB347', 
+          'Property': '#FDFD96',
+          'Fixed Interest': '#77DD77',
+          'Alternatives': '#B39EB5',
+          'Cash': '#CFCFC4'
+      };
+
+      // Calculate Group Weights
       const activeOnly = assets.filter(a => a.active);
-      const legendCols = 4;
-      const legendItemWidth = 48;
+      const groupData = Object.entries(pdfGroups).map(([gName, gIds]) => {
+          const weight = gIds.reduce((sum, id) => {
+             const aIdx = activeOnly.findIndex(a => a.id === id);
+             if (aIdx >= 0 && selectedPortfolio.weights[aIdx]) {
+                 return sum + selectedPortfolio.weights[aIdx];
+             }
+             return sum;
+          }, 0);
+          return { name: gName, weight: weight, color: pdfGroupColors[gName] };
+      }).filter(g => g.weight > 0.005); // Filter out >0.5% (same as pie chart logic effectively)
+
+      const legendCols = 3; // Wider items
+      const legendItemWidth = 55;
       let lx = (pageWidth - (legendCols * legendItemWidth)) / 2;
-      activeOnly.forEach((asset, i) => {
-        const weight = selectedPortfolio.weights[activeOnly.findIndex(a => a.id === asset.id)] || 0;
-        if (weight > 0.005) {
+      
+      groupData.forEach((group, i) => {
           const col = i % legendCols;
           const row = Math.floor(i / legendCols);
           const itemX = lx + (col * legendItemWidth);
-          const itemY = y + (row * 5);
-          pdf.setFillColor(asset.color);
-          pdf.rect(itemX, itemY - 2, 2, 2, 'F');
+          const itemY = y + (row * 6); // slightly more vertical space
+          
+          pdf.setFillColor(group.color);
+          pdf.rect(itemX, itemY - 2.5, 3, 3, 'F');
           pdf.setTextColor(0, 0, 0);
-          pdf.text(`${asset.name}: ${formatPercent(weight)}`, itemX + 3, itemY);
-        }
+          pdf.text(`${group.name}: ${formatPercent(group.weight)}`, itemX + 4, itemY);
       });
-      y += Math.ceil(activeOnly.filter(a => (selectedPortfolio.weights[activeOnly.findIndex(x => x.id === a.id)] || 0) > 0.005).length / legendCols) * 5 + 8;
+      
+      y += Math.ceil(groupData.length / legendCols) * 6 + 10;
 
       // ==================== PAGE 2: TABLES ====================
       pdf.addPage();
@@ -1749,7 +1781,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.306)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.307)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights, remove dust (<0.1%), and renormalize 
     const ensureNonNegative = (weights) => {
@@ -1965,7 +1997,7 @@ export default function RiskReturnOptimiser() {
                 constraints,
                 groupConstraints
             });
-            console.log(`[v1.306 DEBUG] ${entityType} Constraints:`, {
+            console.log(`[v1.307 DEBUG] ${entityType} Constraints:`, {
                 min: constraints.minWeights,
                 max: constraints.maxWeights,
                 groups: groupConstraints
@@ -2483,215 +2515,179 @@ export default function RiskReturnOptimiser() {
   const runCashflowMonteCarlo = useCallback(() => {
     if (!selectedPortfolio) return;
 
-    const numRuns = 1000;
-    const years = projectionYears;
-    
-    // 1. Calculate Pre-Tax Portfolio Return/Risk if needed
-    // We already have 'selectedPortfolio' which is implicitly After-Tax (calculated in optimization)
-    // To get Pre-Tax, we need to calculate it from the selected weights and raw asset returns involved.
-    
-    let simReturn = selectedPortfolio.return;
-    let simRisk = selectedPortfolio.risk;
+    // Internal helper to run simulation with specific parameters
+    const runSim = (isPreTax, isNominalMode) => {
+        const numRuns = 1000;
+        const years = projectionYears;
+        
+        // 1. Calculate Portfolio Return/Risk
+        let simReturn = selectedPortfolio.return;
+        let simRisk = selectedPortfolio.risk;
 
-    if (showBeforeTax) {
-         // Calculate Pre-Tax Stats roughly based on weighted average of raw asset returns
-         
-         // 1. Map Weights to Asset IDs
-         // optimizationAssets *should* align with weights, but we verify active status.
-         if (selectedPortfolio.weights && selectedPortfolio.weights.length > 0) {
-             let expectedReturn = 0;
-             let variance = 0;
-             
-             // Calculate Return (Weighted Average of Pre-Tax Returns)
-             expectedReturn = selectedPortfolio.weights.reduce((sum, w, i) => {
-                 const asset = optimizationAssets[i]; // Assumption: Indices match (safe if optimizationAssets passed from optimiser)
-                 return sum + (w * (asset ? asset.return : 0));
-             }, 0);
+        if (isPreTax) {
+             // Calculate Pre-Tax Stats
+             if (selectedPortfolio.weights && selectedPortfolio.weights.length > 0) {
+                 let expectedReturn = 0;
+                 let variance = 0;
+                 
+                 // Calculate Return
+                 expectedReturn = selectedPortfolio.weights.reduce((sum, w, i) => {
+                     const asset = optimizationAssets[i]; 
+                     return sum + (w * (asset ? asset.return : 0));
+                 }, 0);
 
-             // Calculate Risk (Variance) using Global Correlations
-             // Note: 'optimizationAssets' must be used to find IDs for correlation lookup
-             for (let i = 0; i < selectedPortfolio.weights.length; i++) {
-                 for (let j = 0; j < selectedPortfolio.weights.length; j++) {
-                     const w_i = selectedPortfolio.weights[i];
-                     const w_j = selectedPortfolio.weights[j];
-                     const asset_i = optimizationAssets[i];
-                     const asset_j = optimizationAssets[j];
-                     
-                     if (asset_i && asset_j) {
-                         // Lookup Correlation
-                         let rho = 0.3; // Default
-                         if (asset_i.id === asset_j.id) {
-                             rho = 1.0;
-                         } else {
-                             // Global 'correlations' object: { "idA": { "idB": val } }
-                             // Check both directions A->B and B->A
-                             if (correlations[asset_i.id] && correlations[asset_i.id][asset_j.id] !== undefined) {
-                                  rho = correlations[asset_i.id][asset_j.id];
-                             } else if (correlations[asset_j.id] && correlations[asset_j.id][asset_i.id] !== undefined) {
-                                  rho = correlations[asset_j.id][asset_i.id];
-                             }
-                         }
+                 // Calculate Risk
+                 for (let i = 0; i < selectedPortfolio.weights.length; i++) {
+                     for (let j = 0; j < selectedPortfolio.weights.length; j++) {
+                         const w_i = selectedPortfolio.weights[i];
+                         const w_j = selectedPortfolio.weights[j];
+                         const asset_i = optimizationAssets[i];
+                         const asset_j = optimizationAssets[j];
                          
-                         const cov = rho * asset_i.stdev * asset_j.stdev;
-                         variance += w_i * w_j * cov;
+                         if (asset_i && asset_j) {
+                             let rho = 0.3; 
+                             if (asset_i.id === asset_j.id) {
+                                 rho = 1.0;
+                             } else {
+                                 if (correlations[asset_i.id] && correlations[asset_i.id][asset_j.id] !== undefined) {
+                                      rho = correlations[asset_i.id][asset_j.id];
+                                 } else if (correlations[asset_j.id] && correlations[asset_j.id][asset_i.id] !== undefined) {
+                                      rho = correlations[asset_j.id][asset_i.id];
+                                 }
+                             }
+                             const cov = rho * asset_i.stdev * asset_j.stdev;
+                             variance += w_i * w_j * cov;
+                         }
                      }
                  }
+                 simReturn = expectedReturn;
+                 simRisk = Math.sqrt(variance);
              }
-             
-             simReturn = expectedReturn;
-             simRisk = Math.sqrt(variance);
-         }
-    }
+        }
 
-    const annualNetFlows = new Array(years + 1).fill(0);
-    
-    // Calculate Weighted Average Tax Rate for Fee Deduction Tax Shield
-    let wTaxRate = 0; 
-    if (structures.length > 0) {
-       const totalVal = structures.reduce((s, st) => s + st.value, 0);
-       if (totalVal > 0) {
-           wTaxRate = structures.reduce((s, st) => {
-               const entityDef = entityTypes[st.type] || entityTypes.COMPANY; 
-               let rate = entityDef ? entityDef.incomeTax : 0.30;
-               
-               if (st.type === 'SUPER_ACCUM') {
-                   // Split logic for tax rate
-                   const pensionPct = st.pensionPercentage || 0;
-                   const pensionVal = st.value * (pensionPct / 100);
-                   const accumVal = st.value - pensionVal;
-                   
-                   const pensRate = entityTypes.PENSION ? entityTypes.PENSION.incomeTax : 0.0;
-                   const accumRate = rate; // 15% usually
-                   
-                   // Weighted rate for this structure relative to its own value
-                   // (accumVal * accumRate + pensionVal * pensRate) / st.value
-                   if (st.value > 0) {
-                       rate = ((accumVal * accumRate) + (pensionVal * pensRate)) / st.value;
-                   } else {
-                       rate = 0;
+        const annualNetFlows = new Array(years + 1).fill(0);
+        
+        // Calculate Weighted Average Tax Rate for Fee Deduction Tax Shield
+        let wTaxRate = 0; 
+        if (structures.length > 0) {
+           const totalVal = structures.reduce((s, st) => s + st.value, 0);
+           if (totalVal > 0) {
+               wTaxRate = structures.reduce((s, st) => {
+                   const entityDef = entityTypes[st.type] || entityTypes.COMPANY; 
+                   let rate = entityDef ? entityDef.incomeTax : 0.30;
+                   if (st.type === 'SUPER_ACCUM') {
+                       const pensionPct = st.pensionPercentage || 0;
+                       const pensionVal = st.value * (pensionPct / 100);
+                       const accumVal = st.value - pensionVal;
+                       const pensRate = entityTypes.PENSION ? entityTypes.PENSION.incomeTax : 0.0;
+                       const accumRate = rate; 
+                       if (st.value > 0) {
+                           rate = ((accumVal * accumRate) + (pensionVal * pensRate)) / st.value;
+                       } else {
+                           rate = 0;
+                       }
                    }
-               }
-
-               return s + (rate * (st.value / totalVal));
-           }, 0);
-       }
-    }
-
-    // Helper to get tax rate for a stream
-    const getTaxRateForEntity = (entityId) => {
-        if (!entityId || entityId === 'all') {
-            // Default to Personal Rate if not specified
-            return entityTypes.PERSONAL ? entityTypes.PERSONAL.incomeTax : 0.47;
+                   return s + (rate * (st.value / totalVal));
+               }, 0);
+           }
         }
-        const struct = structures.find(s => s.id == entityId); // loose equality in case of string/int mismatch
-        if (!struct) return 0.47; // Default fallback
 
-        if (struct.useCustomTax && struct.customTax) {
-             return struct.customTax.incomeTax || 0;
+        // Helper to get tax rate
+        const getTaxRateForEntity = (entityId) => {
+            if (!entityId || entityId === 'all') {
+                return entityTypes.PERSONAL ? entityTypes.PERSONAL.incomeTax : 0.47;
+            }
+            const struct = structures.find(s => s.id == entityId); 
+            if (!struct) return 0.47; 
+            if (struct.useCustomTax && struct.customTax) return struct.customTax.incomeTax || 0;
+            const typeDef = entityTypes[struct.type];
+            return typeDef ? typeDef.incomeTax : 0.47;
+        };
+
+        for (let y = 1; y <= years; y++) {
+          let flow = 0;
+          const inflationFactor = Math.pow(1 + inflationRate, y);
+          
+          incomeStreams.forEach(s => {  
+            const amount = parseFloat(s.amount) || 0;
+            const taxRate = getTaxRateForEntity(s.entityId);
+
+            // Determine if net or gross based on isPreTax param
+            const netIncome = isPreTax ? amount : amount * (1 - taxRate);
+            const val = netIncome * inflationFactor;
+
+            if (s.isOneOff) {
+                if (parseInt(s.year) === y) flow += val; 
+            } else {
+                if(y >= s.startYear && y <= s.endYear) flow += val; 
+            }
+          });
+          
+          expenseStreams.forEach(s => { 
+            const amount = parseFloat(s.amount) || 0;
+            const val = amount * inflationFactor;
+            if (s.isOneOff) {
+                if (parseInt(s.year) === y) flow -= val; 
+            } else {
+                if(y >= s.startYear && y <= s.endYear) flow -= val; 
+            }
+          });
+          annualNetFlows[y] = flow;
         }
-        const typeDef = entityTypes[struct.type];
-        return typeDef ? typeDef.incomeTax : 0.47;
+
+        const results = [];
+        for (let y = 0; y <= years; y++) {
+          results.push({ year: y, p05: 0, p50: 0, p95: 0, paths: [] });
+        }
+
+        const seed = 12345; 
+        const rng = createSeededRandom(seed);
+
+        for (let r = 0; r < numRuns; r++) {
+          let balance = totalWealth;
+          results[0].paths.push(balance);
+
+          for (let y = 1; y <= years; y++) {
+            const rnd = randn_bm(rng); 
+            const annualReturn = simReturn + (rnd * simRisk);
+            
+            balance = balance * (1 + annualReturn);
+            
+            // Fee Deduction
+            if (adviceFee > 0) {
+                const grossFee = balance * adviceFee;
+                const effectiveFee = isPreTax ? grossFee : (grossFee - (grossFee * wTaxRate));
+                balance -= effectiveFee;
+            }
+
+            balance += annualNetFlows[y];
+            if (balance < 0) balance = 0;
+
+            const reportBalance = isNominalMode ? balance : (balance / Math.pow(1 + inflationRate, y));
+            results[y].paths.push(reportBalance);
+          }
+        }
+
+        return results.map(r => ({
+          year: r.year,
+          p02: calculatePercentile(r.paths, 2.3),
+          p50: calculatePercentile(r.paths, 50),
+          p84: calculatePercentile(r.paths, 84.1)
+        }));
     };
 
-    for (let y = 1; y <= years; y++) {
-      let flow = 0;
-      const inflationFactor = Math.pow(1 + inflationRate, y);
-      
-      incomeStreams.forEach(s => {  
-        const amount = parseFloat(s.amount) || 0;
-        const taxRate = getTaxRateForEntity(s.entityId);
+    // 1. Run for Current View (to display)
+    const currentData = runSim(showBeforeTax, showNominal);
+    setCfSimulationResults(currentData);
 
-        if (s.isOneOff) {
-            // Ensure strict type comparison or loose if year can be string.
-            // s.year is usually number from input. y is number.
-            if (parseInt(s.year) === y) {
-                 const netIncome = showBeforeTax ? amount : amount * (1 - taxRate);
-                 flow += netIncome * inflationFactor; 
-            }
-        } else {
-            if(y >= s.startYear && y <= s.endYear) {
-              const netIncome = showBeforeTax ? amount : amount * (1 - taxRate);
-              flow += netIncome * inflationFactor; 
-            }
-        }
-      });
-      
-      expenseStreams.forEach(s => { 
-        const amount = parseFloat(s.amount) || 0;
-        // Expenses are usually post-tax spending. 
-        // If showing Before Tax, we subtract Gross Amount needed to pay that expense? 
-        // Or just the expense amount? Convention: Expense reduces wealth directly.
-        // Usually expenses are stated in "money out of pocket". 
-        // If Before Tax view, do we gross up expenses? 
-        // No, typically Before Tax view shows Gross Income growth. Expenses are just expenses.
-        // However, standard logic: Net Flow = Income - Expense. 
-        // If Income is Gross, Flow is Gross Income - Expense. This mimics "Pre-Tax Cashflow".
-        const val = amount * inflationFactor;
-
-        if (s.isOneOff) {
-            if (parseInt(s.year) === y) {
-                flow -= val; 
-            }
-        } else {
-            if(y >= s.startYear && y <= s.endYear) {
-              flow -= val; 
-            }
-        }
-      });
-      
-      annualNetFlows[y] = flow;
-    }
-
-    const results = [];
-
-    for (let y = 0; y <= years; y++) {
-      results.push({ year: y, p05: 0, p50: 0, p95: 0, paths: [] });
-    }
-
-    const seed = 12345; // Fixed seed for deterministic results
-    const rng = createSeededRandom(seed);
-
-    for (let r = 0; r < numRuns; r++) {
-      let balance = totalWealth;
-      results[0].paths.push(balance);
-
-      for (let y = 1; y <= years; y++) {
-        const rnd = randn_bm(rng); 
-        const annualReturn = simReturn + (rnd * simRisk);
-        
-        balance = balance * (1 + annualReturn);
-        
-        // Fee Deduction with Tax Shield
-        if (adviceFee > 0) {
-            const grossFee = balance * adviceFee;
-            // If Before Tax, do we apply tax shield?
-            // Before Tax usually ignores tax effects. So Fee is just Fee.
-            // After Tax: Net Fee = Fee * (1 - TaxRate) (deductible)
-            
-            const effectiveFee = showBeforeTax ? grossFee : (grossFee - (grossFee * wTaxRate));
-            balance -= effectiveFee;
-        }
-
-        balance += annualNetFlows[y];
-        
-        if (balance < 0) balance = 0;
-
-        // v1.244: Handle Nominal vs Real (Inflation Adjustment)
-        // If showNominal is FALSE, we want REAL values (Deflated).
-        const reportBalance = showNominal ? balance : (balance / Math.pow(1 + inflationRate, y));
-        
-        results[y].paths.push(reportBalance);
-      }
-    }
-
-    const finalData = results.map(r => ({
-      year: r.year,
-      p02: calculatePercentile(r.paths, 2.3),
-      p50: calculatePercentile(r.paths, 50),
-      p84: calculatePercentile(r.paths, 84.1)
-    }));
-
-    setCfSimulationResults(finalData);
+    // 2. Run for "Global Max" (Before Tax, Nominal) to lock axis
+    // Ideally we only do this once or when structural inputs change, but doing it here ensures sync.
+    // We want the Max of the "Before Tax, Nominal" scenario as the ceiling.
+    const maxData = runSim(true, true);
+    const maxVal = Math.max(...maxData.map(d => d.p84));
+    // Add 10% buffer
+    setMaxProjectionY(maxVal * 1.1);
+    
   }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, projectionYears, inflationRate, adviceFee, structures, entityTypes, showBeforeTax, showNominal, optimizationAssets, assets, correlations]);
 
   useEffect(() => {
@@ -3302,10 +3298,11 @@ export default function RiskReturnOptimiser() {
                        type="text" 
                        value={struct.name} 
                        onChange={(e) => setStructures(structures.map(s => s.id === struct.id ? {...s, name: e.target.value} : s))}
+
                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                      />
                   </div>
-                  <div className="md:col-span-3">
+                  <div className="md:col-span-2">
                      <label className="block text-xs font-bold text-gray-500 mb-1">Type</label>
                      <select 
                        value={struct.type} 
@@ -3332,7 +3329,7 @@ export default function RiskReturnOptimiser() {
                        ))}
                      </select>
                   </div>
-                   <div className="md:col-span-3">
+                   <div className="md:col-span-2">
                      <label className="block text-xs font-bold text-gray-500 mb-1">Investable Amount</label>
                      <div className="relative w-full">
                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">$</span>
@@ -3353,7 +3350,7 @@ export default function RiskReturnOptimiser() {
                      </div>
                    </div>
                   <div className="md:col-span-2">
-                       <label className="block text-xs font-bold text-gray-500 mb-1">Tax Treatment</label>
+                       <label className="block text-xs font-bold text-gray-500 mb-1">Tax Treatment (Income)</label>
                        <div className="flex items-center space-x-2">
                            {struct.useCustomTax ? (
                                <div className="flex gap-1">
@@ -3372,6 +3369,30 @@ export default function RiskReturnOptimiser() {
                            ) : (
                                <div className="text-xs text-gray-500 py-2">
                                  {entityTypes[struct.type] ? formatPercent(entityTypes[struct.type].incomeTax) : '0%'} Tax
+                               </div>
+                           )}
+                       </div>
+                  </div>
+                  <div className="md:col-span-2">
+                       <label className="block text-xs font-bold text-gray-500 mb-1">Tax Treatment (Capital Gains)</label>
+                       <div className="flex items-center space-x-2">
+                           {struct.useCustomTax ? (
+                               <div className="flex gap-1">
+                                   <div className="relative w-16">
+                                       <input 
+                                         type="number" className="w-full text-xs border rounded p-1 pr-3" placeholder="CGT"
+                                         value={(struct.customTax?.ltCgt * 100) || 0}
+                                         onChange={(e) => {
+                                             const val = parseFloat(e.target.value)/100;
+                                             setStructures(structures.map(s => s.id === struct.id ? {...s, customTax: { ...s.customTax, ltCgt: val }} : s));
+                                         }}
+                                       />
+                                       <span className="absolute right-1 top-1 text-[10px] text-gray-400">%</span>
+                                   </div>
+                               </div>
+                           ) : (
+                               <div className="text-xs text-gray-500 py-2">
+                                 {entityTypes[struct.type] ? formatPercent(entityTypes[struct.type].ltCgt) : '0%'} Tax
                                </div>
                            )}
                            <button 
@@ -4722,6 +4743,9 @@ export default function RiskReturnOptimiser() {
       if (!selectedPortfolio || cfSimulationResults.length === 0) return null;
       
       const years = [1, 3, 5, 10, 20];
+      if (projectionYears > 20 && !years.includes(projectionYears)) {
+          years.push(projectionYears);
+      }
       return years.map(yr => {
         const idx = yr;
         if (!cfSimulationResults[idx]) return null;
@@ -4804,7 +4828,7 @@ export default function RiskReturnOptimiser() {
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="year" label={{ value: 'Years', position: 'bottom', fill: '#004876' }} tick={{ fill: '#004876' }} stroke="#004876" />
-                <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} tick={{ fill: '#004876' }} stroke="#004876" />
+                <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} tick={{ fill: '#004876' }} stroke="#004876" domain={[0, maxProjectionY || 'auto']} />
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 {!isExporting && <Tooltip 
                   content={({ active, payload, label }) => {
@@ -4954,7 +4978,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.306</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.307</span>
              </div>
           </div>
         </div>
