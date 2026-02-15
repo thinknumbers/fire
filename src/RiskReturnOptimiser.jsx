@@ -54,18 +54,7 @@ const NumberInput = ({ value, onChange, className, placeholder, prefix = "$" }) 
 
 // Sample Allocation Targets (from User provided image)
 // Used to guide the "Portfolio Constraint Matrix" to preventing outliers.
-const SAMPLE_TARGETS = {
-  1:  { aus_eq: 2.5, us_large: 1.4, us_small: 0.8, dev_world: 0.7, em_eq: 1.3, reits: 1.1, hedge: 5.4, comm: 1.3, aus_bond: 10.3, gl_bond: 12.7, hy_bond: 3.2, em_bond: 1.9, cash: 57.3 },
-  2:  { aus_eq: 5.3, us_large: 2.9, us_small: 1.6, dev_world: 1.6, em_eq: 2.6, reits: 1.3, hedge: 7.4, comm: 1.8, aus_bond: 15.9, gl_bond: 17.4, hy_bond: 5.3, em_bond: 4.2, cash: 32.7 },
-  3:  { aus_eq: 8.6, us_large: 4.7, us_small: 2.7, dev_world: 2.5, em_eq: 4.2, reits: 1.6, hedge: 8.6, comm: 2.3, aus_bond: 18.1, gl_bond: 18.1, hy_bond: 6.2, em_bond: 6.7, cash: 15.5 },
-  4:  { aus_eq: 12.4, us_large: 7.3, us_small: 4.2, dev_world: 3.6, em_eq: 6.1, reits: 2.1, hedge: 8.4, comm: 2.9, aus_bond: 16.3, gl_bond: 15.2, hy_bond: 5.4, em_bond: 8.5, cash: 7.9 },
-  5:  { aus_eq: 16.0, us_large: 10.1, us_small: 5.8, dev_world: 5.0, em_eq: 8.4, reits: 2.3, hedge: 8.0, comm: 3.2, aus_bond: 12.8, gl_bond: 11.7, hy_bond: 4.2, em_bond: 8.3, cash: 4.3 },
-  6:  { aus_eq: 19.2, us_large: 13.1, us_small: 7.5, dev_world: 6.3, em_eq: 10.8, reits: 2.6, hedge: 7.8, comm: 3.5, aus_bond: 9.3, gl_bond: 8.0, hy_bond: 3.1, em_bond: 6.7, cash: 2.2 },
-  7:  { aus_eq: 22.2, us_large: 15.9, us_small: 9.7, dev_world: 7.5, em_eq: 13.1, reits: 3.1, hedge: 6.8, comm: 3.5, aus_bond: 5.7, gl_bond: 4.9, hy_bond: 1.9, em_bond: 4.5, cash: 1.2 },
-  8:  { aus_eq: 23.8, us_large: 18.0, us_small: 12.7, dev_world: 8.6, em_eq: 15.5, reits: 3.5, hedge: 4.8, comm: 3.1, aus_bond: 3.1, gl_bond: 2.7, hy_bond: 1.1, em_bond: 2.6, cash: 0.6 },
-  9:  { aus_eq: 20.3, us_large: 18.5, us_small: 20.0, dev_world: 10.6, em_eq: 18.6, reits: 4.0, hedge: 2.6, comm: 2.1, aus_bond: 0.8, gl_bond: 0.6, hy_bond: 0.3, em_bond: 1.0, cash: 0.6 },
-  10: { aus_eq: 22.0, us_large: 20.0, us_small: 22.0, dev_world: 11.5, em_eq: 20.0, reits: 4.5, hedge: 0.0, comm: 0.0, aus_bond: 0.0, gl_bond: 0.0, hy_bond: 0.0, em_bond: 0.0, cash: 0.0 },
-};
+
 
 const DEFAULT_ASSETS = [
   { id: 'aus_eq', name: 'Australian Equities', return: 0.087000, stdev: 0.174200, incomeRatio: 0.67, minWeight: 0, maxWeight: 100, color: '#AEC6CF', active: true, isDefault: true },
@@ -74,8 +63,9 @@ const DEFAULT_ASSETS = [
   { id: 'dev_world', name: 'Developed World Equities', return: 0.070000, stdev: 0.167300, incomeRatio: 0.49, minWeight: 0, maxWeight: 100, color: '#CB99C9', active: true, isDefault: true },
   { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.083000, stdev: 0.200000, incomeRatio: 0.44, minWeight: 0, maxWeight: 100, color: '#779ECB', active: true, isDefault: true },
   { id: 'reits', name: 'Global REITs', return: 0.060000, stdev: 0.151877, incomeRatio: 0.63, minWeight: 0, maxWeight: 100, color: '#FDFD96', active: true, isDefault: true }, // SD: 15.18769% -> 0.151877
-  { id: 'hedge', name: 'Hedge Fund', return: 0.052000, stdev: 0.117100, incomeRatio: 0.99, minWeight: 0, maxWeight: 15, color: '#B39EB5', active: true, isDefault: true },
-  { id: 'comm', name: 'Commodities', return: 0.042000, stdev: 0.208375, incomeRatio: 0.0, minWeight: 0, maxWeight: 10, color: '#C23B22', active: true, isDefault: true }, // SD: 20.83749% -> 0.208375
+  // v1.299: Speculative Assets (Hedge, Comm) defaulted to 0% max. User must opt-in via Asset Allocation constraints.
+  { id: 'hedge', name: 'Hedge Fund', return: 0.052000, stdev: 0.117100, incomeRatio: 0.99, minWeight: 0, maxWeight: 0, color: '#B39EB5', active: true, isDefault: true },
+  { id: 'comm', name: 'Commodities', return: 0.042000, stdev: 0.208375, incomeRatio: 0.0, minWeight: 0, maxWeight: 0, color: '#C23B22', active: true, isDefault: true }, // SD: 20.83749% -> 0.208375
   { id: 'aus_bond', name: 'Australian Bonds', return: 0.038000, stdev: 0.039376, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#77DD77', active: true, isDefault: true }, // SD: 3.93760% -> 0.039376
   { id: 'gl_bond', name: 'Global Bonds', return: 0.036000, stdev: 0.035757, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#836953', active: true, isDefault: true }, // SD: 3.57570% -> 0.035757
   { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054000, stdev: 0.111227, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#FFD1DC', active: true, isDefault: true }, // SD: 11.12267% -> 0.111227
