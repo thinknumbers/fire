@@ -1,4 +1,4 @@
-// Deployment trigger: v1.31 - 2026-02-15
+// Deployment trigger: v1.32 - 2026-02-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -81,9 +81,9 @@ const INITIAL_CORRELATIONS_DATA = {
   "us_small": { "dev_world": 0.664269, "em_eq": 0.525133, "reits": 0.606552, "hedge": 0.34373, "comm": 0.164277, "aus_bond": 0.047697, "gl_bond": -0.05806, "hy_bond": 0.375976, "em_bond": 0.349538, "cash": -0.03607 },
   "dev_world": { "em_eq": 0.61929, "reits": 0.627213, "hedge": 0.299626, "comm": 0.139579, "aus_bond": 0.068988, "gl_bond": 0.001715, "hy_bond": 0.42957, "em_bond": 0.364849, "cash": -0.05919 },
   "em_eq": { "reits": 0.485376, "hedge": 0.079337, "comm": 0.082088, "aus_bond": -0.02811, "gl_bond": -0.01552, "hy_bond": 0.59832, "em_bond": 0.324641, "cash": -0.02681 },
-  "reits": { "hedge": 0.205612, "comm": 0.065917, "aus_bond": 0.230711, "gl_bond": 0.236395, "hy_bond": 0.470036, "em_bond": 0.412268, "cash": 0.002356 },
-  "hedge": { "comm": 0.188014, "aus_bond": 0.152706, "gl_bond": 0.10, "hy_bond": 0.40, "em_bond": 0.64591, "cash": 0.050603 },
-  "comm": { "aus_bond": -0.12671, "gl_bond": -0.19519, "hy_bond": 0.087571, "em_bond": 0.038482, "cash": 0.011105 },
+  "reits": { "hedge": 0.205612, "comm": 0.065917, "aus_bond": 0.230711, "gl_bond": 0.236395, "hy_bond": 0.470036, "em_bond": 0.412268, "cash": 0.10 }, // v1.32: Bumped cash corr
+  "hedge": { "comm": 0.188014, "aus_bond": 0.20, "gl_bond": 0.20, "hy_bond": 0.40, "em_bond": 0.64591, "cash": 0.10 }, // v1.32: Bumped bond/cash corr
+  "comm": { "aus_bond": 0.15, "gl_bond": 0.15, "hy_bond": 0.087571, "em_bond": 0.038482, "cash": 0.05 }, // v1.32: Flip neg correlations to positive
   "aus_bond": { "gl_bond": 0.706525, "hy_bond": 0.079467, "em_bond": 0.446238, "cash": 0.230288 },
   "gl_bond": { "hy_bond": 0.282245, "em_bond": 0.244124, "cash": 0.22785 },
   "hy_bond": { "em_bond": 0.177213, "cash": 0.02484 },
@@ -1749,7 +1749,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.31)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.32)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights, remove dust (<0.1%), and renormalize 
     const ensureNonNegative = (weights) => {
@@ -1965,7 +1965,7 @@ export default function RiskReturnOptimiser() {
                 constraints,
                 groupConstraints
             });
-            console.log(`[v1.31 DEBUG] ${entityType} Constraints:`, {
+            console.log(`[v1.32 DEBUG] ${entityType} Constraints:`, {
                 min: constraints.minWeights,
                 max: constraints.maxWeights,
                 groups: groupConstraints
@@ -4947,7 +4947,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.31</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.32</span>
              </div>
           </div>
         </div>
