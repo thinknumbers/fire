@@ -108,3 +108,31 @@ BEGIN
     TRUNCATE optimization_runs CASCADE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =====================================================
+-- 3. optimization_log - Append-only audit trail
+--    Never truncated. One row per optimization run.
+-- =====================================================
+CREATE TABLE IF NOT EXISTS optimization_log (
+    id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    client_name     text,
+    scenario_name   text,
+    entity_types    text[],
+    asset_ids       text[],
+    simulation_count int,
+    confidence_level int,
+    elapsed_seconds  int,
+    -- Summary of the 10 blended (total) portfolios
+    portfolios      jsonb,      -- [{id, label, return, risk, weights:{...}}]
+    -- Per-entity frontier summary 
+    entity_results  jsonb,      -- {PERSONAL: [{...}], TRUST: [{...}], ...}
+    app_version     text,
+    created_at      timestamptz DEFAULT now()
+);
+
+ALTER TABLE optimization_log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow anonymous access to optimization_log"
+    ON optimization_log FOR ALL
+    USING (true)
+    WITH CHECK (true);

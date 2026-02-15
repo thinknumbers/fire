@@ -2341,8 +2341,42 @@ export default function RiskReturnOptimiser() {
                 setProgress(100);
                 // v1.283: Stop elapsed timer
                 if (simulationTimerRef.current) { clearInterval(simulationTimerRef.current); simulationTimerRef.current = null; }
-                setSimulationElapsed(Math.floor((Date.now() - simulationStartRef.current) / 1000));
+                const elapsedSec = Math.floor((Date.now() - simulationStartRef.current) / 1000);
+                setSimulationElapsed(elapsedSec);
                 setActiveTab('optimization');
+
+                // v1.283: Append to optimization_log (fire-and-forget audit trail)
+                try {
+                    const portfolioSummary = finalProfiles.map(p => ({
+                        id: p.id, label: p.label,
+                        return: +(p.return * 100).toFixed(4),
+                        risk: +(p.risk * 100).toFixed(4),
+                        weights: Object.fromEntries(activeAssets.map((a, i) => [a.id, +(p.weights[i] * 100).toFixed(4)]))
+                    }));
+                    const entitySummary = {};
+                    Object.keys(perEntityFrontiers).forEach(et => {
+                        entitySummary[et] = perEntityFrontiers[et].map(p => ({
+                            id: p.id, label: p.label,
+                            return: +(p.return * 100).toFixed(4),
+                            risk: +(p.risk * 100).toFixed(4),
+                            weights: Object.fromEntries(activeAssets.map((a, i) => [a.id, +(p.weights[i] * 100).toFixed(4)]))
+                        }));
+                    });
+                    await supabase.from('optimization_log').insert([{
+                        client_name: clientName || null,
+                        scenario_name: scenarioName || null,
+                        entity_types: uniqueEntityTypes,
+                        asset_ids: activeAssets.map(a => a.id),
+                        simulation_count: numSimulations,
+                        confidence_level: forecastConfidenceLevel,
+                        elapsed_seconds: elapsedSec,
+                        portfolios: portfolioSummary,
+                        entity_results: entitySummary,
+                        app_version: 'v1.283'
+                    }]);
+                } catch (logErr) {
+                    console.warn('optimization_log insert failed:', logErr.message);
+                }
                 
                 setTimeout(() => { }, 200);
                 
