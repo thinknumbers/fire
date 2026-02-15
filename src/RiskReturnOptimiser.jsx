@@ -1,4 +1,4 @@
-// Deployment trigger: v1.305 - 2026-02-15
+// Deployment trigger: v1.306 - 2026-02-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1749,7 +1749,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.305)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.306)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights, remove dust (<0.1%), and renormalize 
     const ensureNonNegative = (weights) => {
@@ -1965,7 +1965,7 @@ export default function RiskReturnOptimiser() {
                 constraints,
                 groupConstraints
             });
-            console.log(`[v1.305 DEBUG] ${entityType} Constraints:`, {
+            console.log(`[v1.306 DEBUG] ${entityType} Constraints:`, {
                 min: constraints.minWeights,
                 max: constraints.maxWeights,
                 groups: groupConstraints
@@ -4606,12 +4606,19 @@ export default function RiskReturnOptimiser() {
                 })}
               </div>
 
-              {/* Shared Legend Below Pie Charts - Left Aligned */}
+              {/* Shared Legend Below Pie Charts - High Level Groups (v1.306) */}
               <div className="mt-6 flex flex-wrap justify-start gap-4 border-t border-gray-100 pt-4">
-                 {activeAssets.map(asset => (
-                   <div key={asset.id} className="flex items-center">
-                      <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: asset.color }} />
-                      <span className="text-xs text-gray-600">{asset.name}</span>
+                 {Object.entries({
+                    'Australian Equities': '#AEC6CF',
+                    'Global Equities': '#FFB347', 
+                    'Property': '#FDFD96',
+                    'Fixed Interest': '#77DD77',
+                    'Alternatives': '#B39EB5',
+                    'Cash': '#CFCFC4'
+                 }).map(([name, color]) => (
+                   <div key={name} className="flex items-center">
+                      <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: color }} />
+                      <span className="text-xs text-gray-600">{name}</span>
                    </div>
                  ))}
               </div>
@@ -4947,7 +4954,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.305</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.306</span>
              </div>
           </div>
         </div>
