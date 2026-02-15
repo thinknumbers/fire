@@ -1,4 +1,4 @@
-// Deployment trigger: v1.297 - 2026-02-15
+// Deployment trigger: v1.298 - 2026-02-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1759,7 +1759,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.297)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.298)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights, remove dust (<0.1%), and renormalize 
     const ensureNonNegative = (weights) => {
@@ -1975,7 +1975,7 @@ export default function RiskReturnOptimiser() {
                 constraints,
                 groupConstraints
             });
-            console.log(`[v1.297 DEBUG] ${entityType} Constraints:`, {
+            console.log(`[v1.298 DEBUG] ${entityType} Constraints:`, {
                 min: constraints.minWeights,
                 max: constraints.maxWeights,
                 groups: groupConstraints
@@ -4576,6 +4576,9 @@ export default function RiskReturnOptimiser() {
                       value: weight * 100
                     };
                   }).filter(a => a.value > 0.5);
+
+                  // v1.298: Group Entity Assets using same logic as Total Portfolio
+                  const groupedEntityAssets = getGroupedAssets(entityAssets);
                   
                   return (
                     <div key={struct.id} className="flex-shrink-0" style={{ width: `${Math.min(200, 100 / structures.length)}%`, minWidth: '130px', maxWidth: '180px' }}>
@@ -4584,7 +4587,7 @@ export default function RiskReturnOptimiser() {
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie 
-                              data={entityAssets} 
+                              data={groupedEntityAssets} 
                               cx="50%" cy="50%" 
                               outerRadius={50} 
                               paddingAngle={2} 
@@ -4602,7 +4605,7 @@ export default function RiskReturnOptimiser() {
                               }}
                               labelLine={false}
                             >
-                              {entityAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                              {groupedEntityAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                             </Pie>
                             {!isExporting && <Tooltip formatter={(val) => `${val.toFixed(1)}%`} />}
                           </PieChart>
@@ -4954,7 +4957,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.297</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.298</span>
              </div>
           </div>
         </div>
