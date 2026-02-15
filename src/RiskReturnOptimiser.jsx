@@ -1,4 +1,4 @@
-// Deployment trigger: v1.284 - 2026-02-15
+// Deployment trigger: v1.285 - 2026-02-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -4312,7 +4312,7 @@ export default function RiskReturnOptimiser() {
                         let preTaxReturn = 0;
                         p.weights.forEach((w, i) => {
                             if (activeAssetList[i]) {
-                                preTaxReturn += w * (activeAssetList[i].return / 100);
+                                preTaxReturn += w * (activeAssetList[i].return);
                             }
                         });
                         return { ...p, return: preTaxReturn, label: `${p.label} (Pre-Tax)` };
@@ -4902,7 +4902,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.284</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.285</span>
              </div>
           </div>
         </div>
