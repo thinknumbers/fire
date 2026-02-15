@@ -1,4 +1,4 @@
-// Deployment trigger: v1.291 - 2026-02-15
+// Deployment trigger: v1.292 - 2026-02-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1919,6 +1919,8 @@ export default function RiskReturnOptimiser() {
                      if (isFullyAllocated) return userMin;
                      const def = DEFAULT_ASSETS.find(d => d.id === a.id);
                      const sysMin = (def && def.minWeight !== undefined) ? def.minWeight / 100 : 0.001;
+                     // v1.292: STRICT User Override - if user set a min, use it. Ignore system default if user has preference.
+                     if (row && row.min !== undefined) return userMin;
                      return Math.max(userMin, sysMin);
                  });
                  constraints.maxWeights = activeAssets.map(a => {
@@ -1972,6 +1974,11 @@ export default function RiskReturnOptimiser() {
                 entityOptAssets: entityOptAssets.map(a => ({ id: a.id, name: a.name, return: a.return, stdev: a.stdev })),
                 constraints,
                 groupConstraints
+            });
+            console.log(`[v1.292 DEBUG] ${entityType} Constraints:`, {
+                min: constraints.minWeights,
+                max: constraints.maxWeights,
+                groups: groupConstraints
             });
         } catch (entityErr) {
             console.warn(`Entity preparation for ${entityType} failed:`, entityErr);
