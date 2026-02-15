@@ -1,4 +1,4 @@
-// Deployment trigger: v1.282 - 2026-02-15
+// Deployment trigger: v1.283 - 2026-02-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -10,7 +10,7 @@ import {
   Settings, User, Activity, PieChart as PieIcon, TrendingUp, 
   ChevronRight, Save, Calculator, ArrowRight, DollarSign, Plus, Trash2, Calendar,
   AlertCircle, FileText, CheckSquare, Square, Clock, Percent, Loader, Cpu, Cloud,
-  FolderOpen, ChevronDown, X, Upload, Type
+  FolderOpen, ChevronDown, X, Upload, Type, Download, Timer
 } from 'lucide-react';
 import { supabase } from './supabase';
 import html2canvas from 'html2canvas';
@@ -454,6 +454,9 @@ export default function RiskReturnOptimiser() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [progress, setProgress] = useState(0); // 0-100
   const [simulationCount, setSimulationCount] = useState(500); // Default number of simulations (Michaud recommends 500+)
+  const [simulationElapsed, setSimulationElapsed] = useState(null); // Elapsed time in seconds
+  const simulationStartRef = useRef(null);
+  const simulationTimerRef = useRef(null);
 
 
   const [selectedPortfolioId, setSelectedPortfolioId] = useState(5);
@@ -1782,6 +1785,14 @@ export default function RiskReturnOptimiser() {
     setSimulations([]);
     setEfficientFrontier([]); // Clear stale results immediately
 
+    // v1.283: Start elapsed timer
+    simulationStartRef.current = Date.now();
+    setSimulationElapsed(0);
+    if (simulationTimerRef.current) clearInterval(simulationTimerRef.current);
+    simulationTimerRef.current = setInterval(() => {
+        setSimulationElapsed(Math.floor((Date.now() - simulationStartRef.current) / 1000));
+    }, 1000);
+
     // Prepare Data
     
     // Dynamic Correlation Matrix Construction
@@ -1978,8 +1989,12 @@ export default function RiskReturnOptimiser() {
         const msg = e.data;
 
         if (msg.type === 'progress') {
-            // Update progress bar based on simulation progress
-            const pct = Math.round((msg.simulation / msg.total) * 90); // Reserve 10% for post-processing
+            // v1.283: Global progress across all entity types
+            const entityIdx = msg.entityIndex || 0;
+            const totalEntities = msg.totalEntities || 1;
+            const entityProgress = msg.simulation / msg.total; // 0..1 within this entity
+            const globalProgress = (entityIdx + entityProgress) / totalEntities;
+            const pct = Math.round(globalProgress * 90); // Reserve 10% for post-processing
             setProgress(pct);
             return;
         }
@@ -2324,6 +2339,9 @@ export default function RiskReturnOptimiser() {
                 setSelectedPortfolioId(5);
                 setIsSimulating(false);
                 setProgress(100);
+                // v1.283: Stop elapsed timer
+                if (simulationTimerRef.current) { clearInterval(simulationTimerRef.current); simulationTimerRef.current = null; }
+                setSimulationElapsed(Math.floor((Date.now() - simulationStartRef.current) / 1000));
                 setActiveTab('optimization');
                 
                 setTimeout(() => { }, 200);
@@ -2332,6 +2350,7 @@ export default function RiskReturnOptimiser() {
                 console.error("Post-optimization processing failed", err);
                 alert("Optimization failed: " + err.message);
                 setIsSimulating(false);
+                if (simulationTimerRef.current) { clearInterval(simulationTimerRef.current); simulationTimerRef.current = null; }
             }
 
             // Terminate worker after use
@@ -2343,6 +2362,7 @@ export default function RiskReturnOptimiser() {
         console.error("Web Worker error:", err);
         alert("Optimization worker failed: " + err.message);
         setIsSimulating(false);
+        if (simulationTimerRef.current) { clearInterval(simulationTimerRef.current); simulationTimerRef.current = null; }
         worker.terminate();
     };
   };
@@ -3992,33 +4012,102 @@ export default function RiskReturnOptimiser() {
 
 
   const OptimizationTab = () => {
-    // Pre-Tax mode is disabled for now to avoid hook issues
     const chartData = efficientFrontier;
     const simulationData = simulations;
+
+    // v1.283: CSV Download of optimization results
+    const handleDownloadCSV = () => {
+        if (!efficientFrontier.length || !optimizationAssets?.length) return;
+        
+        const activeAssetNames = optimizationAssets.map(a => a.name);
+        const rows = [];
+        
+        // Header row
+        const header = ['Entity', 'Portfolio', 'Return (%)', 'Risk (%)', ...activeAssetNames.map(n => `${n} (%)`)];
+        rows.push(header.join(','));
+        
+        // Per-entity rows
+        const entities = Object.keys(entityFrontiers);
+        if (entities.length > 0) {
+            entities.forEach(entityType => {
+                const frontier = entityFrontiers[entityType];
+                if (!frontier) return;
+                frontier.forEach(p => {
+                    const row = [
+                        entityType,
+                        p.label || `Portfolio ${p.id}`,
+                        (p.return * 100).toFixed(4),
+                        (p.risk * 100).toFixed(4),
+                        ...p.weights.map(w => (w * 100).toFixed(4))
+                    ];
+                    rows.push(row.join(','));
+                });
+            });
+        }
+        
+        // Total (blended) rows
+        rows.push(''); // blank line separator
+        efficientFrontier.forEach(p => {
+            const row = [
+                'TOTAL',
+                p.label || `Portfolio ${p.id}`,
+                (p.return * 100).toFixed(4),
+                (p.risk * 100).toFixed(4),
+                ...p.weights.map(w => (w * 100).toFixed(4))
+            ];
+            rows.push(row.join(','));
+        });
+        
+        const csvContent = rows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `optimization_results_${new Date().toISOString().slice(0,10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    // Format elapsed time
+    const formatTime = (seconds) => {
+        if (seconds === null || seconds === undefined) return '';
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return m > 0 ? `${m}m ${s}s` : `${s}s`;
+    };
 
     return (
     <div className="space-y-6 animate-in fade-in">
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-          <div>
-            {/* Removed heading and descriptive text */}
+          <div className="flex items-center gap-3">
+            {/* Timer display */}
+            {simulationElapsed !== null && !isSimulating && efficientFrontier.length > 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
+                <Timer className="w-3.5 h-3.5" />
+                <span>Completed in <strong>{formatTime(simulationElapsed)}</strong></span>
+              </div>
+            )}
           </div>
           
            <div className="flex items-center gap-4">
-             <div className="text-right">
-                <label className="block text-xs font-bold text-gray-500 mb-1">Tax View</label>
-                <div className="flex items-center h-[30px]">
-                    <label className="text-xs text-gray-700 flex items-center cursor-pointer">
-                        <input 
-                            type="checkbox" 
-                            checked={showPreTaxFrontier} 
-                            onChange={(e) => setShowPreTaxFrontier(e.target.checked)}
-                            className="mr-2"
-                        />
-                        <span>Pre-Tax</span>
-                    </label>
-                </div>
-             </div>
+             {/* Pre-Tax / After-Tax Toggle (only shown after optimization completes) */}
+             {efficientFrontier.length > 0 && !isSimulating && (
+               <div className="text-right">
+                 <label className="block text-xs font-bold text-gray-500 mb-1">Tax View</label>
+                 <div className="flex items-center h-[30px]">
+                     <label className="text-xs text-gray-700 flex items-center cursor-pointer">
+                         <input 
+                             type="checkbox" 
+                             checked={showPreTaxFrontier} 
+                             onChange={(e) => setShowPreTaxFrontier(e.target.checked)}
+                             className="mr-2"
+                         />
+                         <span>Pre-Tax</span>
+                     </label>
+                 </div>
+               </div>
+             )}
 
              <div className="text-right">
                <label className="block text-xs font-bold text-gray-500 mb-1">Forecast Confidence</label>
@@ -4039,10 +4128,16 @@ export default function RiskReturnOptimiser() {
 
         {/* Chart */}
         {isSimulating ? (
-                <div className="w-48">
+                <div className="w-64">
                   <div className="flex justify-between text-xs font-medium text-gray-500 mb-1">
-                    <span>Processing...</span>
-                    <span>{progress}%</span>
+                    <span className="flex items-center gap-1">
+                      <Loader className="w-3 h-3 animate-spin" />
+                      Processing...
+                    </span>
+                    <span className="flex items-center gap-2">
+                      {simulationElapsed !== null && <span className="text-gray-400">{formatTime(simulationElapsed)}</span>}
+                      <span className="font-bold">{progress}%</span>
+                    </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
                     <div 
@@ -4060,6 +4155,15 @@ export default function RiskReturnOptimiser() {
                   >
                     <Cpu className="w-4 h-4 mr-2" /> Optimise
                   </button>
+                  {efficientFrontier.length > 0 && (
+                    <button
+                      onClick={handleDownloadCSV}
+                      className="flex items-center justify-center px-4 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg font-medium transition-colors shadow-sm border border-emerald-200"
+                      title="Download results as CSV"
+                    >
+                      <Download className="w-4 h-4 mr-2" /> CSV
+                    </button>
+                  )}
                   <button
                     onClick={() => setShowDebugModal(true)}
                     className="flex items-center justify-center px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors shadow-sm"
@@ -4118,7 +4222,23 @@ export default function RiskReturnOptimiser() {
                 {/* Simulation cloud */}
                 <Scatter name="Portfolios" data={simulationData} fill="#cbd5e1" shape="circle" r={2} opacity={0.5} isAnimationActive={false} />
                 
-                <Scatter name="Models" data={chartData} fill="#2563eb" shape="diamond" r={8} isAnimationActive={!isExporting} />
+                <Scatter name="After-Tax Frontier" data={chartData} fill="#2563eb" shape="diamond" r={8} isAnimationActive={!isExporting} />
+                
+                {/* v1.283: Pre-Tax Frontier Overlay */}
+                {showPreTaxFrontier && efficientFrontier.length > 0 && (() => {
+                    // Compute pre-tax return for each portfolio using gross asset returns
+                    const activeAssetList = assets.filter(a => a.active);
+                    const preTaxData = efficientFrontier.map(p => {
+                        let preTaxReturn = 0;
+                        p.weights.forEach((w, i) => {
+                            if (activeAssetList[i]) {
+                                preTaxReturn += w * (activeAssetList[i].return / 100);
+                            }
+                        });
+                        return { ...p, return: preTaxReturn, label: `${p.label} (Pre-Tax)` };
+                    });
+                    return <Scatter name="Pre-Tax Frontier" data={preTaxData} fill="#10b981" shape="triangle" r={7} isAnimationActive={!isExporting} />;
+                })()}
               </ScatterChart>
             </ResponsiveContainer>
           </div>
@@ -4702,7 +4822,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.282</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.283</span>
              </div>
           </div>
         </div>

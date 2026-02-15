@@ -248,9 +248,9 @@ function runResampledOptimization(assets, correlations, constraints, forecastCon
         }
         allFrontiers.push(simFrontier);
 
-        // Report progress per simulation
+        // Report progress per simulation (include entity context for global progress)
         if (sim % 10 === 0 || sim === numSimulations - 1) {
-            self.postMessage({ type: 'progress', simulation: sim + 1, total: numSimulations });
+            self.postMessage({ type: 'progress', simulation: sim + 1, total: numSimulations, entityIndex: self._currentEntityIndex, totalEntities: self._totalEntities });
         }
     }
 
@@ -298,6 +298,10 @@ self.onmessage = function (e) {
 
     entityTasks.forEach((task, entityIdx) => {
         const { entityType, entityOptAssets, constraints, groupConstraints } = task;
+
+        // Set entity context for progress messages
+        self._currentEntityIndex = entityIdx;
+        self._totalEntities = totalEntities;
 
         self.postMessage({
             type: 'entity_start',
