@@ -1,4 +1,4 @@
-// Deployment trigger: v1.288 - 2026-02-15
+// Deployment trigger: v1.289 - 2026-02-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -3312,7 +3312,22 @@ export default function RiskReturnOptimiser() {
                      <label className="block text-xs font-bold text-gray-500 mb-1">Type</label>
                      <select 
                        value={struct.type} 
-                       onChange={(e) => setStructures(structures.map(s => s.id === struct.id ? {...s, type: e.target.value} : s))}
+                       onChange={(e) => {
+                           const newType = e.target.value;
+                           setStructures(structures.map(s => {
+                               if (s.id === struct.id) {
+                                   let newName = s.name;
+                                   // v1.289: Auto-rename (Accum) <-> (Pension) to avoid confusion
+                                   if (newType === 'PENSION' && s.name.includes('(Accum)')) {
+                                       newName = s.name.replace('(Accum)', '(Pension)');
+                                   } else if (newType === 'SUPER_ACCUM' && s.name.includes('(Pension)')) {
+                                       newName = s.name.replace('(Pension)', '(Accum)');
+                                   }
+                                   return { ...s, type: newType, name: newName };
+                               }
+                               return s;
+                           }));
+                       }}
                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                      >
                        {Object.keys(entityTypes).map(k => (
@@ -4902,7 +4917,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.288</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.289</span>
              </div>
           </div>
         </div>
