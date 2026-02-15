@@ -1,4 +1,4 @@
-// Deployment trigger: v1.295 - 2026-02-15
+// Deployment trigger: v1.296 - 2026-02-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1759,7 +1759,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.295)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.296)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights, remove dust (<0.1%), and renormalize 
     const ensureNonNegative = (weights) => {
@@ -1977,7 +1977,7 @@ export default function RiskReturnOptimiser() {
                 constraints,
                 groupConstraints
             });
-            console.log(`[v1.295 DEBUG] ${entityType} Constraints:`, {
+            console.log(`[v1.296 DEBUG] ${entityType} Constraints:`, {
                 min: constraints.minWeights,
                 max: constraints.maxWeights,
                 groups: groupConstraints
@@ -4387,6 +4387,36 @@ export default function RiskReturnOptimiser() {
       value: blendedWeights[idx] * 100
     })); // Show all assets including 0% allocations 
 
+    // v1.296: Group Assets for Total Portfolio Pie Chart
+    const getGroupedAssets = (assets) => {
+        const groups = {
+            'Australian Equities': ['aus_eq'],
+            'Global Equities': ['us_large', 'us_small', 'dev_world', 'em_eq'],
+            'Property': ['reits'],
+            'Fixed Interest': ['aus_bond', 'gl_bond', 'hy_bond', 'em_bond'],
+            'Alternatives': ['hedge', 'comm'],
+            'Cash': ['cash']
+        };
+        const groupColors = {
+            'Australian Equities': '#AEC6CF',
+            'Global Equities': '#FFB347', 
+            'Property': '#FDFD96',
+            'Fixed Interest': '#77DD77',
+            'Alternatives': '#B39EB5',
+            'Cash': '#CFCFC4'
+        };
+
+        return Object.entries(groups).map(([groupName, ids]) => {
+            const groupValue = ids.reduce((sum, id) => {
+                const asset = assets.find(a => a.id === id);
+                return sum + (asset ? asset.value : 0);
+            }, 0);
+            return { name: groupName, value: groupValue, color: groupColors[groupName] };
+        }).filter(g => g.value > 0.1); 
+    };
+
+    const groupedAssets = getGroupedAssets(activeAssets); 
+
     return (
       <div className="space-y-6 animate-in fade-in h-4/5">
         {/* Split View Layout: Data on Left, Charts on Right - items-stretch for equal height */}
@@ -4501,7 +4531,7 @@ export default function RiskReturnOptimiser() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie 
-                        data={activeAssets} 
+                        data={groupedAssets} 
                         cx="50%" cy="50%" 
                         outerRadius={85} 
                         paddingAngle={2} 
@@ -4519,7 +4549,7 @@ export default function RiskReturnOptimiser() {
                         }}
                         labelLine={false}
                       >
-                        {activeAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                        {groupedAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                       </Pie>
                       {!isExporting && <Tooltip formatter={(val) => `${val.toFixed(1)}%`} />}
                     </PieChart>
@@ -4926,7 +4956,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.295</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.296</span>
              </div>
           </div>
         </div>
