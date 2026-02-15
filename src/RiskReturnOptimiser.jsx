@@ -1,4 +1,4 @@
-// Deployment trigger: v1.273 - 2026-02-13
+// Deployment trigger: v1.274 - 2026-02-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -564,11 +564,10 @@ export default function RiskReturnOptimiser() {
 
   const fetchScenarios = async () => {
     try {
-      // Privacy: Only fetch scenarios owned by this device/local_user
+      // v1.274: Privacy filter removed — all scenarios are globally accessible
       const { data, error } = await supabase
         .from('scenarios')
         .select('id, name, created_at')
-        .eq('owner_id', localUserId) // v1.273: Re-enabled privacy constraint
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -758,8 +757,7 @@ export default function RiskReturnOptimiser() {
         projection_years: projectionYears,
         inflation_rate: inflationRate,
         advice_fee: adviceFee,
-        created_at: new Date().toISOString(),
-        owner_id: localUserId // Privacy Link
+        created_at: new Date().toISOString()
       };
 
       console.log('Attempting save with payload:', payload);
@@ -1826,7 +1824,7 @@ export default function RiskReturnOptimiser() {
     const confidenceT = T_MAP[forecastConfidenceLevel] || 50;
     const numSimulations = Math.max(10, Math.min(simulationCount, 500));
 
-    setTimeout(() => {
+    setTimeout(async () => {
         try {
             // =====================================================
             // ENTITY-SPECIFIC OPTIMIZATION
@@ -2130,6 +2128,65 @@ export default function RiskReturnOptimiser() {
 
             // Store entity-specific frontiers
             setEntityFrontiers(perEntityFrontiers);
+
+            // =====================================================
+            // v1.274: EXPORT OPTIMIZATION RESULTS TO SUPABASE
+            // Truncate old results, insert fresh data for export/testing
+            // =====================================================
+            try {
+                // 1. Truncate old results (delete all rows from both tables)
+                await supabase.from('optimization_results').delete().neq('id', 0);
+                await supabase.from('optimization_runs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+                // 2. Insert run metadata
+                const { data: runData, error: runError } = await supabase
+                    .from('optimization_runs')
+                    .insert([{
+                        scenario_name: scenarioName,
+                        simulation_count: numSimulations,
+                        confidence_level: forecastConfidenceLevel,
+                        entity_types: uniqueEntityTypes,
+                        asset_ids: activeAssets.map(a => a.id)
+                    }])
+                    .select('id')
+                    .single();
+
+                if (runError) throw runError;
+                const runId = runData.id;
+
+                // 3. Build result rows (1 per entity type × 10 portfolios)
+                const resultRows = [];
+                Object.keys(perEntityFrontiers).forEach(entityType => {
+                    perEntityFrontiers[entityType].forEach(portfolio => {
+                        // Build weights as an object mapping asset_id → weight for readable export
+                        const weightsObj = {};
+                        activeAssets.forEach((asset, i) => {
+                            weightsObj[asset.id] = portfolio.weights[i] || 0;
+                        });
+
+                        resultRows.push({
+                            run_id: runId,
+                            entity_type: entityType,
+                            portfolio_id: portfolio.id,
+                            portfolio_label: portfolio.label,
+                            expected_return: portfolio.return,
+                            risk: portfolio.risk,
+                            weights: weightsObj
+                        });
+                    });
+                });
+
+                // 4. Insert all result rows
+                const { error: resultsError } = await supabase
+                    .from('optimization_results')
+                    .insert(resultRows);
+
+                if (resultsError) throw resultsError;
+                console.log(`Optimization results exported: ${resultRows.length} rows for run ${runId}`);
+            } catch (exportErr) {
+                console.warn('Failed to export optimization results to Supabase:', exportErr.message);
+                // Non-blocking: optimization continues even if export fails
+            }
 
             // =====================================================
             // 5. AGGREGATE PROFILES (Weighted Blend)
