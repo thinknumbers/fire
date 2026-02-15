@@ -1,4 +1,4 @@
-// Deployment trigger: v1.290 - 2026-02-15
+// Deployment trigger: v1.291 - 2026-02-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -80,7 +80,7 @@ const DEFAULT_ASSETS = [
   { id: 'gl_bond', name: 'Global Bonds', return: 0.036000, stdev: 0.035757, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#836953', active: true, isDefault: true }, // SD: 3.57570% -> 0.035757
   { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054000, stdev: 0.111227, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#FFD1DC', active: true, isDefault: true }, // SD: 11.12267% -> 0.111227
   { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.067000, stdev: 0.126213, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#826d85', active: true, isDefault: true }, // SD: 12.62131% -> 0.126213
-  { id: 'cash', name: 'Cash', return: 0.029000, stdev: 0.006139, incomeRatio: 1.0, minWeight: 0.1, maxWeight: 100, color: '#CFCFC4', active: true, isDefault: true }, // SD: 0.61391% -> 0.006139
+  { id: 'cash', name: 'Cash', return: 0.029000, stdev: 0.006139, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#CFCFC4', active: true, isDefault: true }, // SD: 0.61391% -> 0.006139
 ];
 
 const INITIAL_CORRELATIONS_DATA = {
@@ -432,7 +432,7 @@ export default function RiskReturnOptimiser() {
 
   // FORCE RESET STATE for v1.207 Constraints
   useEffect(() => {
-    const RESET_KEY = 'fire_wealth_v1.207_constraints_reset_v3';
+    const RESET_KEY = 'fire_wealth_v1.291_constraints_reset';
     if (!localStorage.getItem(RESET_KEY)) {
       console.log('Forcing Asset Reset for new Constraints');
       setAssets(DEFAULT_ASSETS);
