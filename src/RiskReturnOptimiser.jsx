@@ -1832,6 +1832,7 @@ export default function RiskReturnOptimiser() {
             // =====================================================
             const uniqueEntityTypes = [...new Set(structures.map(s => s.type))];
             const perEntityFrontiers = {};
+            const perEntitySimulations = {}; // v1.274: Raw simulation frontiers for Supabase export
             // Also keep track of a "Global Fallback" in case Total Wealth is 0 or singular
             let globalFallbackFrontier = []; 
             const cloud = []; 
@@ -2081,6 +2082,8 @@ export default function RiskReturnOptimiser() {
                         
                         // Accumulate simulation cloud data for visualization
                         if (entityResult.simulations) {
+                             // v1.274: Store raw simulations for Supabase export
+                             perEntitySimulations[entityType] = entityResult.simulations;
                              entityResult.simulations.forEach(simFrontier => {
                                 simFrontier.forEach(p => {
                                     cloud.push({
@@ -2130,8 +2133,9 @@ export default function RiskReturnOptimiser() {
             setEntityFrontiers(perEntityFrontiers);
 
             // =====================================================
-            // v1.274: EXPORT OPTIMIZATION RESULTS TO SUPABASE
-            // Truncate old results, insert fresh data for export/testing
+            // v1.274: EXPORT PER-SIMULATION RESULTS TO SUPABASE
+            // 1 row per simulation per entity, 10 portfolio columns
+            // Truncated on each new optimization run
             // =====================================================
             try {
                 // 1. Truncate old results (delete all rows from both tables)
@@ -2154,35 +2158,73 @@ export default function RiskReturnOptimiser() {
                 if (runError) throw runError;
                 const runId = runData.id;
 
-                // 3. Build result rows (1 per entity type × 10 portfolios)
-                const resultRows = [];
-                Object.keys(perEntityFrontiers).forEach(entityType => {
-                    perEntityFrontiers[entityType].forEach(portfolio => {
-                        // Build weights as an object mapping asset_id → weight for readable export
-                        const weightsObj = {};
-                        activeAssets.forEach((asset, i) => {
-                            weightsObj[asset.id] = portfolio.weights[i] || 0;
-                        });
+                // 3. Build result rows: 1 row per simulation per entity type
+                // Each simulation's 51 frontier points are mapped to 10 risk-bucketed portfolios
+                const EXPORT_LABELS = [
+                    'Defensive', 'Conservative', 'Moderate Conservative', 'Moderate', 'Balanced',
+                    'Balanced Growth', 'Growth', 'High Growth', 'Aggressive', 'High Aggressive'
+                ];
 
-                        resultRows.push({
+                const allResultRows = [];
+
+                Object.keys(perEntitySimulations).forEach(entityType => {
+                    const sims = perEntitySimulations[entityType]; // Array of N simulations, each with 51 points
+                    
+                    sims.forEach((simFrontier, simIdx) => {
+                        // Sort this simulation's frontier by risk (low to high)
+                        const sorted = [...simFrontier].sort((a, b) => a.risk - b.risk);
+                        const minRisk = sorted[0].risk;
+                        const maxRisk = sorted[sorted.length - 1].risk;
+                        
+                        // Map 51 points to 10 risk-bucketed portfolios (same logic as main optimizer)
+                        const row = {
                             run_id: runId,
                             entity_type: entityType,
-                            portfolio_id: portfolio.id,
-                            portfolio_label: portfolio.label,
-                            expected_return: portfolio.return,
-                            risk: portfolio.risk,
-                            weights: weightsObj
-                        });
+                            simulation_num: simIdx + 1
+                        };
+                        
+                        for (let pIdx = 0; pIdx < 10; pIdx++) {
+                            const step = (maxRisk - minRisk) / 9;
+                            const targetRisk = minRisk + (pIdx * step);
+                            
+                            // Find closest point to target risk
+                            let closest = sorted[0];
+                            let minDiff = Math.abs(sorted[0].risk - targetRisk);
+                            for (const pt of sorted) {
+                                const diff = Math.abs(pt.risk - targetRisk);
+                                if (diff < minDiff) {
+                                    minDiff = diff;
+                                    closest = pt;
+                                }
+                            }
+                            
+                            // Build weights as object mapping asset_id → weight
+                            const weightsObj = {};
+                            activeAssets.forEach((asset, i) => {
+                                weightsObj[asset.id] = closest.weights[i] || 0;
+                            });
+                            
+                            const pNum = pIdx + 1;
+                            row[`p${pNum}_return`] = closest.return;
+                            row[`p${pNum}_risk`] = closest.risk;
+                            row[`p${pNum}_weights`] = weightsObj;
+                        }
+                        
+                        allResultRows.push(row);
                     });
                 });
 
-                // 4. Insert all result rows
-                const { error: resultsError } = await supabase
-                    .from('optimization_results')
-                    .insert(resultRows);
+                // 4. Insert in batches of 500 (Supabase insert limit)
+                const BATCH_SIZE = 500;
+                for (let i = 0; i < allResultRows.length; i += BATCH_SIZE) {
+                    const batch = allResultRows.slice(i, i + BATCH_SIZE);
+                    const { error: batchErr } = await supabase
+                        .from('optimization_results')
+                        .insert(batch);
+                    if (batchErr) throw batchErr;
+                }
 
-                if (resultsError) throw resultsError;
-                console.log(`Optimization results exported: ${resultRows.length} rows for run ${runId}`);
+                console.log(`Optimization results exported: ${allResultRows.length} rows for run ${runId}`);
             } catch (exportErr) {
                 console.warn('Failed to export optimization results to Supabase:', exportErr.message);
                 // Non-blocking: optimization continues even if export fails
