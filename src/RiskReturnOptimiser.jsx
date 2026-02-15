@@ -1,4 +1,4 @@
-// Deployment trigger: v1.292 - 2026-02-15
+// Deployment trigger: v1.293 - 2026-02-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1759,7 +1759,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.273)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.293)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights, remove dust (<0.1%), and renormalize 
     const ensureNonNegative = (weights) => {
@@ -1975,7 +1975,7 @@ export default function RiskReturnOptimiser() {
                 constraints,
                 groupConstraints
             });
-            console.log(`[v1.292 DEBUG] ${entityType} Constraints:`, {
+            console.log(`[v1.293 DEBUG] ${entityType} Constraints:`, {
                 min: constraints.minWeights,
                 max: constraints.maxWeights,
                 groups: groupConstraints

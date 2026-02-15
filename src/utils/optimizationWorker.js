@@ -1,6 +1,6 @@
 // =====================================================
 // Optimization Web Worker
-// v1.290: Runs Michaud Resampled Optimization off the main thread
+// v1.293: Runs Michaud Resampled Optimization off the main thread
 // =====================================================
 
 // ---- Math Helpers (inlined for worker compatibility) ----
