@@ -1,6 +1,6 @@
 // =====================================================
 // Optimization Web Worker
-// v1.280: Runs Michaud Resampled Optimization off the main thread
+// v1.290: Runs Michaud Resampled Optimization off the main thread
 // =====================================================
 
 // ---- Math Helpers (inlined for worker compatibility) ----
@@ -93,7 +93,7 @@ function getStats(history) {
 function projectConstraints(w, mean, targetRet, minW, maxW, groupConstraints = []) {
     let proj = [...w];
     const n = w.length;
-    const MAX_PROJ_ITER = 20;
+    const MAX_PROJ_ITER = 100;
 
     for (let k = 0; k < MAX_PROJ_ITER; k++) {
         let changed = false;
@@ -147,7 +147,7 @@ function projectConstraints(w, mean, targetRet, minW, maxW, groupConstraints = [
     }
 
     // Final Smart Normalization
-    for (let attempt = 0; attempt < 10; attempt++) {
+    for (let attempt = 0; attempt < 50; attempt++) {
         let sum = proj.reduce((a, b) => a + b, 0);
         if (Math.abs(sum - 1.0) < 1e-6) break;
         const diff = 1.0 - sum;
