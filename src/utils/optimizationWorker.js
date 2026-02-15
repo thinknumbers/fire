@@ -1,6 +1,6 @@
 // =====================================================
 // Optimization Web Worker
-// v1.304: Runs Michaud Resampled Optimization off the main thread
+// v1.305: Runs Michaud Resampled Optimization off the main thread
 // =====================================================
 
 // ---- Math Helpers (inlined for worker compatibility) ----
@@ -207,6 +207,41 @@ function solveMarkowitz(mean, cov, targetReturn, minWeights, maxWeights, groupCo
     return { weights: w, risk, return: ret };
 }
 
+// ---- GMV Solver (for starting point) ----
+// Minimizes w'Cov*w subject to sum(w)=1 and constraints
+// We can use the same solver but iterate target return to find min risk, 
+// OR simpler: just find min risk point from a discrete scan if we reuse the solver.
+// A true GMV solver is quadratic programming.
+// For speed/simplicity in this worker, we will just scan the solver's output at the very bottom range
+// or assume the lowest return feasible is close to GMV for long-only.
+// ACTUALLY: The Markowitz solver with targetReturn = min(mu) isn't necessarily GMV.
+// To get GMV, we should solve min Variance without target return constraint.
+// But our solveMarkowitz function forces a target return.
+// WORKAROUND: We will sweep a wider range of returns starting from min(mu) and find the point with lowest risk.
+// That point is the GMV. We will then only keep points with return >= GMV.return.
+
+function findGMV(mean, cov, constraints, groupConstraints) {
+    // Sweep from min(mean) to max(mean) and find the portfolio with lowest risk
+    const minMu = Math.min(...mean);
+    const maxMu = Math.max(...mean);
+    let bestSol = null;
+    let minRisk = Infinity;
+
+    // Coarse sweep then refine? Or just 20 points at the bottom end?
+    // The efficient frontier is convex. GMV is the vertex.
+    // We scan 50 points.
+    for (let i = 0; i <= 50; i++) {
+        const t = i / 50;
+        const target = minMu + t * (maxMu - minMu);
+        const sol = solveMarkowitz(mean, cov, target, constraints.minWeights, constraints.maxWeights, groupConstraints);
+        if (sol.risk < minRisk) {
+            minRisk = sol.risk;
+            bestSol = sol;
+        }
+    }
+    return bestSol;
+}
+
 // ---- Resampled Optimization ----
 
 function runResampledOptimization(assets, correlations, constraints, forecastConfidence, numSimulations, groupConstraints = []) {
@@ -236,13 +271,21 @@ function runResampledOptimization(assets, correlations, constraints, forecastCon
         }
         const { mean: mu_sim, cov: cov_sim } = getStats(history);
 
-        const possibleMin = Math.min(...mu_sim);
+        // v1.305 Fix: Find Global Minimum Variance (GMV) portfolio
+        // The Efficient Frontier starts at GMV. Anything below GMV is inefficient.
+        // If we include inefficient portfolios (low return, high risk), P1 becomes "distressed".
+        const gmv = findGMV(mu_sim, cov_sim, constraints, groupConstraints);
+        
+        const possibleMin = gmv.return; // Start sweep from GMV return
         const possibleMax = Math.max(...mu_sim);
 
         let simFrontier = [];
         for (let p = 0; p < M_POINTS; p++) {
             const t = p / (M_POINTS - 1);
-            const target = possibleMin + t * (possibleMax - possibleMin);
+            // Ensure we don't go below GMV return
+            // If possibleMax < possibleMin (rare but possible with noise), clamp.
+            const target = Math.max(possibleMin, possibleMin + t * (possibleMax - possibleMin));
+            
             const sol = solveMarkowitz(mu_sim, cov_sim, target, constraints.minWeights, constraints.maxWeights, groupConstraints);
             simFrontier.push(sol);
         }
