@@ -1,4 +1,4 @@
-// Deployment trigger: v1.296 - 2026-02-15
+// Deployment trigger: v1.297 - 2026-02-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1759,7 +1759,7 @@ export default function RiskReturnOptimiser() {
 
   const handleRunOptimization = () => {
     const logs = [];
-    logs.push({ step: 'Start', details: `Optimization Initiated (v1.296)`, timestamp: Date.now() });
+    logs.push({ step: 'Start', details: `Optimization Initiated (v1.297)`, timestamp: Date.now() });
 
     // Helper to clamp negative weights, remove dust (<0.1%), and renormalize 
     const ensureNonNegative = (weights) => {
@@ -1808,14 +1808,10 @@ export default function RiskReturnOptimiser() {
       })
     );
 
-    // Group Constraints (Step 4: 15% Cap on Alternatives)
-    const altAssets = ['reits', 'hedge', 'comm'];
-    const altIndices = [];
-    activeAssets.forEach((a, idx) => {
-        if (altAssets.includes(a.id)) altIndices.push(idx);
-    });
-    
+    // v1.297: Default "Alternatives Cap" (15%) removed per user request.
+    // Constraints are now purely user-driven via "Asset Allocation" settings.
     const groupConstraints = [];
+    /* 
     if (altIndices.length > 0) {
         groupConstraints.push({
             message: "Alternatives Cap (15%)",
@@ -1824,6 +1820,7 @@ export default function RiskReturnOptimiser() {
         });
         logs.push({ step: 'Constraint', details: `Applied 15% Cap to indices: ${altIndices.join(', ')}` });
     }
+    */
 
     // Prepare Assets for Optimization (Pre-Tax Risk, but we need After-Tax Return)
     // We will calculate After-tax returns per entity.
@@ -1835,7 +1832,8 @@ export default function RiskReturnOptimiser() {
      // Forecast Confidence (T)
     const T_MAP = { 1: 15, 2: 50, 3: 200 }; 
     const confidenceT = T_MAP[forecastConfidenceLevel] || 50;
-    const numSimulations = Math.max(500, Math.min(simulationCount, 5000)); // v1.278: Min 500 for stable Michaud convergence
+    // v1.297: Allow user setting to override minimums (e.g. 5 simulations)
+    const numSimulations = simulationCount; // Directly use state value (default 1000)
 
     // v1.280: Web Worker for off-main-thread optimization
     const worker = new Worker(new URL('./utils/optimizationWorker.js', import.meta.url), { type: 'module' });
@@ -1977,7 +1975,7 @@ export default function RiskReturnOptimiser() {
                 constraints,
                 groupConstraints
             });
-            console.log(`[v1.296 DEBUG] ${entityType} Constraints:`, {
+            console.log(`[v1.297 DEBUG] ${entityType} Constraints:`, {
                 min: constraints.minWeights,
                 max: constraints.maxWeights,
                 groups: groupConstraints
@@ -4956,7 +4954,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.296</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.297</span>
              </div>
           </div>
         </div>
