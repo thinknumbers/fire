@@ -2309,7 +2309,17 @@ export default function RiskReturnOptimiser() {
 
                 setDebugLogs(logs);
                 setOptimizationAssets(activeAssets);
-                setSimulations(cloud); 
+                // v1.280: Downsample cloud for rendering (cap at 2000 SVG points to prevent UI lock-up)
+                const MAX_CLOUD_POINTS = 2000;
+                let displayCloud = cloud;
+                if (cloud.length > MAX_CLOUD_POINTS) {
+                    const step = cloud.length / MAX_CLOUD_POINTS;
+                    displayCloud = [];
+                    for (let i = 0; i < MAX_CLOUD_POINTS; i++) {
+                        displayCloud.push(cloud[Math.floor(i * step)]);
+                    }
+                }
+                setSimulations(displayCloud); 
                 setEfficientFrontier(finalProfiles);
                 setSelectedPortfolioId(5);
                 setIsSimulating(false);
@@ -4106,7 +4116,7 @@ export default function RiskReturnOptimiser() {
                   }}
                 />}
                 {/* Simulation cloud */}
-                <Scatter name="Portfolios" data={simulationData} fill="#cbd5e1" shape="circle" r={2} opacity={0.5} isAnimationActive={!isExporting} />
+                <Scatter name="Portfolios" data={simulationData} fill="#cbd5e1" shape="circle" r={2} opacity={0.5} isAnimationActive={false} />
                 
                 <Scatter name="Models" data={chartData} fill="#2563eb" shape="diamond" r={8} isAnimationActive={!isExporting} />
               </ScatterChart>
