@@ -1,4 +1,4 @@
-// Deployment trigger: v1.274 - 2026-02-15
+// Deployment trigger: v1.278 - 2026-02-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1822,7 +1822,7 @@ export default function RiskReturnOptimiser() {
      // Forecast Confidence (T)
     const T_MAP = { 1: 15, 2: 50, 3: 200 }; 
     const confidenceT = T_MAP[forecastConfidenceLevel] || 50;
-    const numSimulations = Math.max(10, Math.min(simulationCount, 500));
+    const numSimulations = Math.max(500, Math.min(simulationCount, 5000)); // v1.278: Min 500 for stable Michaud convergence
 
     setTimeout(async () => {
         try {
@@ -1856,15 +1856,15 @@ export default function RiskReturnOptimiser() {
                         const incomeComponent = round6(incomeRatio * (1 - incomeTax));
                         const growthComponent = round6((1 - incomeRatio) * (1 - capGainTax));
                         
-                        // v1.266: Aggressive Tax Location Preference Bias
-                        // User Request: PROMINENT skew. Income > Super, Growth > Personal.
+                        // v1.266: Tax Location Preference Bias
+                        // v1.278: PENSION removed (0% tax already, bias was double-counting)
                         
                         let locationBias = 1.0;
                         
                         if (incomeRatio > 0.50) {
                             // INCOME ASSETS: Push to Super, Repel from Personal
                             switch(entityType) {
-                                case 'PENSION':       locationBias = 1.25; break; // +25% Super Bonus
+                                case 'PENSION':       locationBias = 1.0;  break; // v1.278: Neutral (0% tax)
                                 case 'SUPER_ACCUM':   locationBias = 1.15; break; // +15% Accum Bonus
                                 case 'TRUST':         locationBias = 0.90; break; // -10% Penalty
                                 case 'COMPANY':       locationBias = 0.80; break; // -20% Penalty
@@ -1875,7 +1875,7 @@ export default function RiskReturnOptimiser() {
                         } else {
                              // GROWTH ASSETS: Push to Personal, Repel from Super (to make room)
                              switch(entityType) {
-                                case 'PENSION':       locationBias = 0.90; break; // -10% Penalty (Save room for Income)
+                                case 'PENSION':       locationBias = 1.0;  break; // v1.278: Neutral (0% tax)
                                 case 'SUPER_ACCUM':   locationBias = 0.95; break;
                                 case 'TRUST':         locationBias = 1.10; break; // +10% Bonus
                                 case 'COMPANY':       locationBias = 1.15; break; // +15% Bonus
@@ -2047,28 +2047,44 @@ export default function RiskReturnOptimiser() {
 
                         const mappedEntityFrontier = [];
                         
-                        // Interpolate indices 0 to 9
+                        // v1.278: Linear interpolation between adjacent frontier points
                         BUCKET_LABELS.forEach((label, idx) => {
-                            // Logic: map idx 0..9 to Frontier indices 0..Length-1
-                            // To align closely with "Fixed Risk Level" request, we distribute equidistant by Risk.
                             const step = (maxRisk - minRisk) / (BUCKET_LABELS.length - 1 || 1);
                             const targetRisk = minRisk + (idx * step);
                             
-                            let closest = entityFrontier[0];
-                            let minDiff = Math.abs(entityFrontier[0].risk - targetRisk);
+                            // Find the two adjacent points that bracket targetRisk
+                            let lower = entityFrontier[0];
+                            let upper = entityFrontier[entityFrontier.length - 1];
                             
-                            for (let p of entityFrontier) {
-                                const diff = Math.abs(p.risk - targetRisk);
-                                if (diff < minDiff) {
-                                    minDiff = diff;
-                                    closest = p;
+                            for (let fi = 0; fi < entityFrontier.length - 1; fi++) {
+                                if (entityFrontier[fi].risk <= targetRisk && entityFrontier[fi + 1].risk >= targetRisk) {
+                                    lower = entityFrontier[fi];
+                                    upper = entityFrontier[fi + 1];
+                                    break;
                                 }
                             }
                             
+                            // Interpolation factor (0 = lower, 1 = upper)
+                            const range = upper.risk - lower.risk;
+                            const t = range > 1e-10 ? (targetRisk - lower.risk) / range : 0;
+                            
+                            // Interpolate weights
+                            const interpWeights = lower.weights.map((w, i) => 
+                                w * (1 - t) + (upper.weights[i] || 0) * t
+                            );
+                            // Normalize interpolated weights
+                            const wSum = interpWeights.reduce((a, b) => a + b, 0);
+                            const normalizedWeights = wSum > 0 ? interpWeights.map(w => w / wSum) : interpWeights;
+                            
+                            const interpReturn = lower.return * (1 - t) + upper.return * t;
+                            const interpRisk = lower.risk * (1 - t) + upper.risk * t;
+                            
                             mappedEntityFrontier.push({
-                                ...closest,
                                 id: idx + 1,
-                                label: `Portfolio ${idx + 1} - ${label}`
+                                label: `Portfolio ${idx + 1} - ${label}`,
+                                weights: normalizedWeights,
+                                return: interpReturn,
+                                risk: interpRisk
                             });
                         });
                         
@@ -2187,26 +2203,35 @@ export default function RiskReturnOptimiser() {
                             const step = (maxRisk - minRisk) / 9;
                             const targetRisk = minRisk + (pIdx * step);
                             
-                            // Find closest point to target risk
-                            let closest = sorted[0];
-                            let minDiff = Math.abs(sorted[0].risk - targetRisk);
-                            for (const pt of sorted) {
-                                const diff = Math.abs(pt.risk - targetRisk);
-                                if (diff < minDiff) {
-                                    minDiff = diff;
-                                    closest = pt;
+                            // v1.278: Linear interpolation between adjacent points
+                            let lower = sorted[0];
+                            let upper = sorted[sorted.length - 1];
+                            
+                            for (let fi = 0; fi < sorted.length - 1; fi++) {
+                                if (sorted[fi].risk <= targetRisk && sorted[fi + 1].risk >= targetRisk) {
+                                    lower = sorted[fi];
+                                    upper = sorted[fi + 1];
+                                    break;
                                 }
                             }
                             
-                            // Build weights as object mapping asset_id → weight
+                            const range = upper.risk - lower.risk;
+                            const t = range > 1e-10 ? (targetRisk - lower.risk) / range : 0;
+                            
+                            // Interpolate weights
+                            const interpWeights = lower.weights.map((w, i) => 
+                                w * (1 - t) + (upper.weights[i] || 0) * t
+                            );
+                            
+                            // Build weights object
                             const weightsObj = {};
                             activeAssets.forEach((asset, i) => {
-                                weightsObj[asset.id] = closest.weights[i] || 0;
+                                weightsObj[asset.id] = interpWeights[i] || 0;
                             });
                             
                             const pNum = pIdx + 1;
-                            row[`p${pNum}_return`] = closest.return;
-                            row[`p${pNum}_risk`] = closest.risk;
+                            row[`p${pNum}_return`] = lower.return * (1 - t) + upper.return * t;
+                            row[`p${pNum}_risk`] = lower.risk * (1 - t) + upper.risk * t;
                             row[`p${pNum}_weights`] = weightsObj;
                         }
                         

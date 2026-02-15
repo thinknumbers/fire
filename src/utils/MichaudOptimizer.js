@@ -14,12 +14,15 @@ function solveMarkowitz(mean, cov, targetReturn, minWeights, maxWeights, groupCo
     w = projectConstraints(w, mean, targetReturn, minWeights, maxWeights, groupConstraints); // Valid start
     
     // Hyperparameters
-    const LR = 0.1; // Reduced for stability
-    const MAX_ITER = 150; // Reduced from 1000 for performance (500 sims * 51 points is heavy)
-    const TOL = 1e-6; // Convergence tolerance
+    const LR_INIT = 0.1; // Initial learning rate
+    const MAX_ITER = 300; // v1.278: Increased from 150 for better convergence
+    const TOL = 1e-7; // Tighter convergence tolerance
     
-    // Simple Projected Gradient Descent
+    // Projected Gradient Descent with adaptive learning rate
     for(let iter=0; iter<MAX_ITER; iter++) {
+        // Adaptive LR: decay over iterations for stability
+        const lr = LR_INIT / (1 + iter * 0.005);
+        
         // Step A: Gradient Step (Minimize Variance)
         // Grad(0.5 * w'Cw) = Cw
         const Cw = new Array(n).fill(0);
@@ -27,9 +30,8 @@ function solveMarkowitz(mean, cov, targetReturn, minWeights, maxWeights, groupCo
             for(let j=0; j<n; j++) Cw[i] += cov[i][j] * w[j];
         }
         
-        // Momentum or purely gradient? Standard PGD ok.
         let w_new = [...w];
-        for(let i=0; i<n; i++) w_new[i] -= LR * Cw[i];
+        for(let i=0; i<n; i++) w_new[i] -= lr * Cw[i];
         
         // Step B: Project to constraints
         w_new = projectConstraints(w_new, mean, targetReturn, minWeights, maxWeights, groupConstraints);
@@ -192,7 +194,7 @@ export function runResampledOptimization(assets, correlations, constraints, fore
     // Michaud bins by RANK (1 to M). "1" = Min Var, "M" = Max Return.
     // We calculate the 51 portfolios for each history.
     
-    const M_POINTS = 51; // Michaud standard is 51 points
+    const M_POINTS = 101; // v1.275: Increased from 51 for finer frontier resolution
     let allFrontiers = []; // Array of [ {w, r, sig} ... M_POINTS ]
     
     for(let sim=0; sim<numSimulations; sim++) {
