@@ -1,4 +1,4 @@
-// Deployment trigger: v1.283 - 2026-02-15
+// Deployment trigger: v1.284 - 2026-02-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -449,6 +449,7 @@ export default function RiskReturnOptimiser() {
   
   // Simulation State
   const [simulations, setSimulations] = useState([]);
+  const [simulationResults, setSimulationResults] = useState({}); // v1.283: Store full per-entity simulation data for CSV export
   const [efficientFrontier, setEfficientFrontier] = useState([]);
   const [entityFrontiers, setEntityFrontiers] = useState({}); // Per-entity-type frontiers: { PERSONAL: [...], TRUST: [...], etc }
   const [isSimulating, setIsSimulating] = useState(false);
@@ -1783,6 +1784,7 @@ export default function RiskReturnOptimiser() {
     setIsSimulating(true);
     setProgress(0);
     setSimulations([]);
+    setSimulationResults({}); // Clear full results
     setEfficientFrontier([]); // Clear stale results immediately
 
     // v1.283: Start elapsed timer
@@ -2335,6 +2337,7 @@ export default function RiskReturnOptimiser() {
                     }
                 }
                 setSimulations(displayCloud); 
+                setSimulationResults(perEntitySimulations); // v1.283: Save full data for CSV
                 setEfficientFrontier(finalProfiles);
                 setSelectedPortfolioId(5);
                 setIsSimulating(false);
@@ -4049,55 +4052,98 @@ export default function RiskReturnOptimiser() {
     const chartData = efficientFrontier;
     const simulationData = simulations;
 
-    // v1.283: CSV Download of optimization results
+    // v1.283: CSV Download of optimization results (Detailed)
     const handleDownloadCSV = () => {
-        if (!efficientFrontier.length || !optimizationAssets?.length) return;
+        const hasFullData = Object.keys(simulationResults).length > 0;
+        if (!hasFullData && !efficientFrontier.length) return;
         
         const activeAssetNames = optimizationAssets.map(a => a.name);
         const rows = [];
-        
-        // Header row
-        const header = ['Entity', 'Portfolio', 'Return (%)', 'Risk (%)', ...activeAssetNames.map(n => `${n} (%)`)];
+        const P_COUNT = 10; // Portfolios 1-10
+
+        // 1. Build Header
+        // Entity, Simulation
+        // Ret P1..P10, Risk P1..P10
+        // W_P1_Asset1..N, W_P2_Asset1..N ...
+        let header = ['Entity', 'Simulation'];
+        for (let i = 1; i <= P_COUNT; i++) header.push(`Ret P${i} (%)`);
+        for (let i = 1; i <= P_COUNT; i++) header.push(`Risk P${i} (%)`);
+        for (let i = 1; i <= P_COUNT; i++) {
+            activeAssetNames.forEach(name => header.push(`W_P${i}_${name} (%)`));
+        }
         rows.push(header.join(','));
-        
-        // Per-entity rows
-        const entities = Object.keys(entityFrontiers);
-        if (entities.length > 0) {
-            entities.forEach(entityType => {
-                const frontier = entityFrontiers[entityType];
-                if (!frontier) return;
-                frontier.forEach(p => {
-                    const row = [
-                        entityType,
-                        p.label || `Portfolio ${p.id}`,
-                        (p.return * 100).toFixed(4),
-                        (p.risk * 100).toFixed(4),
-                        ...p.weights.map(w => (w * 100).toFixed(4))
-                    ];
+
+        // 2. Build Rows from Full Simulation Data
+        if (hasFullData) {
+            Object.keys(simulationResults).forEach(entityType => {
+                const sims = simulationResults[entityType]; // Array of arrays of portfolios
+                if (!sims) return;
+
+                sims.forEach((simFrontier, simIdx) => {
+                    // Start row
+                    const row = [entityType, simIdx + 1];
+
+                    // Sort frontier by risk to ensure P1=Lowest Risk, P10=Highest Risk
+                    // (Note: Michaud averaged frontier is already sorted, but raw dims might not be perfectly ordered by risk? 
+                    // Usually solveMarkowitz varies target return. Let's sort by risk to be consistent with P1..P10 logic)
+                    const sorted = [...simFrontier].sort((a, b) => a.risk - b.risk);
+                    
+                    // We need exactly 10 points. If M_POINTS != 10, we interpolate.
+                    // The worker uses M_POINTS=101. We need to downsample/interpolate to 10 portfolios.
+                    
+                    const minRisk = sorted[0].risk;
+                    const maxRisk = sorted[sorted.length - 1].risk;
+                    const portfolios = [];
+
+                    for (let pIdx = 0; pIdx < P_COUNT; pIdx++) {
+                        const step = (maxRisk - minRisk) / (P_COUNT - 1);
+                        const targetRisk = minRisk + (pIdx * step);
+                        
+                        // Find bracket
+                        let lower = sorted[0];
+                        let upper = sorted[sorted.length - 1];
+                        for (let k = 0; k < sorted.length - 1; k++) {
+                            if (sorted[k].risk <= targetRisk && sorted[k+1].risk >= targetRisk) {
+                                lower = sorted[k];
+                                upper = sorted[k+1];
+                                break;
+                            }
+                        }
+
+                        // Linear Interpolation
+                        const range = upper.risk - lower.risk;
+                        const t = range > 1e-9 ? (targetRisk - lower.risk) / range : 0;
+                        
+                        const pRet = lower.return * (1 - t) + upper.return * t;
+                        const pRisk = targetRisk; // approx
+                        const pWeights = lower.weights.map((w, i) => w * (1 - t) + (upper.weights[i] || 0) * t);
+                        
+                        portfolios.push({ return: pRet, risk: pRisk, weights: pWeights });
+                    }
+
+                    // Append Returns
+                    portfolios.forEach(p => row.push((p.return * 100).toFixed(4)));
+                    // Append Risks
+                    portfolios.forEach(p => row.push((p.risk * 100).toFixed(4)));
+                    // Append Weights
+                    portfolios.forEach(p => {
+                        p.weights.forEach(w => row.push((w * 100).toFixed(4)));
+                    });
+
                     rows.push(row.join(','));
                 });
             });
+        } else {
+            // Fallback: Just export the summary frontier if full data missing (legacy)
+             rows.push(['TOTAL', 'Average', ...efficientFrontier.map(p => (p.return*100).toFixed(4)), ...efficientFrontier.map(p => (p.risk*100).toFixed(4))].join(','));
         }
-        
-        // Total (blended) rows
-        rows.push(''); // blank line separator
-        efficientFrontier.forEach(p => {
-            const row = [
-                'TOTAL',
-                p.label || `Portfolio ${p.id}`,
-                (p.return * 100).toFixed(4),
-                (p.risk * 100).toFixed(4),
-                ...p.weights.map(w => (w * 100).toFixed(4))
-            ];
-            rows.push(row.join(','));
-        });
         
         const csvContent = rows.join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `optimization_results_${new Date().toISOString().slice(0,10)}.csv`;
+        link.download = `simulation_details_${new Date().toISOString().slice(0,10)}.csv`;
         link.click();
         URL.revokeObjectURL(url);
     };
@@ -4856,7 +4902,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.283</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.284</span>
              </div>
           </div>
         </div>
