@@ -98,3 +98,13 @@ CREATE POLICY "Allow anonymous access to optimization_results"
     ON optimization_results FOR ALL
     USING (true)
     WITH CHECK (true);
+
+-- RPC function to properly truncate and reset IDs
+-- Called via: supabase.rpc('truncate_optimization_data')
+CREATE OR REPLACE FUNCTION truncate_optimization_data()
+RETURNS void AS $$
+BEGIN
+    TRUNCATE optimization_results RESTART IDENTITY;
+    TRUNCATE optimization_runs CASCADE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

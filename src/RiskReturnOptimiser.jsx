@@ -1,4 +1,4 @@
-// Deployment trigger: v1.279 - 2026-02-15
+// Deployment trigger: v1.280 - 2026-02-15
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1824,203 +1824,186 @@ export default function RiskReturnOptimiser() {
     const confidenceT = T_MAP[forecastConfidenceLevel] || 50;
     const numSimulations = Math.max(500, Math.min(simulationCount, 5000)); // v1.278: Min 500 for stable Michaud convergence
 
-    setTimeout(async () => {
+    // v1.280: Web Worker for off-main-thread optimization
+    const worker = new Worker(new URL('./utils/optimizationWorker.js', import.meta.url), { type: 'module' });
+
+    // Prepare entity tasks on main thread (fast: tax adjustments, constraints)
+    const uniqueEntityTypes = [...new Set(structures.map(s => s.type))];
+    const entityTasks = [];
+    const entityDetailLogs = {};
+
+    uniqueEntityTypes.forEach(entityType => {
         try {
-            // =====================================================
-            // ENTITY-SPECIFIC OPTIMIZATION
-            // Run separate optimization for each unique entity type
-            // =====================================================
-            const uniqueEntityTypes = [...new Set(structures.map(s => s.type))];
-            const perEntityFrontiers = {};
-            const perEntitySimulations = {}; // v1.274: Raw simulation frontiers for Supabase export
-            // Also keep track of a "Global Fallback" in case Total Wealth is 0 or singular
-            let globalFallbackFrontier = []; 
-            const cloud = []; 
-            
-            
-            uniqueEntityTypes.forEach(entityType => {
-                try {
-                    // Manual inline calculation to capture debug details
-                    // Step 1: Tax Adjust (Strict 4 decimals)
-                    const entRates = entityTypes[entityType] || { incomeTax: 0, ltCgt: 0 };
-                    const detailLogs = [];
+            const entRates = entityTypes[entityType] || { incomeTax: 0, ltCgt: 0 };
+            const detailLogs = [];
 
-                    const entityOptAssets = activeAssets.map((asset, i) => {
-                        const preTaxReturn = asset.return; 
-                        const incomeRatio = asset.incomeRatio !== undefined ? asset.incomeRatio : 1.0; 
-                        const incomeTax = entRates.incomeTax;
-                        const capGainTax = entRates.ltCgt; 
+            const entityOptAssets = activeAssets.map((asset, i) => {
+                const preTaxReturn = asset.return; 
+                const incomeRatio = asset.incomeRatio !== undefined ? asset.incomeRatio : 1.0; 
+                const incomeTax = entRates.incomeTax;
+                const capGainTax = entRates.ltCgt; 
 
-                        // Formula: Ret * [ (Income% * (1-IncTax)) + (Growth% * (1-CGT)) ]
-                        // Round intermediates to 6 decimal places
-                        const incomeComponent = round6(incomeRatio * (1 - incomeTax));
-                        const growthComponent = round6((1 - incomeRatio) * (1 - capGainTax));
-                        
-                        // v1.266: Tax Location Preference Bias
-                        // v1.278: PENSION removed (0% tax already, bias was double-counting)
-                        
-                        let locationBias = 1.0;
-                        
-                        if (incomeRatio > 0.50) {
-                            // INCOME ASSETS: Push to Super, Repel from Personal
-                            switch(entityType) {
-                                case 'PENSION':       locationBias = 1.0;  break; // v1.278: Neutral (0% tax)
-                                case 'SUPER_ACCUM':   locationBias = 1.15; break; // +15% Accum Bonus
-                                case 'TRUST':         locationBias = 0.90; break; // -10% Penalty
-                                case 'COMPANY':       locationBias = 0.80; break; // -20% Penalty
-                                case 'PERSONAL':      
-                                case 'WIFE':          locationBias = 0.60; break; // -40% Strong Penalty (Repel)
-                                default:              locationBias = 1.0; 
-                            }
-                        } else {
-                             // GROWTH ASSETS: Push to Personal, Repel from Super (to make room)
-                             switch(entityType) {
-                                case 'PENSION':       locationBias = 1.0;  break; // v1.278: Neutral (0% tax)
-                                case 'SUPER_ACCUM':   locationBias = 0.95; break;
-                                case 'TRUST':         locationBias = 1.10; break; // +10% Bonus
-                                case 'COMPANY':       locationBias = 1.15; break; // +15% Bonus
-                                case 'PERSONAL':      
-                                case 'WIFE':          locationBias = 1.25; break; // +25% Strong Bonus (Attract Growth)
-                                default:              locationBias = 1.0;
-                            }
-                        }
-
-                        const afterTaxReturn = round6((preTaxReturn * (incomeComponent + growthComponent)) * locationBias);
-
-                        // Post-Tax Risk Adjustment
-                        // UPDATE (v1.233): User feedback confirms SD should NOT be tax-adjusted. 
-                        // Risk remains Pre-Tax. Only Return is Tax-Adjusted.
-                        const riskInput = asset.stdev || 0;
-
-                        detailLogs.push({
-                            name: asset.name,
-                            preTax: preTaxReturn,
-                            incomeRatio: incomeRatio,
-                            incTaxRate: incomeTax,
-                            cgtRate: capGainTax,
-                            postTax: afterTaxReturn,
-                            riskUsed: riskInput
-                        });
-
-                        return {
-                            ...asset,
-                            return: afterTaxReturn,
-                            stdev: riskInput
-                        };
-                    });
-                    
-                    logs.push({ step: `Entity Opt: ${entityType}`, details: detailLogs });
-
-                    // BUILD CONSTRAINTS (v1.230 Logic)
-                    // behavior: 
-                    // 1. If "Current Asset Allocation" is CHECKED -> Use the explicit inputs from that entity.
-                    // 2. If UNCHECKED -> Use "System Defaults" (Strict 9% Cap), ie. "Treatment to Date".
-                    
-                    const structWithAlloc = structures.find(s => s.type === entityType && s.useAssetAllocation);
-                    const useCustom = !!structWithAlloc;
-
-                    const constraints = {
-                        minWeights: [],
-                        maxWeights: []
-                    };
-
-                    if (useCustom && structWithAlloc.assetAllocation) {
-                         // CASE A: Checked (Custom Inputs)
-                         // We trust the user's manual inputs for this entity
-                         // Calculate Sum of User Mins to see if they are fully allocated
-                         const totalUserMin = activeAssets.reduce((sum, a) => {
-                             const row = structWithAlloc.assetAllocation.find(r => r.id === a.id);
-                             return sum + ((row && row.min !== undefined) ? row.min : 0);
-                         }, 0);
-                         
-                         const isFullyAllocated = totalUserMin >= 99.9;
-
-                         constraints.minWeights = activeAssets.map(a => {
-                             const row = structWithAlloc.assetAllocation.find(r => r.id === a.id);
-                             const userMin = (row && row.min !== undefined) ? row.min / 100 : 0;
-                             
-                             if (isFullyAllocated) {
-                                 // User explicitly allocated ~100%, trust them completely (even if Cash=0)
-                                 return userMin;
-                             } else {
-                                 // Otherwise, Enforce System Floor (0.1%) to prevent zeroing
-                                 const def = DEFAULT_ASSETS.find(d => d.id === a.id);
-                                 const sysMin = (def && def.minWeight !== undefined) ? def.minWeight / 100 : 0.001;
-                                 return Math.max(userMin, sysMin);
-                             }
-                         });
-                         constraints.maxWeights = activeAssets.map(a => {
-                             const row = structWithAlloc.assetAllocation.find(r => r.id === a.id);
-                             // If user left max blank/undefined, default to 100? Or System Default?
-                             // User said "uses whatever has been input". We assume explicit max.
-                             return (row && row.max !== undefined) ? row.max / 100 : 1.0; 
-                         });
-                    } else {
-                         // CASE B: Unchecked (System Defaults / "Treatment to Date")
-                         // We must enforce the Strict Caps (e.g. 9% EM Bond)
-                         constraints.minWeights = activeAssets.map(a => {
-                             // System Defaults Mode: Always prefer the defined default if it exists
-                             const def = DEFAULT_ASSETS.find(d => d.id === a.id);
-                             if (def && def.minWeight !== undefined) return def.minWeight / 100;
-                             
-                             // Fallback for custom assets or if default missing
-                             return (a.minWeight !== undefined ? a.minWeight : 0) / 100;
-                         });
-                         constraints.maxWeights = activeAssets.map(a => {
-                             let stateMax = (a.maxWeight !== undefined ? a.maxWeight : 100) / 100;
-                             
-                             // Enforce System Default (Anti-Stale / Strict Logic)
-                             const def = DEFAULT_ASSETS.find(d => d.id === a.id);
-                             if (def) {
-                                 const sysMax = (def.maxWeight !== undefined ? def.maxWeight : 100) / 100;
-                                 if (sysMax < stateMax) stateMax = sysMax;
-                             }
-                             return stateMax;
-                         });
+                const incomeComponent = round6(incomeRatio * (1 - incomeTax));
+                const growthComponent = round6((1 - incomeRatio) * (1 - capGainTax));
+                
+                // v1.266: Tax Location Preference Bias
+                // v1.278: PENSION removed (0% tax already, bias was double-counting)
+                let locationBias = 1.0;
+                
+                if (incomeRatio > 0.50) {
+                    switch(entityType) {
+                        case 'PENSION':       locationBias = 1.0;  break;
+                        case 'SUPER_ACCUM':   locationBias = 1.15; break;
+                        case 'TRUST':         locationBias = 0.90; break;
+                        case 'COMPANY':       locationBias = 0.80; break;
+                        case 'PERSONAL':      
+                        case 'WIFE':          locationBias = 0.60; break;
+                        default:              locationBias = 1.0; 
                     }
-                    
-                    // Parse Group Constraints from UI Inputs (v1.244)
-                    // Format: "GroupName:Limit" (e.g., "Defensive:30" => Max 30% for all assets marked "Defensive")
-                    const groupConstraints = [];
-                    const groupMap = {}; // { "Name": { max: 1.0, indices: [] } }
-                    
-                    if (useCustom && structWithAlloc.assetAllocation) {
-                        activeAssets.forEach((asset, idx) => {
-                             const row = structWithAlloc.assetAllocation.find(r => r.id === asset.id);
-                             if (row && row.groupLimit) {
-                                  // Parse "Name:Limit" or just "Name" (if Limit defined elsewhere? No, explicit here)
-                                  // We take the strictest limit found for the group name.
-                                  const parts = row.groupLimit.split(':');
-                                  const gName = parts[0].trim();
-                                  let gLimit = 1.0;
-                                  
-                                  if (parts.length > 1) {
-                                      const val = parseFloat(parts[1]);
-                                      if (!isNaN(val)) gLimit = val / 100;
-                                  }
-                                  
-                                  if (gName) {
-                                      if (!groupMap[gName]) groupMap[gName] = { max: 1.0, indices: [] };
-                                      groupMap[gName].indices.push(idx);
-                                      // Take minimum valid limit seen for this group
-                                      if (gLimit < groupMap[gName].max) groupMap[gName].max = gLimit;
-                                  }
-                             }
-                        });
-                        Object.values(groupMap).forEach(g => groupConstraints.push(g));
+                } else {
+                     switch(entityType) {
+                        case 'PENSION':       locationBias = 1.0;  break;
+                        case 'SUPER_ACCUM':   locationBias = 0.95; break;
+                        case 'TRUST':         locationBias = 1.10; break;
+                        case 'COMPANY':       locationBias = 1.15; break;
+                        case 'PERSONAL':      
+                        case 'WIFE':          locationBias = 1.25; break;
+                        default:              locationBias = 1.0;
                     }
+                }
 
-                    // Step 2: Optimize (Maximize Return for fixed Risk)
-                    // runResampledOptimization approximates the Efficient Frontier
-                    const entityResult = runResampledOptimization(
-                        entityOptAssets, 
-                        activeCorrelations, 
-                        constraints, 
-                        confidenceT, 
-                        confidenceT, 
-                        numSimulations, // Pass full simulation count (e.g. 500) -> Stability
-                        groupConstraints // Pass Parsed Groups
-                    );
+                const afterTaxReturn = round6((preTaxReturn * (incomeComponent + growthComponent)) * locationBias);
+                const riskInput = asset.stdev || 0;
+
+                detailLogs.push({
+                    name: asset.name, preTax: preTaxReturn, incomeRatio,
+                    incTaxRate: incomeTax, cgtRate: capGainTax,
+                    postTax: afterTaxReturn, riskUsed: riskInput
+                });
+
+                return { ...asset, return: afterTaxReturn, stdev: riskInput };
+            });
+            
+            logs.push({ step: `Entity Opt: ${entityType}`, details: detailLogs });
+            entityDetailLogs[entityType] = detailLogs;
+
+            // BUILD CONSTRAINTS
+            const structWithAlloc = structures.find(s => s.type === entityType && s.useAssetAllocation);
+            const useCustom = !!structWithAlloc;
+
+            const constraints = { minWeights: [], maxWeights: [] };
+
+            if (useCustom && structWithAlloc.assetAllocation) {
+                 const totalUserMin = activeAssets.reduce((sum, a) => {
+                     const row = structWithAlloc.assetAllocation.find(r => r.id === a.id);
+                     return sum + ((row && row.min !== undefined) ? row.min : 0);
+                 }, 0);
+                 const isFullyAllocated = totalUserMin >= 99.9;
+
+                 constraints.minWeights = activeAssets.map(a => {
+                     const row = structWithAlloc.assetAllocation.find(r => r.id === a.id);
+                     const userMin = (row && row.min !== undefined) ? row.min / 100 : 0;
+                     if (isFullyAllocated) return userMin;
+                     const def = DEFAULT_ASSETS.find(d => d.id === a.id);
+                     const sysMin = (def && def.minWeight !== undefined) ? def.minWeight / 100 : 0.001;
+                     return Math.max(userMin, sysMin);
+                 });
+                 constraints.maxWeights = activeAssets.map(a => {
+                     const row = structWithAlloc.assetAllocation.find(r => r.id === a.id);
+                     return (row && row.max !== undefined) ? row.max / 100 : 1.0; 
+                 });
+            } else {
+                 constraints.minWeights = activeAssets.map(a => {
+                     const def = DEFAULT_ASSETS.find(d => d.id === a.id);
+                     if (def && def.minWeight !== undefined) return def.minWeight / 100;
+                     return (a.minWeight !== undefined ? a.minWeight : 0) / 100;
+                 });
+                 constraints.maxWeights = activeAssets.map(a => {
+                     let stateMax = (a.maxWeight !== undefined ? a.maxWeight : 100) / 100;
+                     const def = DEFAULT_ASSETS.find(d => d.id === a.id);
+                     if (def) {
+                         const sysMax = (def.maxWeight !== undefined ? def.maxWeight : 100) / 100;
+                         if (sysMax < stateMax) stateMax = sysMax;
+                     }
+                     return stateMax;
+                 });
+            }
+            
+            // Parse Group Constraints
+            const groupConstraints = [];
+            const groupMap = {};
+            
+            if (useCustom && structWithAlloc.assetAllocation) {
+                activeAssets.forEach((asset, idx) => {
+                     const row = structWithAlloc.assetAllocation.find(r => r.id === asset.id);
+                     if (row && row.groupLimit) {
+                          const parts = row.groupLimit.split(':');
+                          const gName = parts[0].trim();
+                          let gLimit = 1.0;
+                          if (parts.length > 1) {
+                              const val = parseFloat(parts[1]);
+                              if (!isNaN(val)) gLimit = val / 100;
+                          }
+                          if (gName) {
+                              if (!groupMap[gName]) groupMap[gName] = { max: 1.0, indices: [] };
+                              groupMap[gName].indices.push(idx);
+                              if (gLimit < groupMap[gName].max) groupMap[gName].max = gLimit;
+                          }
+                     }
+                });
+                Object.values(groupMap).forEach(g => groupConstraints.push(g));
+            }
+
+            entityTasks.push({
+                entityType,
+                entityOptAssets: entityOptAssets.map(a => ({ id: a.id, name: a.name, return: a.return, stdev: a.stdev })),
+                constraints,
+                groupConstraints
+            });
+        } catch (entityErr) {
+            console.warn(`Entity preparation for ${entityType} failed:`, entityErr);
+        }
+    });
+
+    // Dispatch to Web Worker
+    worker.postMessage({
+        entityTasks,
+        activeCorrelations,
+        confidenceT,
+        numSimulations
+    });
+
+    // Handle progress updates from worker
+    worker.onmessage = async (e) => {
+        const msg = e.data;
+
+        if (msg.type === 'progress') {
+            // Update progress bar based on simulation progress
+            const pct = Math.round((msg.simulation / msg.total) * 90); // Reserve 10% for post-processing
+            setProgress(pct);
+            return;
+        }
+
+        if (msg.type === 'entity_start') {
+            logs.push({ step: 'Worker', details: `Starting ${msg.entityType} (${msg.entityIndex + 1}/${msg.totalEntities})` });
+            return;
+        }
+
+        if (msg.type === 'entity_done') {
+            logs.push({ step: 'Worker', details: `Completed ${msg.entityType}` });
+            return;
+        }
+
+        if (msg.type === 'complete') {
+            try {
+                const workerResults = msg.results;
+                const perEntityFrontiers = {};
+                const perEntitySimulations = {};
+                let globalFallbackFrontier = []; 
+                const cloud = []; 
+
+                Object.keys(workerResults).forEach(entityType => {
+                    const entityResult = workerResults[entityType];
                     
                     // Map to 10 buckets (Risk-based distribution)
                     const entityFrontier = entityResult.frontier.map(p => ({
@@ -2030,7 +2013,6 @@ export default function RiskReturnOptimiser() {
                         weights: ensureNonNegative(p.weights)
                     }));
                     
-                    // Normalize to 10 Named Profiles
                     if (entityFrontier.length > 0) {
                         const BUCKET_LABELS = [
                             "Defensive", "Conservative", "Moderate Conservative", "Moderate", "Balanced",
@@ -2039,10 +2021,6 @@ export default function RiskReturnOptimiser() {
                         
                         const minRisk = entityFrontier[0].risk;
                         const maxRisk = entityFrontier[entityFrontier.length - 1].risk;
-                        
-                        // Glide Path Rule: Profile 1 = Min Variance (0th index), Profile 10 = Max Return (last index)
-                        // Verify sorting? Michaud frontiers are sorted by Return usually. But Min Var should be first.
-                        // We will sort by Risk just in case.
                         entityFrontier.sort((a,b) => a.risk - b.risk);
 
                         const mappedEntityFrontier = [];
@@ -2052,7 +2030,6 @@ export default function RiskReturnOptimiser() {
                             const step = (maxRisk - minRisk) / (BUCKET_LABELS.length - 1 || 1);
                             const targetRisk = minRisk + (idx * step);
                             
-                            // Find the two adjacent points that bracket targetRisk
                             let lower = entityFrontier[0];
                             let upper = entityFrontier[entityFrontier.length - 1];
                             
@@ -2064,15 +2041,12 @@ export default function RiskReturnOptimiser() {
                                 }
                             }
                             
-                            // Interpolation factor (0 = lower, 1 = upper)
                             const range = upper.risk - lower.risk;
                             const t = range > 1e-10 ? (targetRisk - lower.risk) / range : 0;
                             
-                            // Interpolate weights
                             const interpWeights = lower.weights.map((w, i) => 
                                 w * (1 - t) + (upper.weights[i] || 0) * t
                             );
-                            // Normalize interpolated weights
                             const wSum = interpWeights.reduce((a, b) => a + b, 0);
                             const normalizedWeights = wSum > 0 ? interpWeights.map(w => w / wSum) : interpWeights;
                             
@@ -2098,315 +2072,269 @@ export default function RiskReturnOptimiser() {
                         
                         // Accumulate simulation cloud data for visualization
                         if (entityResult.simulations) {
-                             // v1.274: Store raw simulations for Supabase export
                              perEntitySimulations[entityType] = entityResult.simulations;
                              entityResult.simulations.forEach(simFrontier => {
                                 simFrontier.forEach(p => {
-                                    cloud.push({
-                                        return: p.return, 
-                                        risk: p.risk
-                                    });
+                                    cloud.push({ return: p.return, risk: p.risk });
                                 });
                             });
                         }
 
-                        // Store Personal or first available as fallback
                         if (entityType === 'PERSONAL' || !globalFallbackFrontier.length) {
                              globalFallbackFrontier = finalEntityFrontier;
                         }
 
-                        // Log the resulting Allocations for verification (v1.238)
-                        // Capture matrix of all 10 portfolios
                         logs.push({
                             step: `Entity Allocations: ${entityType}`,
                             details: {
                                 assets: activeAssets.map(a => a.name),
                                 portfolios: finalEntityFrontier.map(p => ({
-                                    id: p.id,
-                                    label: p.label,
-                                    weights: p.weights
+                                    id: p.id, label: p.label, weights: p.weights
                                 }))
                             }
                         });
                     }
-                } catch (entityErr) {
-                    console.warn(`Entity optimization for ${entityType} failed:`, entityErr);
-                }
-            });
-
-            // v1.271: Force Clean Entity Frontiers (Double Check)
-            // Ensure no dust <0.1% exists in the final state
-            Object.keys(perEntityFrontiers).forEach(key => {
-                perEntityFrontiers[key] = perEntityFrontiers[key].map(p => {
-                    let w = p.weights.map(val => val < 0.001 ? 0 : val);
-                    const sum = w.reduce((a,b)=>a+b, 0);
-                    if (sum > 0) w = w.map(val => val/sum);
-                    return { ...p, weights: w };
                 });
-            });
 
-            // Store entity-specific frontiers
-            setEntityFrontiers(perEntityFrontiers);
+                // v1.271: Force Clean Entity Frontiers (Double Check)
+                Object.keys(perEntityFrontiers).forEach(key => {
+                    perEntityFrontiers[key] = perEntityFrontiers[key].map(p => {
+                        let w = p.weights.map(val => val < 0.001 ? 0 : val);
+                        const sum = w.reduce((a,b)=>a+b, 0);
+                        if (sum > 0) w = w.map(val => val/sum);
+                        return { ...p, weights: w };
+                    });
+                });
 
-            // =====================================================
-            // v1.274: EXPORT PER-SIMULATION RESULTS TO SUPABASE
-            // 1 row per simulation per entity, 10 portfolio columns
-            // Truncated on each new optimization run
-            // =====================================================
-            try {
-                // 1. Truncate old results (delete all rows from both tables)
-                await supabase.from('optimization_results').delete().neq('id', 0);
-                await supabase.from('optimization_runs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                setEntityFrontiers(perEntityFrontiers);
 
-                // 2. Insert run metadata
-                const { data: runData, error: runError } = await supabase
-                    .from('optimization_runs')
-                    .insert([{
-                        scenario_name: scenarioName,
-                        simulation_count: numSimulations,
-                        confidence_level: forecastConfidenceLevel,
-                        entity_types: uniqueEntityTypes,
-                        asset_ids: activeAssets.map(a => a.id)
-                    }])
-                    .select('id')
-                    .single();
+                // =====================================================
+                // v1.280: EXPORT TO SUPABASE (TRUNCATE RPC + batch insert)
+                // =====================================================
+                try {
+                    // 1. Truncate via RPC (resets IDs and removes all rows)
+                    const { error: truncErr } = await supabase.rpc('truncate_optimization_data');
+                    if (truncErr) {
+                        console.warn('Truncate RPC failed, falling back to DELETE:', truncErr.message);
+                        // Fallback: delete in loop until empty
+                        let deleted = true;
+                        while (deleted) {
+                            const { data, error } = await supabase.from('optimization_results').delete().neq('id', 0).select('id').limit(1000);
+                            if (error || !data || data.length === 0) deleted = false;
+                        }
+                        await supabase.from('optimization_runs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                    }
 
-                if (runError) throw runError;
-                const runId = runData.id;
+                    // 2. Insert run metadata
+                    const { data: runData, error: runError } = await supabase
+                        .from('optimization_runs')
+                        .insert([{
+                            scenario_name: scenarioName,
+                            simulation_count: numSimulations,
+                            confidence_level: forecastConfidenceLevel,
+                            entity_types: uniqueEntityTypes,
+                            asset_ids: activeAssets.map(a => a.id)
+                        }])
+                        .select('id')
+                        .single();
 
-                // 3. Build result rows: 1 row per simulation per entity type
-                // Each simulation's 51 frontier points are mapped to 10 risk-bucketed portfolios
-                const EXPORT_LABELS = [
-                    'Defensive', 'Conservative', 'Moderate Conservative', 'Moderate', 'Balanced',
-                    'Balanced Growth', 'Growth', 'High Growth', 'Aggressive', 'High Aggressive'
-                ];
+                    if (runError) throw runError;
+                    const runId = runData.id;
 
-                const allResultRows = [];
+                    // 3. Build result rows
+                    const allResultRows = [];
 
-                Object.keys(perEntitySimulations).forEach(entityType => {
-                    const sims = perEntitySimulations[entityType]; // Array of N simulations, each with 51 points
-                    
-                    sims.forEach((simFrontier, simIdx) => {
-                        // Sort this simulation's frontier by risk (low to high)
-                        const sorted = [...simFrontier].sort((a, b) => a.risk - b.risk);
-                        const minRisk = sorted[0].risk;
-                        const maxRisk = sorted[sorted.length - 1].risk;
+                    Object.keys(perEntitySimulations).forEach(entityType => {
+                        const sims = perEntitySimulations[entityType];
                         
-                        // Map 51 points to 10 risk-bucketed portfolios (same logic as main optimizer)
-                        const row = {
-                            run_id: runId,
-                            entity_type: entityType,
-                            simulation_num: simIdx + 1
-                        };
-                        
-                        for (let pIdx = 0; pIdx < 10; pIdx++) {
-                            const step = (maxRisk - minRisk) / 9;
-                            const targetRisk = minRisk + (pIdx * step);
+                        sims.forEach((simFrontier, simIdx) => {
+                            const sorted = [...simFrontier].sort((a, b) => a.risk - b.risk);
+                            const minRisk = sorted[0].risk;
+                            const maxRisk = sorted[sorted.length - 1].risk;
                             
-                            // v1.278: Linear interpolation between adjacent points
-                            let lower = sorted[0];
-                            let upper = sorted[sorted.length - 1];
+                            const row = {
+                                run_id: runId,
+                                entity_type: entityType,
+                                simulation_num: simIdx + 1
+                            };
                             
-                            for (let fi = 0; fi < sorted.length - 1; fi++) {
-                                if (sorted[fi].risk <= targetRisk && sorted[fi + 1].risk >= targetRisk) {
-                                    lower = sorted[fi];
-                                    upper = sorted[fi + 1];
-                                    break;
+                            for (let pIdx = 0; pIdx < 10; pIdx++) {
+                                const step = (maxRisk - minRisk) / 9;
+                                const targetRisk = minRisk + (pIdx * step);
+                                
+                                let lower = sorted[0];
+                                let upper = sorted[sorted.length - 1];
+                                
+                                for (let fi = 0; fi < sorted.length - 1; fi++) {
+                                    if (sorted[fi].risk <= targetRisk && sorted[fi + 1].risk >= targetRisk) {
+                                        lower = sorted[fi];
+                                        upper = sorted[fi + 1];
+                                        break;
+                                    }
                                 }
+                                
+                                const range = upper.risk - lower.risk;
+                                const t = range > 1e-10 ? (targetRisk - lower.risk) / range : 0;
+                                
+                                const interpWeights = lower.weights.map((w, i) => 
+                                    w * (1 - t) + (upper.weights[i] || 0) * t
+                                );
+                                
+                                const weightsObj = {};
+                                activeAssets.forEach((asset, i) => {
+                                    weightsObj[asset.id] = interpWeights[i] || 0;
+                                });
+                                
+                                const pNum = pIdx + 1;
+                                row[`p${pNum}_return`] = lower.return * (1 - t) + upper.return * t;
+                                row[`p${pNum}_risk`] = lower.risk * (1 - t) + upper.risk * t;
+                                row[`p${pNum}_weights`] = weightsObj;
                             }
                             
-                            const range = upper.risk - lower.risk;
-                            const t = range > 1e-10 ? (targetRisk - lower.risk) / range : 0;
-                            
-                            // Interpolate weights
-                            const interpWeights = lower.weights.map((w, i) => 
-                                w * (1 - t) + (upper.weights[i] || 0) * t
-                            );
-                            
-                            // Build weights object
-                            const weightsObj = {};
-                            activeAssets.forEach((asset, i) => {
-                                weightsObj[asset.id] = interpWeights[i] || 0;
-                            });
-                            
-                            const pNum = pIdx + 1;
-                            row[`p${pNum}_return`] = lower.return * (1 - t) + upper.return * t;
-                            row[`p${pNum}_risk`] = lower.risk * (1 - t) + upper.risk * t;
-                            row[`p${pNum}_weights`] = weightsObj;
-                        }
-                        
-                        allResultRows.push(row);
+                            allResultRows.push(row);
+                        });
                     });
-                });
 
-                // 4. Insert in batches of 500 (Supabase insert limit)
-                const BATCH_SIZE = 500;
-                for (let i = 0; i < allResultRows.length; i += BATCH_SIZE) {
-                    const batch = allResultRows.slice(i, i + BATCH_SIZE);
-                    const { error: batchErr } = await supabase
-                        .from('optimization_results')
-                        .insert(batch);
-                    if (batchErr) throw batchErr;
-                }
-
-                console.log(`Optimization results exported: ${allResultRows.length} rows for run ${runId}`);
-            } catch (exportErr) {
-                console.warn('Failed to export optimization results to Supabase:', exportErr.message);
-                // Non-blocking: optimization continues even if export fails
-            }
-
-            // =====================================================
-            // 5. AGGREGATE PROFILES (Weighted Blend)
-            // =====================================================
-            
-            const weightedFrontier = [];
-            
-            // Calculate Weighted Average per Profile (Rank 1 to 10)
-            // Calculate Weighted Average per Profile (Rank 1 to 10)
-            const numProfiles = perEntityFrontiers[Object.keys(perEntityFrontiers)[0]]?.length || 9;
-            
-            for(let p=0; p<numProfiles; p++) {
-                let blendedWeights = new Array(activeAssets.length).fill(0);
-                let totalWeight = 0;
-                
-                Object.keys(perEntityFrontiers).forEach(type => {
-                   const entityFrontier = perEntityFrontiers[type];
-                   if (!entityFrontier || !entityFrontier[p]) return;
-                   
-                   // Weight of this entity in total portfolio
-                   const totalVal = structures.reduce((sum,s)=>sum+s.value,0) || 1;
-                   const typeVal = structures.filter(s => s.type === type).reduce((sum,s)=>sum+s.value,0);
-                   const weight = typeVal / totalVal;
-                   
-                   if (weight > 0) {
-                       const entityW = entityFrontier[p].weights;
-                       for(let i=0; i<blendedWeights.length; i++) {
-                           blendedWeights[i] += entityW[i] * weight;
-                       }
-                       totalWeight += weight;
-                   }
-                });
-                
-                if (totalWeight === 0) {
-                    // Fallback if something went wrong: Equal weight (shouldn't happen if structures exist)
-                    // Or default to globalFallback if available
-                    if (globalFallbackFrontier[p]) {
-                         blendedWeights = globalFallbackFrontier[p].weights;
-                    } else {
-                         blendedWeights.fill(1/activeAssets.length);
+                    // 4. Insert in batches of 500
+                    const BATCH_SIZE = 500;
+                    for (let i = 0; i < allResultRows.length; i += BATCH_SIZE) {
+                        const batch = allResultRows.slice(i, i + BATCH_SIZE);
+                        const { error: batchErr } = await supabase
+                            .from('optimization_results')
+                            .insert(batch);
+                        if (batchErr) throw batchErr;
                     }
-                } else {
-                     // Normalize (precision safety)
-                     const sumW = blendedWeights.reduce((a,b)=>a+b,0);
-                     if (sumW > 0) blendedWeights = blendedWeights.map(w => w/sumW);
-                }
-                
-                weightedFrontier.push({
-                    id: p+1,
-                    label: `Profile ${p+1}`,
-                    weights: blendedWeights,
-                    return: 0, // Recalculated below
-                    risk: 0    // Recalculated below
-                });
-            }
 
-            // =====================================================
-            // 6. APPLY PORTFOLIO CONSTRAINT MATRIX (Sanity Check)
-            // =====================================================
-            // Force the blended profiles to stay within "River" of Sample Targets
-            
-            // Force the blended profiles to stay within "River" of Sample Targets
-            
-            // v1.244: Simplified Sanitize Weights
-            // The previous logic enforced "River" constraints and System Defaults which conflicted with User Inputs.
-            // We now rely on the Optimizer to handle constraints correctly.
-            // This function just cleans up floating point noise (0..1 clamp).
-            
-            const sanitizeWeights = (profiles, assets) => {
-                return profiles.map(profile => {
-                    let weights = [...profile.weights];
+                    console.log(`Optimization results exported: ${allResultRows.length} rows for run ${runId}`);
+                } catch (exportErr) {
+                    console.warn('Failed to export optimization results to Supabase:', exportErr.message);
+                }
+
+                // =====================================================
+                // AGGREGATE PROFILES (Weighted Blend)
+                // =====================================================
+                
+                const weightedFrontier = [];
+                const numProfiles = perEntityFrontiers[Object.keys(perEntityFrontiers)[0]]?.length || 9;
+                
+                for(let p=0; p<numProfiles; p++) {
+                    let blendedWeights = new Array(activeAssets.length).fill(0);
+                    let totalWeight = 0;
                     
-                    // v1.269: Allocation Cleanup
-                    // If allocation is < 0.1%, zero it out and put it back in the pool (re-normalize).
-                    const clean = weights.map(w => {
-                        let val = w;
-                        if (val < 0.001) val = 0; // Filter out dust (<0.1%)
-                        if (val > 1) val = 1;
-                        return val;
+                    Object.keys(perEntityFrontiers).forEach(type => {
+                       const entityFrontier = perEntityFrontiers[type];
+                       if (!entityFrontier || !entityFrontier[p]) return;
+                       
+                       const totalVal = structures.reduce((sum,s)=>sum+s.value,0) || 1;
+                       const typeVal = structures.filter(s => s.type === type).reduce((sum,s)=>sum+s.value,0);
+                       const weight = typeVal / totalVal;
+                       
+                       if (weight > 0) {
+                           const entityW = entityFrontier[p].weights;
+                           for(let i=0; i<blendedWeights.length; i++) {
+                               blendedWeights[i] += entityW[i] * weight;
+                           }
+                           totalWeight += weight;
+                       }
                     });
                     
-                    // Normalize Sum to 1 (Effectively returns dust to the pool)
-                    const sum = clean.reduce((a,b) => a+b, 0);
-                    const final = sum > 0 ? clean.map(w => w/sum) : clean;
+                    if (totalWeight === 0) {
+                        if (globalFallbackFrontier[p]) {
+                             blendedWeights = globalFallbackFrontier[p].weights;
+                        } else {
+                             blendedWeights.fill(1/activeAssets.length);
+                        }
+                    } else {
+                         const sumW = blendedWeights.reduce((a,b)=>a+b,0);
+                         if (sumW > 0) blendedWeights = blendedWeights.map(w => w/sumW);
+                    }
                     
-                    return { ...profile, weights: final };
-                });
-            };
+                    weightedFrontier.push({
+                        id: p+1,
+                        label: `Profile ${p+1}`,
+                        weights: blendedWeights,
+                        return: 0,
+                        risk: 0
+                    });
+                }
 
+                // Sanitize Weights
+                const sanitizeWeights = (profiles, assets) => {
+                    return profiles.map(profile => {
+                        let weights = [...profile.weights];
+                        const clean = weights.map(w => {
+                            let val = w;
+                            if (val < 0.001) val = 0;
+                            if (val > 1) val = 1;
+                            return val;
+                        });
+                        const sum = clean.reduce((a,b) => a+b, 0);
+                        const final = sum > 0 ? clean.map(w => w/sum) : clean;
+                        return { ...profile, weights: final };
+                    });
+                };
 
+                const constrainedFrontier = sanitizeWeights(weightedFrontier, activeAssets);
 
-            const constrainedFrontier = sanitizeWeights(weightedFrontier, activeAssets);
-
-            // =====================================================
-            // 7. FINALIZE STATS & STATE
-            // =====================================================
-
-            const BUCKET_LABELS = [
-                "Defensive", "Conservative", "Moderate Conservative", "Moderate", "Balanced",
-                "Balanced Growth", "Growth", "High Growth", "Aggressive", "High Aggressive"
-            ];
-            
-            // v1.244 Change: User requested removal of Portfolio 1.
-            // We generate 10 steps as before to maintain the risk curve, but discard the first (Defensive/Cash-heavy).
-            // We also remove the descriptive text labels.
-            
-            const rawProfiles = constrainedFrontier.map((p, pIdx) => {
-                 // 1. Calculate Weighted Average Return (After-Tax)
-                 const netAssetReturns = calculateClientTaxAdjustedReturns(activeAssets, structures, entityTypes); 
-                 const portReturn = p.weights.reduce((sum, w, i) => sum + (w * netAssetReturns[i]), 0);
-                 
-                 // 2. Calculate Risk (Standard Deviation)
-                 let variance = 0;
-                 for(let i=0; i<p.weights.length; i++) {
-                     for(let j=0; j<p.weights.length; j++) {
-                         variance += p.weights[i] * p.weights[j] * activeCorrelations[i][j] * activeAssets[i].stdev * activeAssets[j].stdev;
+                // FINALIZE STATS & STATE
+                const BUCKET_LABELS = [
+                    "Defensive", "Conservative", "Moderate Conservative", "Moderate", "Balanced",
+                    "Balanced Growth", "Growth", "High Growth", "Aggressive", "High Aggressive"
+                ];
+                
+                const rawProfiles = constrainedFrontier.map((p, pIdx) => {
+                     const netAssetReturns = calculateClientTaxAdjustedReturns(activeAssets, structures, entityTypes); 
+                     const portReturn = p.weights.reduce((sum, w, i) => sum + (w * netAssetReturns[i]), 0);
+                     
+                     let variance = 0;
+                     for(let i=0; i<p.weights.length; i++) {
+                         for(let j=0; j<p.weights.length; j++) {
+                             variance += p.weights[i] * p.weights[j] * activeCorrelations[i][j] * activeAssets[i].stdev * activeAssets[j].stdev;
+                         }
                      }
-                 }
-                 
-                 return {
-                     ...p,
-                     label: `Portfolio ${p.id}`, // Placeholder
-                     return: portReturn,
-                     risk: Math.sqrt(variance)
-                 };
-            });
-            
-            // Re-instating 10 portfolios (v1.249 Fix)
-            const finalProfiles = rawProfiles.map((p, idx) => ({
-                ...p,
-                id: idx + 1,
-                label: `Portfolio ${idx + 1}`
-            }));
+                     
+                     return {
+                         ...p,
+                         label: `Portfolio ${p.id}`,
+                         return: portReturn,
+                         risk: Math.sqrt(variance)
+                     };
+                });
+                
+                const finalProfiles = rawProfiles.map((p, idx) => ({
+                    ...p,
+                    id: idx + 1,
+                    label: `Portfolio ${idx + 1}`
+                }));
 
-            setDebugLogs(logs);
-            
-            setOptimizationAssets(activeAssets);
-            setSimulations(cloud); 
-            setEfficientFrontier(finalProfiles);
-            setSelectedPortfolioId(5); // Default to middle (was 5, now maybe 4 or 5 in new scale)
-            setIsSimulating(false);
-            setProgress(100);
-            setActiveTab('optimization');
-            
-            // Trigger cashflow simulation
-            setTimeout(() => { }, 200);
-            
-        } catch (err) {
-            console.error("Optimization Failed", err);
-            alert("Optimization failed: " + err.message);
-            setIsSimulating(false);
+                setDebugLogs(logs);
+                setOptimizationAssets(activeAssets);
+                setSimulations(cloud); 
+                setEfficientFrontier(finalProfiles);
+                setSelectedPortfolioId(5);
+                setIsSimulating(false);
+                setProgress(100);
+                setActiveTab('optimization');
+                
+                setTimeout(() => { }, 200);
+                
+            } catch (err) {
+                console.error("Post-optimization processing failed", err);
+                alert("Optimization failed: " + err.message);
+                setIsSimulating(false);
+            }
+
+            // Terminate worker after use
+            worker.terminate();
         }
-    }, 100);
+    };
+
+    worker.onerror = (err) => {
+        console.error("Web Worker error:", err);
+        alert("Optimization worker failed: " + err.message);
+        setIsSimulating(false);
+        worker.terminate();
+    };
   };
 
   const finishOptimization = (sims, frontier, activeAssets) => {
@@ -4764,7 +4692,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.279</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.280</span>
              </div>
           </div>
         </div>
