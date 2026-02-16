@@ -2783,11 +2783,16 @@ export default function RiskReturnOptimiser() {
                     balance = balance * (1 + rate);
 
                      // 2. Fees
+                     // v1.315: REMOVED for Deterministic Check. 
+                     // User's spreadsheet excludes fees in "Simple Compounding" view.
+                     // To match $1M * (1+r)^t exactly, we must skip this block for ss_* columns.
+                     /*
                      if (adviceFee > 0) {
                          const grossFee = balance * adviceFee;
                          const effectiveFee = grossFee - (grossFee * wTaxRate);
                          balance -= effectiveFee;
                      }
+                     */
 
                      // 3. Cashflows
                      balance += annualNetFlows[y];
@@ -5175,7 +5180,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.314</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.315</span>
              </div>
           </div>
         </div>
