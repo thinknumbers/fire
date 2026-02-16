@@ -1,4 +1,4 @@
-// Deployment trigger: v1.309 - 2026-02-16
+// Deployment trigger: v1.310 - 2026-02-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -2417,6 +2417,9 @@ export default function RiskReturnOptimiser() {
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
                 }
+
+                // v1.310: Verify Portfolio Calculations (Debug Dump)
+                verifyPortfolioCalculations(finalProfiles, activeAssets, activeCorrelations, numSimulations, elapsedSec);
                 
                 setTimeout(() => { }, 200);
                 
@@ -2697,6 +2700,225 @@ export default function RiskReturnOptimiser() {
     setMaxProjectionY(maxVal * 1.1);
     
   }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, projectionYears, inflationRate, adviceFee, structures, entityTypes, showBeforeTax, showNominal, optimizationAssets, assets, correlations]);
+
+  // v1.310: Verification Helper
+  const verifyPortfolioCalculations = async (profiles, activeAssets, activeCorrelations, numSims, elapsed) => {
+      try {
+          console.log('Running v1.310 Verification Dump...');
+          const debugResults = [];
+          
+          // For each portfolio, run a mini-simulation (same logic as runCashflowMonteCarlo)
+          // We'll run fewer iterations for speed if needed, but user wants accuracy, so let's do 1000.
+          // It might block UI slightly, but it's for verification.
+          const VERIFY_RUNS = 1000; 
+
+          for (const p of profiles) {
+             // 1. Calculate Portfolio Return/Risk (Pre-Tax & Post-Tax)
+             
+             // Net (Post-Tax) is already in p.return / p.risk (calculated in finishOptimization)
+             const netReturn = p.return;
+             const netRisk = p.risk;
+
+             // Calculate Pre-Tax Stats for comparison
+             let preTaxReturn = 0;
+             let preTaxVariance = 0;
+             
+             // Weighted Average of Asset Returns
+             p.weights.forEach((w, i) => {
+                 if (activeAssets[i]) preTaxReturn += w * activeAssets[i].return;
+             });
+
+             // Pre-Tax Risk
+             for (let i = 0; i < p.weights.length; i++) {
+                 for (let j = 0; j < p.weights.length; j++) {
+                     const asset_i = activeAssets[i];
+                     const asset_j = activeAssets[j];
+                     if (asset_i && asset_j) {
+                         let rho = 0.3;
+                         if (asset_i.id === asset_j.id) rho = 1.0;
+                         else if (correlations[asset_i.id] && correlations[asset_i.id][asset_j.id] !== undefined) rho = correlations[asset_i.id][asset_j.id];
+                         else if (correlations[asset_j.id] && correlations[asset_j.id][asset_i.id] !== undefined) rho = correlations[asset_j.id][asset_i.id];
+                         
+                         preTaxVariance += p.weights[i] * p.weights[j] * rho * asset_i.stdev * asset_j.stdev;
+                     }
+                 }
+             }
+             const preTaxRisk = Math.sqrt(preTaxVariance);
+
+             // 2. Run MC Projection (Nominal & Real)
+             // We use Net Return for the projection (standard app behavior)
+             const runProjection = (returnRate, riskRate) => {
+                 const rng = createSeededRandom(12345); // Fixed seed for reproducibility
+                 const yearlyData = [];
+                 for(let y=0; y<=projectionYears; y++) yearlyData.push({ year: y, paths: [] });
+
+                 // WACC Tax Rate for Fee Shield
+                 let wTaxRate = 0.30; // Default approximation if structures empty
+                 if (structures.length > 0) {
+                     const totalVal = structures.reduce((s, st) => s + st.value, 0);
+                     if (totalVal > 0) {
+                         wTaxRate = structures.reduce((s, st) => {
+                             const entityDef = entityTypes[st.type] || entityTypes.COMPANY;
+                             return s + (entityDef.incomeTax * (st.value / totalVal));
+                         }, 0);
+                     }
+                 }
+
+                 for (let r = 0; r < VERIFY_RUNS; r++) {
+                     let balance = totalWealth;
+                     yearlyData[0].paths.push(balance);
+
+                     for (let y = 1; y <= projectionYears; y++) {
+                         const rnd = randn_bm(rng);
+                         const annRet = returnRate + (rnd * riskRate); // i.i.d. shock
+                         balance = balance * (1 + annRet);
+
+                         // Fee
+                         if (adviceFee > 0) {
+                             const grossFee = balance * adviceFee;
+                             const effectiveFee = grossFee - (grossFee * wTaxRate); // Deductible
+                             balance -= effectiveFee;
+                         }
+
+                         // Cashflows (simplified: assume 0 for pure growth check, or use state?)
+                         // User wants to verify PROJECTION tab, so we MUST use actual cashflows
+                         // Copy-paste flow logic requires scope access to annualNetFlows
+                         // Let's re-calculate annualNetFlows here to be sure
+                         let flow = 0;
+                         const inflFactor = Math.pow(1 + inflationRate, y);
+                         
+                         // Re-calc flows for this year
+                         const getTax = (eid) => {
+                             if (!eid || eid === 'all') return entityTypes.PERSONAL ? entityTypes.PERSONAL.incomeTax : 0.47;
+                             const s = structures.find(st => st.id == eid);
+                             if (!s) return 0.47;
+                             if (s.useCustomTax && s.customTax) return s.customTax.incomeTax;
+                             const def = entityTypes[s.type];
+                             return def ? def.incomeTax : 0.47;
+                         };
+
+                         incomeStreams.forEach(s => {
+                             const amt = parseFloat(s.amount) || 0;
+                             const tax = getTax(s.entityId);
+                             const net = amt * (1 - tax); // Always after-tax for this verifies Net
+                             const val = net * inflFactor;
+                             if (s.isOneOff) { if (parseInt(s.year) === y) flow += val; }
+                             else { if(y >= s.startYear && y <= s.endYear) flow += val; }
+                         });
+
+                         expenseStreams.forEach(s => {
+                             const amt = parseFloat(s.amount) || 0;
+                             const val = amt * inflFactor;
+                             if (s.isOneOff) { if (parseInt(s.year) === y) flow -= val; }
+                             else { if(y >= s.startYear && y <= s.endYear) flow -= val; }
+                         });
+
+                         balance += flow;
+                         if (balance < 0) balance = 0;
+                         
+                         yearlyData[y].paths.push(balance);
+                     }
+                 }
+
+                 return yearlyData.map(d => ({
+                     year: d.year,
+                     p02: calculatePercentile(d.paths, 2.3),  // ~ -2SD
+                     p50: calculatePercentile(d.paths, 50),   // Median
+                     p84: calculatePercentile(d.paths, 84.1)  // ~ +1SD
+                 }));
+             };
+
+             const mcResults = runProjection(netReturn, netRisk);
+
+             // 3. Analytical Checks (Lognormal)
+             // Assuming NO cashflows for clean formula check (users usually check growth first)
+             // If cashflows exist, analytical formulas get complex. 
+             // We'll provide the "Growth Only" analytical numbers as a baseline ref.
+             const analytical = [];
+             for(let y=0; y<=projectionYears; y++) {
+                 const t = y;
+                 const mu = Math.log(1 + netReturn) - (0.5 * Math.log(1 + (netRisk*netRisk)/((1+netReturn)*(1+netReturn)))); // Drift mu
+                 const sigma = Math.sqrt(Math.log(1 + (netRisk*netRisk)/((1+netReturn)*(1+netReturn)))); // Vol sigma
+                 // Actually simpler: continuous approx r = ln(1+ret), vol = risk
+                 // Better: Use user's "simple" check too? 
+                 // User formula check: W0 * (1+r)^t
+                 
+                 const simpleMedian = totalWealth * Math.pow(1 + netReturn, t);
+                 
+                 // Lognormal Exact
+                 // Median = exp(mu*t) * W0
+                 // p84 = exp(mu*t + sigma*sqrt(t)) * W0
+                 // These assume continuous compounding. 
+                 
+                 // Let's use the Geometric Brownian Motion properties for W_t:
+                 // W_t = W_0 * exp( (r - 0.5*sigma^2)t + sigma*Wt )
+                 // Median = W_0 * exp( (r - 0.5*sigma^2)t )
+                 // +1SD (84%) = W_0 * exp( (r - 0.5*sigma^2)t + sigma*sqrt(t) )
+                 
+                 const r_cont = Math.log(1 + netReturn);
+                 const sig_cont = netRisk; // approx
+                 
+                 const ln_median = totalWealth * Math.exp( (r_cont - 0.5*sig_cont*sig_cont)*t );
+                 const ln_p84 = totalWealth * Math.exp( (r_cont - 0.5*sig_cont*sig_cont)*t + sig_cont*Math.sqrt(t) );
+                 const ln_p02 = totalWealth * Math.exp( (r_cont - 0.5*sig_cont*sig_cont)*t - 2*sig_cont*Math.sqrt(t) );
+
+                 analytical.push({
+                     year: y,
+                     compound_median: simpleMedian,
+                     lognormal_median: ln_median,
+                     lognormal_p84: ln_p84,
+                     lognormal_p02: ln_p02
+                 });
+             }
+
+             // Combine projection data
+             const projections = mcResults.map((mc, idx) => {
+                 const an = analytical[idx];
+                 const infl = Math.pow(1 + inflationRate, mc.year);
+                 return {
+                     year: mc.year,
+                     mc_nominal_p02: mc.p02,
+                     mc_nominal_p50: mc.p50,
+                     mc_nominal_p84: mc.p84,
+                     mc_real_p02: mc.p02 / infl,
+                     mc_real_p50: mc.p50 / infl,
+                     mc_real_p84: mc.p84 / infl,
+                     analytical_median: an.compound_median,
+                     analytical_lognormal_p84: an.lognormal_p84
+                 };
+             });
+
+             debugResults.push({
+                 app_version: 'v1.310',
+                 client_name: clientName,
+                 scenario_name: scenarioName,
+                 portfolio_id: p.id,
+                 portfolio_label: p.label,
+                 net_return: p.return,
+                 net_risk: p.risk,
+                 pretax_return: preTaxReturn,
+                 pretax_risk: preTaxRisk,
+                 weights: p.weights,
+                 projections: projections
+             });
+          }
+
+          // Insert into Supabase
+          if (debugResults.length > 0) {
+              const { error } = await supabase.from('portfolio_verification').insert(debugResults);
+              if (error) {
+                  console.error('Verification Insert Error:', error);
+                  alert(`Verification Dump Failed: ${error.message} (Did you create the 'portfolio_verification' table in Supabase?)`);
+              } else {
+                  console.log('Verification Data Dumped Successfully');
+                  // Optional: confirm success to user? Maybe too noisy. Just log success.
+              }
+          }
+
+      } catch (err) {
+          console.error("Verification Dump Failed:", err);
+      }
+  };
 
   useEffect(() => {
     // Run simulation immediately when portfolio is selected (after optimization or tab change)
@@ -4986,7 +5208,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.309</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.310</span>
              </div>
           </div>
         </div>
