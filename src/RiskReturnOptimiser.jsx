@@ -2418,8 +2418,9 @@ export default function RiskReturnOptimiser() {
                     console.warn('optimization_log insert failed:', logErr.message);
                 }
 
-                // v1.311: Verify Portfolio Calculations (Debug Dump - Two Tables)
-                verifyDetailedProjections(finalProfiles, activeAssets, activeCorrelations, numSimulations, runId);
+                // v1.312: Verify Portfolio Calculations (Debug Dump - Two Tables)
+                // Added await to catch errors
+                await verifyDetailedProjections(finalProfiles, activeAssets, activeCorrelations, numSimulations, runId);
                 
                 setTimeout(() => { }, 200);
                 
@@ -2701,10 +2702,15 @@ export default function RiskReturnOptimiser() {
     
   }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, projectionYears, inflationRate, adviceFee, structures, entityTypes, showBeforeTax, showNominal, optimizationAssets, assets, correlations]);
 
-  // v1.311: Detailed Verification Dump (Two Tables: Risk & Inflation)
+  // v1.312: Detailed Verification Dump (Two Tables: Risk & Inflation)
   const verifyDetailedProjections = async (profiles, activeAssets, activeCorrelations, numSims, runId) => {
       try {
-          console.log('Running v1.311 Verification Dump (Full Portfolio Set)...');
+          console.log('Running v1.312 Verification Dump (Full Portfolio Set)...');
+          
+          if (!runId) {
+             alert("Verification Dump Error: Missing run_id. Check optimization_runs table.");
+             return;
+          }
           
           const riskData = [];
           const inflationData = [];
@@ -2825,17 +2831,22 @@ export default function RiskReturnOptimiser() {
               for (let i = 0; i < data.length; i += SIZE) {
                   const chunk = data.slice(i, i + SIZE);
                   const { error } = await supabase.from(table).insert(chunk);
-                  if (error) console.error(`${table} insert failed:`, error);
+                  if (error) {
+                      console.error(`${table} insert failed:`, error);
+                      throw new Error(`${table} insert failed: ${error.message} (Code: ${error.code})`);
+                  }
               }
           };
 
           if (riskData.length > 0) await chunkInsert('verification_risk', riskData);
           if (inflationData.length > 0) await chunkInsert('verification_inflation', inflationData);
           
-          console.log(`v1.311 Verification Complete: ${riskData.length} risk rows, ${inflationData.length} inflation rows.`);
+          console.log(`v1.312 Verification Complete: ${riskData.length} risk rows, ${inflationData.length} inflation rows.`);
+          // alert(`Verification Dump Success: Written to Supabase (Risk: ${riskData.length}, Inf: ${inflationData.length})`);
 
       } catch (err) {
           console.error("Verification Dump Failed:", err);
+          alert(`Verification Dump Failed: ${err.message}. \n\nCheck browser console and ensure Supabase tables 'verification_risk' and 'verification_inflation' exist and have RLS disabled (or policies added).`);
       }
   };
 
@@ -5127,7 +5138,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.311</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.312</span>
              </div>
           </div>
         </div>
