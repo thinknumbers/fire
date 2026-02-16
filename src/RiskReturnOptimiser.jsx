@@ -2853,14 +2853,15 @@ export default function RiskReturnOptimiser() {
                  });
 
                  // Table B: Inflation (Real vs Nominal)
-                 // Real = Nominal / (1+inf)^year
+                 // v1.317: Use Deterministic Median (ss_median_path) for Apples-to-Apples check
+                 const ssVal = ss_median_path[yIdx];
                  const inflDivisor = Math.pow(1 + inflationRate, d.year);
                  inflationData.push({
                      run_id: runId,
                      portfolio_id: p.id,
                      year: d.year,
-                     nominal: p50, // Use Median as standard
-                     real_value: p50 / inflDivisor,
+                     nominal: ssVal, // Matches Spreadsheet Median (No Fees/Vol)
+                     real_value: ssVal / inflDivisor,
                      inflation_rate: inflationRate
                  });
              });
@@ -5229,7 +5230,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.316</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.317</span>
              </div>
           </div>
         </div>
