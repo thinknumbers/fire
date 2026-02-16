@@ -2706,7 +2706,7 @@ export default function RiskReturnOptimiser() {
   // v1.312: Detailed Verification Dump (Two Tables: Risk & Inflation)
   const verifyDetailedProjections = async (profiles, activeAssets, activeCorrelations, numSims, runId) => {
       try {
-          console.log('Running v1.312 Verification Dump (Full Portfolio Set)...');
+          console.log('Running v1.314 Verification Dump (Full Portfolio Set)...');
           
           if (!runId) {
              alert("Verification Dump Error: Missing run_id. Check optimization_runs table.");
@@ -2771,6 +2771,37 @@ export default function RiskReturnOptimiser() {
                  });
                  annualNetFlows[y] = flow;
              }
+            
+            // --- v1.314: Deterministic "Spreadsheet" Calculations ---
+            const runDeterministic = (rate) => {
+                const path = [];
+                let balance = totalWealth;
+                path.push(balance); // Year 0
+                
+                for (let y = 1; y <= projectionYears; y++) {
+                    // 1. Growth
+                    balance = balance * (1 + rate);
+
+                     // 2. Fees
+                     if (adviceFee > 0) {
+                         const grossFee = balance * adviceFee;
+                         const effectiveFee = grossFee - (grossFee * wTaxRate);
+                         balance -= effectiveFee;
+                     }
+
+                     // 3. Cashflows
+                     balance += annualNetFlows[y];
+                     if (balance < 0) balance = 0;
+                     
+                     path.push(balance);
+                }
+                return path;
+            };
+
+            const ss_median_path = runDeterministic(netReturn);
+            const ss_upside_path = runDeterministic(netReturn + netRisk);
+            const ss_downside_path = runDeterministic(netReturn - (2 * netRisk));
+
 
              for (let r = 0; r < VERIFY_RUNS; r++) {
                  let balance = totalWealth;
@@ -2794,7 +2825,7 @@ export default function RiskReturnOptimiser() {
              }
 
              // Aggregate Data
-             yearlyData.forEach(d => {
+             yearlyData.forEach((d, yIdx) => {
                  const p02 = calculatePercentile(d.paths, 2.3);
                  const p50 = calculatePercentile(d.paths, 50);
                  const p84 = calculatePercentile(d.paths, 84.1);
@@ -2807,6 +2838,11 @@ export default function RiskReturnOptimiser() {
                      downside_2sd: p02,
                      median: p50,
                      upside_1sd: p84,
+                     // v1.314: Deterministic Columns
+                     ss_downside: ss_downside_path[yIdx],
+                     ss_median: ss_median_path[yIdx],
+                     ss_upside: ss_upside_path[yIdx],
+                     
                      sim_return: netReturn,
                      sim_risk: netRisk
                  });
@@ -2842,7 +2878,7 @@ export default function RiskReturnOptimiser() {
           if (riskData.length > 0) await chunkInsert('verification_risk', riskData);
           if (inflationData.length > 0) await chunkInsert('verification_inflation', inflationData);
           
-          console.log(`v1.312 Verification Complete: ${riskData.length} risk rows, ${inflationData.length} inflation rows.`);
+          console.log(`v1.314 Verification Complete: ${riskData.length} risk rows, ${inflationData.length} inflation rows.`);
           // alert(`Verification Dump Success: Written to Supabase (Risk: ${riskData.length}, Inf: ${inflationData.length})`);
 
       } catch (err) {
@@ -5139,7 +5175,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.313</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.314</span>
              </div>
           </div>
         </div>
