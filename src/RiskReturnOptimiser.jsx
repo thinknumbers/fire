@@ -3112,6 +3112,49 @@ export default function RiskReturnOptimiser() {
                             </div>
                         </div>
                     </div>
+
+                    <div className="border-t border-gray-100"></div>
+
+                    {/* v1.316: Simulation Assumptions Section */}
+                    <div className="space-y-4">
+                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                             <Calculator className="w-4 h-4" /> Simulation Assumptions
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Inflation Rate (%)</label>
+                                <input 
+                                    type="number"
+                                    step="0.01"
+                                    value={(settingsDraft?.inflationRate ?? 0.025) * 100}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value);
+                                        if (!isNaN(val)) {
+                                            setSettingsDraft(prev => ({ ...prev, inflationRate: val / 100 }));
+                                        }
+                                    }}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Used for Real vs Nominal calc (Default: 2.50%)</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Advice Fee (%)</label>
+                                <input 
+                                    type="number"
+                                    step="0.01"
+                                    value={(settingsDraft?.adviceFee ?? 0.008) * 100}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value);
+                                        if (!isNaN(val)) {
+                                            setSettingsDraft(prev => ({ ...prev, adviceFee: val / 100 }));
+                                        }
+                                    }}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Deducted from portfolio growth annually (Default: 0.80%)</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-center rounded-b-xl">
@@ -3136,7 +3179,13 @@ export default function RiskReturnOptimiser() {
                         </button>
                         <button 
                             onClick={() => {
-                                setAppSettings(settingsDraft);
+                                // v1.316: Save Simulation Assumptions from Draft to State
+                                if (settingsDraft.inflationRate !== undefined) setInflationRate(settingsDraft.inflationRate);
+                                if (settingsDraft.adviceFee !== undefined) setAdviceFee(settingsDraft.adviceFee);
+
+                                // Save App Settings (Appearance, Identity)
+                                const { inflationRate: _i, adviceFee: _f, ...restSettings } = settingsDraft;
+                                setAppSettings(restSettings);
                                 setIsSettingsOpen(false);
                             }}
                             className="px-5 py-2 text-sm font-medium bg-fire-accent text-white rounded-lg shadow-sm hover:opacity-90 transition-opacity flex items-center"
@@ -5180,7 +5229,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.315</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.316</span>
              </div>
           </div>
         </div>
@@ -5299,7 +5348,7 @@ export default function RiskReturnOptimiser() {
 
             <button 
               onClick={() => {
-                  setSettingsDraft(appSettings); // Init draft with current settings
+                  setSettingsDraft({ ...appSettings, inflationRate, adviceFee }); // v1.316: Init draft with assumptions
                   setIsSettingsOpen(true);
               }}
               className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium text-gray-700 shadow-sm"
