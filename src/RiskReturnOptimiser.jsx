@@ -2860,8 +2860,13 @@ export default function RiskReturnOptimiser() {
                      run_id: runId,
                      portfolio_id: p.id,
                      year: d.year,
-                     nominal: ssVal, // Matches Spreadsheet Median (No Fees/Vol)
-                     real_value: ssVal / inflDivisor,
+                     nominal: ssVal, 
+                     // v1.318: User requested Year 0 to be discounted (Period 0 != Nominal). 
+                     // Shifted discounting by +1 year effectively (Year 0 -> ^1, Year 1 -> ^2) to match their logic/spreadsheet?
+                     // Or they just want Real = Nominal * (1 - Rate).
+                     // Implementing 'Forward Discounting': Year 0 is end of Period 1 in their view?
+                     // Let's use (d.year + 1) index for divisor based on feedback "period 0 isn't discounting".
+                     real_value: ssVal / Math.pow(1 + inflationRate, d.year + 1),
                      inflation_rate: inflationRate
                  });
              });
@@ -5091,7 +5096,7 @@ export default function RiskReturnOptimiser() {
                           <p className="font-bold mb-2 text-black">{label}</p>
                           <div className="space-y-1">
                             <div className="flex justify-between gap-4">
-                              <span className="text-black">Upside:</span>
+                              <span className="text-black">Upside (1 SD):</span>
                               <span className="font-mono font-medium text-black">{formatCurrency(data.p84)}</span>
                             </div>
                             <div className="flex justify-between gap-4">
@@ -5099,7 +5104,7 @@ export default function RiskReturnOptimiser() {
                               <span className="font-mono font-bold text-black">{formatCurrency(data.p50)}</span>
                             </div>
                             <div className="flex justify-between gap-4">
-                              <span className="text-black">Downside:</span>
+                              <span className="text-black">Downside (2 SD):</span>
                               <span className="font-mono font-medium text-black">{formatCurrency(data.p02)}</span>
                             </div>
                           </div>
@@ -5230,7 +5235,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.317</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.318</span>
              </div>
           </div>
         </div>
