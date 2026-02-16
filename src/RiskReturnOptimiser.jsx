@@ -2715,6 +2715,13 @@ export default function RiskReturnOptimiser() {
           
           const riskData = [];
           const inflationData = [];
+          
+          // v1.319: Truncate tables before load (User Request)
+          // Simple delete all rows where ID > 0
+          console.log('Truncating verification tables...');
+          await supabase.from('verification_risk').delete().neq('id', 0); 
+          await supabase.from('verification_inflation').delete().neq('id', 0);
+
           const VERIFY_RUNS = 1000; // Fast but sufficient
 
           // Iterate all 10 portfolios
@@ -5235,7 +5242,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.318</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.319</span>
              </div>
           </div>
         </div>
