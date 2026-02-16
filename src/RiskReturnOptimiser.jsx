@@ -1,4 +1,4 @@
-// Deployment trigger: v1.307 - 2026-02-16
+// Deployment trigger: v1.308 - 2026-02-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1084,6 +1084,7 @@ export default function RiskReturnOptimiser() {
       pdf.rect(margin, y, pdfWidth, 7, 'F');
       pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 72, 118);
       pdf.text("Asset Class", margin + 2, y + 5);
+      pdf.text("Group", margin + 60, y + 5);
       pdf.text("Weight", margin + pdfWidth * 0.6, y + 5);
       pdf.text("Value", margin + pdfWidth * 0.8, y + 5);
       y += 7;
@@ -1101,10 +1102,13 @@ export default function RiskReturnOptimiser() {
           pdf.rect(margin, y, pdfWidth, 6, 'F');
         }
         
+        const assetGroup = Object.keys(pdfGroups).find(group => pdfGroups[group].includes(asset.id)) || 'Other';
+
         pdf.setFillColor(asset.color);
         pdf.rect(margin + 2, y + 1.5, 3, 3, 'F');
         pdf.setTextColor(0, 72, 118);
         pdf.text(asset.name, margin + 7, y + 4);
+        pdf.text(assetGroup, margin + 60, y + 4);
         pdf.text(formatPercent(weight), margin + pdfWidth * 0.6, y + 4);
         pdf.text(formatCurrency(value), margin + pdfWidth * 0.8, y + 4);
         y += 6;
@@ -1167,6 +1171,9 @@ export default function RiskReturnOptimiser() {
 
       pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
       const outcomeYears = [1, 3, 5, 10, 20];
+      if (projectionYears > 20 && !outcomeYears.includes(projectionYears)) {
+          outcomeYears.push(projectionYears);
+      }
       outcomeYears.forEach((yr, idx) => {
         const res = cfSimulationResults[yr];
         if (!res) return;
@@ -4978,7 +4985,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.307</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.308</span>
              </div>
           </div>
         </div>
