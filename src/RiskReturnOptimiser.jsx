@@ -2859,21 +2859,21 @@ export default function RiskReturnOptimiser() {
                      sim_risk: netRisk
                  });
 
-                 // Table B: Inflation (Real vs Nominal)
                  // v1.317: Use Deterministic Median (ss_median_path) for Apples-to-Apples check
                  const ssVal = ss_median_path[yIdx];
-                 const inflDivisor = Math.pow(1 + inflationRate, d.year);
+                 
+                 // v1.320: Explicit Real Value Formula (Year 0 discounted by 1 period)
+                 // User requested: "times by nominal + nominal * inflation" -> which is accumulating (1+r)
+                 // Resulting in Real = Nominal / (1+r)^(Year+1) to ensure Year 0 is discounted from start.
+                 const discountPeriod = d.year + 1; // 0->1, 1->2...
+                 const discountFactor = Math.pow(1 + inflationRate, discountPeriod);
+
                  inflationData.push({
                      run_id: runId,
                      portfolio_id: p.id,
                      year: d.year,
                      nominal: ssVal, 
-                     // v1.318: User requested Year 0 to be discounted (Period 0 != Nominal). 
-                     // Shifted discounting by +1 year effectively (Year 0 -> ^1, Year 1 -> ^2) to match their logic/spreadsheet?
-                     // Or they just want Real = Nominal * (1 - Rate).
-                     // Implementing 'Forward Discounting': Year 0 is end of Period 1 in their view?
-                     // Let's use (d.year + 1) index for divisor based on feedback "period 0 isn't discounting".
-                     real_value: ssVal / Math.pow(1 + inflationRate, d.year + 1),
+                     real_value: ssVal / discountFactor,
                      inflation_rate: inflationRate
                  });
              });
@@ -5242,7 +5242,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.319</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.320</span>
              </div>
           </div>
         </div>
