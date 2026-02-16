@@ -2862,18 +2862,18 @@ export default function RiskReturnOptimiser() {
                  // v1.317: Use Deterministic Median (ss_median_path) for Apples-to-Apples check
                  const ssVal = ss_median_path[yIdx];
                  
-                 // v1.320: Explicit Real Value Formula (Year 0 discounted by 1 period)
-                 // User requested: "times by nominal + nominal * inflation" -> which is accumulating (1+r)
-                 // Resulting in Real = Nominal / (1+r)^(Year+1) to ensure Year 0 is discounted from start.
-                 const discountPeriod = d.year + 1; // 0->1, 1->2...
-                 const discountFactor = Math.pow(1 + inflationRate, discountPeriod);
+                 // v1.321: Non-Cumulative Real Value (User Request)
+                 // Formula: Real = Nominal - (Nominal * Inflation)
+                 // This effectively "deflates" the nominal value by one single year's inflation rate, rather than discounting to PV.
+                 // It matches the specific request: "real value to be the nominal value - (nominal value*inflation rate)"
+                 const realVal = ssVal * (1 - inflationRate);
 
                  inflationData.push({
                      run_id: runId,
                      portfolio_id: p.id,
                      year: d.year,
                      nominal: ssVal, 
-                     real_value: ssVal / discountFactor,
+                     real_value: realVal,
                      inflation_rate: inflationRate
                  });
              });
@@ -5242,7 +5242,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.320</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.321</span>
              </div>
           </div>
         </div>
