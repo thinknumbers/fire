@@ -1,4 +1,4 @@
-// Deployment trigger: v1.308 - 2026-02-16
+// Deployment trigger: v1.309 - 2026-02-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -74,20 +74,20 @@ const DEFAULT_ASSETS = [
 ];
 
 const INITIAL_CORRELATIONS_DATA = {
-  // Symmetric Data (Upper Triangle + Diagonals)
+  // Symmetric Data (Upper Triangle + Diagonals) — v1.309 empirical correlations
   // Format: "ROW_ID": { "COL_ID": value, ... }
-  "aus_eq": { "us_large": 0.462689, "us_small": 0.528396, "dev_world": 0.582217, "em_eq": 0.598446, "reits": 0.560008, "hedge": 0.50, "comm": 0.123853, "aus_bond": 0.005883, "gl_bond": 0.139196, "hy_bond": 0.672802, "em_bond": 0.40, "cash": -0.03929 },
+  "aus_eq": { "us_large": 0.462689, "us_small": 0.528396, "dev_world": 0.582217, "em_eq": 0.598446, "reits": 0.560008, "hedge": -0.16219, "comm": 0.123853, "aus_bond": 0.005883, "gl_bond": 0.139196, "hy_bond": 0.672802, "em_bond": 0.072523, "cash": -0.03929 },
   "us_large": { "us_small": 0.791495, "dev_world": 0.770658, "em_eq": 0.507356, "reits": 0.604173, "hedge": 0.467206, "comm": 0.100355, "aus_bond": 0.1073, "gl_bond": -0.00051, "hy_bond": 0.286807, "em_bond": 0.48789, "cash": -0.06655 },
   "us_small": { "dev_world": 0.664269, "em_eq": 0.525133, "reits": 0.606552, "hedge": 0.34373, "comm": 0.164277, "aus_bond": 0.047697, "gl_bond": -0.05806, "hy_bond": 0.375976, "em_bond": 0.349538, "cash": -0.03607 },
   "dev_world": { "em_eq": 0.61929, "reits": 0.627213, "hedge": 0.299626, "comm": 0.139579, "aus_bond": 0.068988, "gl_bond": 0.001715, "hy_bond": 0.42957, "em_bond": 0.364849, "cash": -0.05919 },
   "em_eq": { "reits": 0.485376, "hedge": 0.079337, "comm": 0.082088, "aus_bond": -0.02811, "gl_bond": -0.01552, "hy_bond": 0.59832, "em_bond": 0.324641, "cash": -0.02681 },
-  "reits": { "hedge": 0.205612, "comm": 0.065917, "aus_bond": 0.99, "gl_bond": 0.99, "hy_bond": 0.470036, "em_bond": 0.412268, "cash": 0.99 }, // v1.33: Force 0.99 to kill diversification
-  "hedge": { "comm": 0.188014, "aus_bond": 0.99, "gl_bond": 0.99, "hy_bond": 0.40, "em_bond": 0.64591, "cash": 0.99 }, // v1.33: Force 0.99
-  "comm": { "aus_bond": 0.99, "gl_bond": 0.99, "hy_bond": 0.087571, "em_bond": 0.038482, "cash": 0.99 }, // v1.33: Force 0.99
-  "aus_bond": { "gl_bond": 0.706525, "hy_bond": 0.079467, "em_bond": 0.99, "cash": 0.230288 }, // v1.33: EM Bond also high risk
-  "gl_bond": { "hy_bond": 0.282245, "em_bond": 0.99, "cash": 0.22785 }, // v1.33
+  "reits": { "hedge": 0.205612, "comm": 0.065917, "aus_bond": 0.230711, "gl_bond": 0.236395, "hy_bond": 0.470036, "em_bond": 0.412268, "cash": 0.002356 },
+  "hedge": { "comm": 0.188014, "aus_bond": 0.152706, "gl_bond": -0.11461, "hy_bond": -0.30198, "em_bond": 0.64591, "cash": 0.050603 },
+  "comm": { "aus_bond": -0.12671, "gl_bond": -0.19519, "hy_bond": 0.087571, "em_bond": 0.038482, "cash": 0.011105 },
+  "aus_bond": { "gl_bond": 0.706525, "hy_bond": 0.079467, "em_bond": 0.446238, "cash": 0.230288 },
+  "gl_bond": { "hy_bond": 0.282245, "em_bond": 0.244124, "cash": 0.22785 },
   "hy_bond": { "em_bond": 0.177213, "cash": 0.02484 },
-  "em_bond": { "cash": 0.99 } // v1.33
+  "em_bond": { "cash": 0.115046 }
 };
 
 const generateFullCorrelationMatrix = (assets) => {
@@ -420,12 +420,13 @@ export default function RiskReturnOptimiser() {
   const [entityTypes, setEntityTypes] = useState(DEFAULT_ENTITY_TYPES);
   const [correlations, setCorrelations] = useState(() => generateFullCorrelationMatrix(DEFAULT_ASSETS));
 
-  // FORCE RESET STATE for v1.207 Constraints
+  // FORCE RESET STATE for v1.309 Correlations
   useEffect(() => {
-    const RESET_KEY = 'fire_wealth_v1.291_constraints_reset';
+    const RESET_KEY = 'fire_wealth_v1.309_correlations_reset';
     if (!localStorage.getItem(RESET_KEY)) {
-      console.log('Forcing Asset Reset for new Constraints');
+      console.log('Forcing Asset & Correlation Reset for v1.309 empirical correlations');
       setAssets(DEFAULT_ASSETS);
+      setCorrelations(generateFullCorrelationMatrix(DEFAULT_ASSETS));
       localStorage.setItem(RESET_KEY, 'true');
     }
   }, []);
@@ -4985,7 +4986,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.308</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.309</span>
              </div>
           </div>
         </div>
