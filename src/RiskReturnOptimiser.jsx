@@ -2165,6 +2165,7 @@ export default function RiskReturnOptimiser() {
                 // =====================================================
                 // v1.280: EXPORT TO SUPABASE (TRUNCATE RPC + batch insert)
                 // =====================================================
+                let runId = null; // v1.313: Lifted scope to be available for verification
                 try {
                     // 1. Truncate via RPC (resets IDs and removes all rows)
                     const { error: truncErr } = await supabase.rpc('truncate_optimization_data');
@@ -2193,7 +2194,7 @@ export default function RiskReturnOptimiser() {
                         .single();
 
                     if (runError) throw runError;
-                    const runId = runData.id;
+                    runId = runData.id;
 
                     // 3. Build result rows
                     const allResultRows = [];
@@ -5138,7 +5139,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.312</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.313</span>
              </div>
           </div>
         </div>
