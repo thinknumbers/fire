@@ -2414,7 +2414,7 @@ export default function RiskReturnOptimiser() {
                         portfolios: portfolioSummary,
                         entity_results: entitySummary,
 
-                        app_version: 'v1.332'
+                        app_version: 'v1.333'
                     }]);
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
@@ -2653,10 +2653,8 @@ export default function RiskReturnOptimiser() {
         const { annualNetFlows, wTaxRate } = calculateAnnualNetFlows(years, isPreTax, structures, entityTypes, inflationRate, incomeStreams, expenseStreams);
         
         // v1.324: Calculate Deterministic Path (ss_median equivalent)
-        let deterministicPath = null;
-        if (!isPreTax) {
-             deterministicPath = calculateDeterministicPath(simReturn, years, annualNetFlows, totalWealth, adviceFee, wTaxRate);
-        }
+        // v1.333: Always calculate deterministic base for Hybrid projection (matches dump)
+        const deterministicPath = calculateDeterministicPath(simReturn, years, annualNetFlows, totalWealth, adviceFee, isPreTax ? 0 : wTaxRate);
 
         const results = [];
         for (let y = 0; y <= years; y++) {
@@ -2706,11 +2704,11 @@ export default function RiskReturnOptimiser() {
           let p84 = raw_p84;
 
           if (deterministicPath) {
-              // v1.332: UI Sync - Use Deterministic Base for BOTH Nominal and Real
+              // v1.333: UI Sync - Use Deterministic Base for BOTH Nominal and Real
               let detVal = deterministicPath[yIdx];
               
               // If Real Mode, deflate the deterministic nominal value
-              // v1.332: Use simple deflation logic from verification_inflation (User request: Source of Truth)
+              // v1.333: Use simple deflation logic from verification_inflation (User request: Source of Truth)
               if (!isNominalMode) {
                   detVal = detVal * (1 - inflationRate);
               }
@@ -2785,6 +2783,7 @@ export default function RiskReturnOptimiser() {
 
           // Iterate all 10 portfolios
           for (const p of profiles) {
+             const currentPortInflationData = [];
              const netReturn = p.return;
              const netRisk = p.risk;
 
@@ -2874,10 +2873,11 @@ export default function RiskReturnOptimiser() {
                  const ssVal = det_median;
                  const realVal = ssVal * (1 - inflationRate);
 
-                  // v1.330: Real Value Variance (Spread on Opening Real Balance)
+                  // v1.333: Real Value Variance (Spread on Opening Real Balance)
+                  // Fixed: Use local tracking to avoid cross-portfolio leakage
                   let prevRealVal = realVal;
-                  if (yIdx > 0 && inflationData[yIdx - 1]) {
-                      prevRealVal = inflationData[yIdx - 1].real_value;
+                  if (yIdx > 0 && currentPortInflationData[yIdx - 1]) {
+                      prevRealVal = currentPortInflationData[yIdx - 1].real_value;
                   }
 
                   let real_upside = realVal;
@@ -2888,6 +2888,10 @@ export default function RiskReturnOptimiser() {
                       real_upside = realVal + sigma;
                       real_downside = realVal - (2 * sigma);
                   }
+
+                  currentPortInflationData.push({
+                      real_value: realVal
+                  });
 
                   inflationData.push({
                       run_id: runId,
@@ -5263,8 +5267,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.332 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.332</span>
+                {/* Deployment trigger: v1.333 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.333</span>
              </div>
           </div>
         </div>
