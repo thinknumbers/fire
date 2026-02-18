@@ -2413,7 +2413,7 @@ export default function RiskReturnOptimiser() {
                         elapsed_seconds: elapsedSec,
                         portfolios: portfolioSummary,
                         entity_results: entitySummary,
-                        app_version: 'v1.322'
+                        app_version: 'v1.323'
                     }]);
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
@@ -2525,7 +2525,7 @@ export default function RiskReturnOptimiser() {
     }, 200);
   };
 
-    // v1.322: Shared Helpers (Pure) defined outside to be accessible by both runCashflowMonteCarlo and verifyDetailedProjections
+    // v1.323: Shared Helpers (Pure) defined outside to be accessible by both runCashflowMonteCarlo and verifyDetailedProjections
     const calculateAnnualNetFlows = (years, isPreTax, structures, entityTypes, inflationRate, incomeStreams, expenseStreams) => {
         const flows = new Array(years + 1).fill(0);
         
@@ -2648,10 +2648,10 @@ export default function RiskReturnOptimiser() {
              }
         }
 
-        // v1.322: Use shared helper (Pure)
+        // v1.323: Use shared helper (Pure)
         const { annualNetFlows, wTaxRate } = calculateAnnualNetFlows(years, isPreTax, structures, entityTypes, inflationRate, incomeStreams, expenseStreams);
         
-        // v1.322: Calculate Deterministic Path (ss_median equivalent)
+        // v1.323: Calculate Deterministic Path (ss_median equivalent)
         let deterministicPath = null;
         if (!isPreTax) {
              deterministicPath = calculateDeterministicPath(simReturn, years, annualNetFlows, totalWealth, adviceFee, wTaxRate);
@@ -2694,7 +2694,7 @@ export default function RiskReturnOptimiser() {
           const raw_p50 = calculatePercentile(r.paths, 50);
           const raw_p84 = calculatePercentile(r.paths, 84.1);
 
-          // v1.322: Hybrid Logic
+          // v1.323: Hybrid Logic
           // Median = Deterministic
           // Upside = Deterministic + (MC_p84 - MC_p50)
           // Downside = Deterministic - (MC_p50 - MC_p02)
@@ -2745,7 +2745,7 @@ export default function RiskReturnOptimiser() {
   // v1.312: Detailed Verification Dump (Two Tables: Risk & Inflation)
   const verifyDetailedProjections = async (profiles, activeAssets, activeCorrelations, numSims, runId) => {
       try {
-          console.log('Running v1.322 Verification Dump (Full Portfolio Set)...');
+          console.log('Running v1.323 Verification Dump (Full Portfolio Set)...');
           
           if (!runId) {
              alert("Verification Dump Error: Missing run_id. Check optimization_runs table.");
@@ -2771,10 +2771,10 @@ export default function RiskReturnOptimiser() {
              const { annualNetFlows, wTaxRate } = calculateAnnualNetFlows(projectionYears, false, structures, entityTypes, inflationRate, incomeStreams, expenseStreams); // After-Tax Flows
 
              // 2. Deterministic Paths (The "Truth" Baseline)
-             // v1.322: ss_median now includes Fees to match Real World projection standard
+             // v1.323: ss_median now includes Fees to match Real World projection standard
              const ss_median_path = calculateDeterministicPath(netReturn, projectionYears, annualNetFlows, totalWealth, adviceFee, wTaxRate);
              
-             // v1.322 Hybrid Logic for Upside/Downside: 
+             // v1.323 Hybrid Logic for Upside/Downside: 
              // We can't just run deterministic with rate +/- risk because of compounding asymmetry.
              // We need the MC spread. So we run MC first.
              
@@ -2828,7 +2828,7 @@ export default function RiskReturnOptimiser() {
                      downside_2sd: raw_p02,
                      median: raw_p50,
                      upside_1sd: raw_p84,
-                     // v1.322: Hybrid "SS" Columns
+                     // v1.323: Hybrid "SS" Columns
                      ss_downside: hybrid_downside,
                      ss_median: det_median,
                      ss_upside: hybrid_upside,
@@ -2868,7 +2868,7 @@ export default function RiskReturnOptimiser() {
           if (riskData.length > 0) await chunkInsert('verification_risk', riskData);
           if (inflationData.length > 0) await chunkInsert('verification_inflation', inflationData);
           
-          console.log(`v1.322 Verification Complete.`);
+          console.log(`v1.323 Verification Complete.`);
 
       } catch (err) {
           console.error("Verification Dump Failed:", err);
