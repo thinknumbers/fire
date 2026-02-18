@@ -2413,7 +2413,7 @@ export default function RiskReturnOptimiser() {
                         elapsed_seconds: elapsedSec,
                         portfolios: portfolioSummary,
                         entity_results: entitySummary,
-                        app_version: 'v1.283'
+                        app_version: 'v1.322'
                     }]);
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
@@ -2525,60 +2525,9 @@ export default function RiskReturnOptimiser() {
     }, 200);
   };
 
-  const runCashflowMonteCarlo = useCallback(() => {
-    if (!selectedPortfolio) return;
-
-    // Internal helper to run simulation with specific parameters
-    const runSim = (isPreTax, isNominalMode) => {
-        const numRuns = 1000;
-        const years = projectionYears;
-        
-        // 1. Calculate Portfolio Return/Risk
-        let simReturn = selectedPortfolio.return;
-        let simRisk = selectedPortfolio.risk;
-
-        if (isPreTax) {
-             // Calculate Pre-Tax Stats
-             if (selectedPortfolio.weights && selectedPortfolio.weights.length > 0) {
-                 let expectedReturn = 0;
-                 let variance = 0;
-                 
-                 // Calculate Return
-                 expectedReturn = selectedPortfolio.weights.reduce((sum, w, i) => {
-                     const asset = optimizationAssets[i]; 
-                     return sum + (w * (asset ? asset.return : 0));
-                 }, 0);
-
-                 // Calculate Risk
-                 for (let i = 0; i < selectedPortfolio.weights.length; i++) {
-                     for (let j = 0; j < selectedPortfolio.weights.length; j++) {
-                         const w_i = selectedPortfolio.weights[i];
-                         const w_j = selectedPortfolio.weights[j];
-                         const asset_i = optimizationAssets[i];
-                         const asset_j = optimizationAssets[j];
-                         
-                         if (asset_i && asset_j) {
-                             let rho = 0.3; 
-                             if (asset_i.id === asset_j.id) {
-                                 rho = 1.0;
-                             } else {
-                                 if (correlations[asset_i.id] && correlations[asset_i.id][asset_j.id] !== undefined) {
-                                      rho = correlations[asset_i.id][asset_j.id];
-                                 } else if (correlations[asset_j.id] && correlations[asset_j.id][asset_i.id] !== undefined) {
-                                      rho = correlations[asset_j.id][asset_i.id];
-                                 }
-                             }
-                             const cov = rho * asset_i.stdev * asset_j.stdev;
-                             variance += w_i * w_j * cov;
-                         }
-                     }
-                 }
-                 simReturn = expectedReturn;
-                 simRisk = Math.sqrt(variance);
-             }
-        }
-
-        const annualNetFlows = new Array(years + 1).fill(0);
+    // v1.322: Shared Helpers (Pure) defined outside to be accessible by both runCashflowMonteCarlo and verifyDetailedProjections
+    const calculateAnnualNetFlows = (years, isPreTax, structures, entityTypes, inflationRate, incomeStreams, expenseStreams) => {
+        const flows = new Array(years + 1).fill(0);
         
         // Calculate Weighted Average Tax Rate for Fee Deduction Tax Shield
         let wTaxRate = 0; 
@@ -2594,11 +2543,8 @@ export default function RiskReturnOptimiser() {
                        const accumVal = st.value - pensionVal;
                        const pensRate = entityTypes.PENSION ? entityTypes.PENSION.incomeTax : 0.0;
                        const accumRate = rate; 
-                       if (st.value > 0) {
-                           rate = ((accumVal * accumRate) + (pensionVal * pensRate)) / st.value;
-                       } else {
-                           rate = 0;
-                       }
+                       if (st.value > 0) rate = ((accumVal * accumRate) + (pensionVal * pensRate)) / st.value;
+                       else rate = 0;
                    }
                    return s + (rate * (st.value / totalVal));
                }, 0);
@@ -2607,9 +2553,7 @@ export default function RiskReturnOptimiser() {
 
         // Helper to get tax rate
         const getTaxRateForEntity = (entityId) => {
-            if (!entityId || entityId === 'all') {
-                return entityTypes.PERSONAL ? entityTypes.PERSONAL.incomeTax : 0.47;
-            }
+            if (!entityId || entityId === 'all') return entityTypes.PERSONAL ? entityTypes.PERSONAL.incomeTax : 0.47;
             const struct = structures.find(s => s.id == entityId); 
             if (!struct) return 0.47; 
             if (struct.useCustomTax && struct.customTax) return struct.customTax.incomeTax || 0;
@@ -2624,33 +2568,98 @@ export default function RiskReturnOptimiser() {
           incomeStreams.forEach(s => {  
             const amount = parseFloat(s.amount) || 0;
             const taxRate = getTaxRateForEntity(s.entityId);
-
-            // Determine if net or gross based on isPreTax param
             const netIncome = isPreTax ? amount : amount * (1 - taxRate);
             const val = netIncome * inflationFactor;
-
-            if (s.isOneOff) {
-                if (parseInt(s.year) === y) flow += val; 
-            } else {
-                if(y >= s.startYear && y <= s.endYear) flow += val; 
-            }
+            if (s.isOneOff) { if (parseInt(s.year) === y) flow += val; } 
+            else { if(y >= s.startYear && y <= s.endYear) flow += val; }
           });
           
           expenseStreams.forEach(s => { 
             const amount = parseFloat(s.amount) || 0;
             const val = amount * inflationFactor;
-            if (s.isOneOff) {
-                if (parseInt(s.year) === y) flow -= val; 
-            } else {
-                if(y >= s.startYear && y <= s.endYear) flow -= val; 
-            }
+            if (s.isOneOff) { if (parseInt(s.year) === y) flow -= val; }
+            else { if(y >= s.startYear && y <= s.endYear) flow -= val; }
           });
-          annualNetFlows[y] = flow;
+          flows[y] = flow;
+        }
+        return { annualNetFlows: flows, wTaxRate };
+    };
+
+    const calculateDeterministicPath = (rate, years, netFlows, startWealth, feeRate, wTaxRate) => {
+        const path = [];
+        let balance = startWealth;
+        path.push(balance); // Year 0
+
+        for (let y = 1; y <= years; y++) {
+            balance = balance * (1 + rate);
+
+            if (feeRate > 0) {
+                const grossFee = balance * feeRate;
+                const effectiveFee = grossFee - (grossFee * wTaxRate); 
+                balance -= effectiveFee;
+            }
+
+            balance += netFlows[y];
+            if (balance < 0) balance = 0;
+            path.push(balance);
+        }
+        return path;
+    };
+
+  const runCashflowMonteCarlo = useCallback(() => {
+    if (!selectedPortfolio) return;
+
+    // Internal helper to run simulation with specific parameters
+    const runSim = (isPreTax, isNominalMode) => {
+        const numRuns = 1000;
+        const years = projectionYears;
+        
+        let simReturn = selectedPortfolio.return;
+        let simRisk = selectedPortfolio.risk;
+
+        if (isPreTax) {
+             if (selectedPortfolio.weights && selectedPortfolio.weights.length > 0) {
+                 let expectedReturn = 0;
+                 let variance = 0;
+                 expectedReturn = selectedPortfolio.weights.reduce((sum, w, i) => {
+                     const asset = optimizationAssets[i]; 
+                     return sum + (w * (asset ? asset.return : 0));
+                 }, 0);
+                 for (let i = 0; i < selectedPortfolio.weights.length; i++) {
+                     for (let j = 0; j < selectedPortfolio.weights.length; j++) {
+                         const w_i = selectedPortfolio.weights[i];
+                         const w_j = selectedPortfolio.weights[j];
+                         const asset_i = optimizationAssets[i];
+                         const asset_j = optimizationAssets[j];
+                         if (asset_i && asset_j) {
+                             let rho = 0.3; 
+                             if (asset_i.id === asset_j.id) rho = 1.0;
+                             else {
+                                 if (correlations[asset_i.id] && correlations[asset_i.id][asset_j.id] !== undefined) rho = correlations[asset_i.id][asset_j.id];
+                                 else if (correlations[asset_j.id] && correlations[asset_j.id][asset_i.id] !== undefined) rho = correlations[asset_j.id][asset_i.id];
+                             }
+                             const cov = rho * asset_i.stdev * asset_j.stdev;
+                             variance += w_i * w_j * cov;
+                         }
+                     }
+                 }
+                 simReturn = expectedReturn;
+                 simRisk = Math.sqrt(variance);
+             }
+        }
+
+        // v1.322: Use shared helper (Pure)
+        const { annualNetFlows, wTaxRate } = calculateAnnualNetFlows(years, isPreTax, structures, entityTypes, inflationRate, incomeStreams, expenseStreams);
+        
+        // v1.322: Calculate Deterministic Path (ss_median equivalent)
+        let deterministicPath = null;
+        if (!isPreTax) {
+             deterministicPath = calculateDeterministicPath(simReturn, years, annualNetFlows, totalWealth, adviceFee, wTaxRate);
         }
 
         const results = [];
         for (let y = 0; y <= years; y++) {
-          results.push({ year: y, p05: 0, p50: 0, p95: 0, paths: [] });
+          results.push({ year: y, p02: 0, p50: 0, p84: 0, paths: [] });
         }
 
         const seed = 12345; 
@@ -2666,7 +2675,6 @@ export default function RiskReturnOptimiser() {
             
             balance = balance * (1 + annualReturn);
             
-            // Fee Deduction
             if (adviceFee > 0) {
                 const grossFee = balance * adviceFee;
                 const effectiveFee = isPreTax ? grossFee : (grossFee - (grossFee * wTaxRate));
@@ -2681,12 +2689,45 @@ export default function RiskReturnOptimiser() {
           }
         }
 
-        return results.map(r => ({
-          year: r.year,
-          p02: calculatePercentile(r.paths, 2.3),
-          p50: calculatePercentile(r.paths, 50),
-          p84: calculatePercentile(r.paths, 84.1)
-        }));
+        return results.map((r, yIdx) => {
+          const raw_p02 = calculatePercentile(r.paths, 2.3);
+          const raw_p50 = calculatePercentile(r.paths, 50);
+          const raw_p84 = calculatePercentile(r.paths, 84.1);
+
+          // v1.322: Hybrid Logic
+          // Median = Deterministic
+          // Upside = Deterministic + (MC_p84 - MC_p50)
+          // Downside = Deterministic - (MC_p50 - MC_p02)
+          
+          let p02 = raw_p02;
+          let p50 = raw_p50;
+          let p84 = raw_p84;
+
+          if (deterministicPath && isNominalMode) {
+              const detVal = deterministicPath[yIdx];
+              // Adjust for Nominal/Real view if needed. Note: deterministicPath is computed as Nominal.
+              // If isNominalMode is false (Real mode), we'd need to deflate the deterministic path too.
+              // But currently Estimating Outcomes is Nominal? The chart title doesn't say.
+              // "Wealth Projection" chart has a toggle. Estimating Outcomes table seems to follow it?
+              // `adjustedOutcomes` in CashflowTab filters `cfSimulationResults`.
+              // `runSim` is called with `showNominal`.
+              
+              if (isNominalMode) {
+                  p50 = detVal;
+                  const spreadUp = raw_p84 - raw_p50;
+                  const spreadDown = raw_p50 - raw_p02;
+                  p84 = Math.max(0, p50 + spreadUp);
+                  p02 = Math.max(0, p50 - spreadDown);
+              }
+          }
+          
+          return {
+            year: r.year,
+            p02,
+            p50,
+            p84
+          };
+        });
     };
 
     // 1. Run for Current View (to display)
@@ -2694,8 +2735,6 @@ export default function RiskReturnOptimiser() {
     setCfSimulationResults(currentData);
 
     // 2. Run for "Global Max" (Before Tax, Nominal) to lock axis
-    // Ideally we only do this once or when structural inputs change, but doing it here ensures sync.
-    // We want the Max of the "Before Tax, Nominal" scenario as the ceiling.
     const maxData = runSim(true, true);
     const maxVal = Math.max(...maxData.map(d => d.p84));
     // Add 10% buffer
@@ -2706,7 +2745,7 @@ export default function RiskReturnOptimiser() {
   // v1.312: Detailed Verification Dump (Two Tables: Risk & Inflation)
   const verifyDetailedProjections = async (profiles, activeAssets, activeCorrelations, numSims, runId) => {
       try {
-          console.log('Running v1.314 Verification Dump (Full Portfolio Set)...');
+          console.log('Running v1.322 Verification Dump (Full Portfolio Set)...');
           
           if (!runId) {
              alert("Verification Dump Error: Missing run_id. Check optimization_runs table.");
@@ -2716,104 +2755,33 @@ export default function RiskReturnOptimiser() {
           const riskData = [];
           const inflationData = [];
           
-          // v1.319: Truncate tables before load (User Request)
-          // Simple delete all rows where ID > 0
+          // v1.319: Truncate tables before load
           console.log('Truncating verification tables...');
           await supabase.from('verification_risk').delete().neq('id', 0); 
           await supabase.from('verification_inflation').delete().neq('id', 0);
 
-          const VERIFY_RUNS = 1000; // Fast but sufficient
+          const VERIFY_RUNS = 1000; 
 
           // Iterate all 10 portfolios
           for (const p of profiles) {
              const netReturn = p.return;
              const netRisk = p.risk;
 
-             // Run MC Projection (Nominal Net)
-             const rng = createSeededRandom(12345 + p.id); // Vary seed slightly per portfolio
+             // 1. Get Flows & Tax Rate (Shared Logic)
+             const { annualNetFlows, wTaxRate } = calculateAnnualNetFlows(projectionYears, false, structures, entityTypes, inflationRate, incomeStreams, expenseStreams); // After-Tax Flows
+
+             // 2. Deterministic Paths (The "Truth" Baseline)
+             // v1.322: ss_median now includes Fees to match Real World projection standard
+             const ss_median_path = calculateDeterministicPath(netReturn, projectionYears, annualNetFlows, totalWealth, adviceFee, wTaxRate);
+             
+             // v1.322 Hybrid Logic for Upside/Downside: 
+             // We can't just run deterministic with rate +/- risk because of compounding asymmetry.
+             // We need the MC spread. So we run MC first.
+             
+             // 3. Run MC Projection (Nominal Net)
+             const rng = createSeededRandom(12345 + p.id); 
              const yearlyData = [];
              for(let y=0; y<=projectionYears; y++) yearlyData.push({ year: y, paths: [] });
-
-             // Calculate WACC Tax Rate for Fee Shield (Approximation as per existing logic)
-             let wTaxRate = 0.30;
-             if (structures.length > 0) {
-                 const totalVal = structures.reduce((s, st) => s + st.value, 0);
-                 if (totalVal > 0) {
-                     wTaxRate = structures.reduce((s, st) => {
-                         const entityDef = entityTypes[st.type] || entityTypes.COMPANY;
-                         return s + (entityDef ? entityDef.incomeTax : 0.30) * (st.value / totalVal);
-                     }, 0);
-                 }
-             }
-
-             // Pre-calculate annual cashflows
-             const annualNetFlows = new Array(projectionYears + 1).fill(0);
-             for (let y = 1; y <= projectionYears; y++) {
-                 let flow = 0;
-                 const inflFactor = Math.pow(1 + inflationRate, y);
-                 
-                 const getTax = (eid) => {
-                     if (!eid || eid === 'all') return entityTypes.PERSONAL ? entityTypes.PERSONAL.incomeTax : 0.47;
-                     const s = structures.find(st => st.id == eid);
-                     if (!s) return 0.47;
-                     if (s.useCustomTax && s.customTax) return s.customTax.incomeTax;
-                     const def = entityTypes[s.type];
-                     return def ? def.incomeTax : 0.47;
-                 };
-
-                 incomeStreams.forEach(s => {
-                     const amt = parseFloat(s.amount) || 0;
-                     const tax = getTax(s.entityId);
-                     const net = amt * (1 - tax);
-                     const val = net * inflFactor;
-                     if (s.isOneOff) { if (parseInt(s.year) === y) flow += val; }
-                     else { if(y >= s.startYear && y <= s.endYear) flow += val; }
-                 });
-
-                 expenseStreams.forEach(s => {
-                     const amt = parseFloat(s.amount) || 0;
-                     const val = amt * inflFactor;
-                     if (s.isOneOff) { if (parseInt(s.year) === y) flow -= val; }
-                     else { if(y >= s.startYear && y <= s.endYear) flow -= val; }
-                 });
-                 annualNetFlows[y] = flow;
-             }
-            
-            // --- v1.314: Deterministic "Spreadsheet" Calculations ---
-            const runDeterministic = (rate) => {
-                const path = [];
-                let balance = totalWealth;
-                path.push(balance); // Year 0
-                
-                for (let y = 1; y <= projectionYears; y++) {
-                    // 1. Growth
-                    balance = balance * (1 + rate);
-
-                     // 2. Fees
-                     // v1.315: REMOVED for Deterministic Check. 
-                     // User's spreadsheet excludes fees in "Simple Compounding" view.
-                     // To match $1M * (1+r)^t exactly, we must skip this block for ss_* columns.
-                     /*
-                     if (adviceFee > 0) {
-                         const grossFee = balance * adviceFee;
-                         const effectiveFee = grossFee - (grossFee * wTaxRate);
-                         balance -= effectiveFee;
-                     }
-                     */
-
-                     // 3. Cashflows
-                     balance += annualNetFlows[y];
-                     if (balance < 0) balance = 0;
-                     
-                     path.push(balance);
-                }
-                return path;
-            };
-
-            const ss_median_path = runDeterministic(netReturn);
-            const ss_upside_path = runDeterministic(netReturn + netRisk);
-            const ss_downside_path = runDeterministic(netReturn - (2 * netRisk));
-
 
              for (let r = 0; r < VERIFY_RUNS; r++) {
                  let balance = totalWealth;
@@ -2838,34 +2806,39 @@ export default function RiskReturnOptimiser() {
 
              // Aggregate Data
              yearlyData.forEach((d, yIdx) => {
-                 const p02 = calculatePercentile(d.paths, 2.3);
-                 const p50 = calculatePercentile(d.paths, 50);
-                 const p84 = calculatePercentile(d.paths, 84.1);
+                 const raw_p02 = calculatePercentile(d.paths, 2.3);
+                 const raw_p50 = calculatePercentile(d.paths, 50);
+                 const raw_p84 = calculatePercentile(d.paths, 84.1);
                  
+                 // Hybrid Calculation
+                 const det_median = ss_median_path[yIdx];
+                 
+                 // Apply MC Spread to Deterministic Median
+                 const spread_up = raw_p84 - raw_p50;
+                 const spread_down = raw_p50 - raw_p02;
+                 
+                 const hybrid_upside = det_median + spread_up;
+                 const hybrid_downside = det_median - spread_down;
+
                  // Table A: Risk
                  riskData.push({
-                     run_id: runId, // Must match optimization_runs.id
+                     run_id: runId,
                      portfolio_id: p.id,
                      year: d.year,
-                     downside_2sd: p02,
-                     median: p50,
-                     upside_1sd: p84,
-                     // v1.314: Deterministic Columns
-                     ss_downside: ss_downside_path[yIdx],
-                     ss_median: ss_median_path[yIdx],
-                     ss_upside: ss_upside_path[yIdx],
+                     downside_2sd: raw_p02,
+                     median: raw_p50,
+                     upside_1sd: raw_p84,
+                     // v1.322: Hybrid "SS" Columns
+                     ss_downside: hybrid_downside,
+                     ss_median: det_median,
+                     ss_upside: hybrid_upside,
                      
                      sim_return: netReturn,
                      sim_risk: netRisk
                  });
 
-                 // v1.317: Use Deterministic Median (ss_median_path) for Apples-to-Apples check
-                 const ssVal = ss_median_path[yIdx];
-                 
-                 // v1.321: Non-Cumulative Real Value (User Request)
-                 // Formula: Real = Nominal - (Nominal * Inflation)
-                 // This effectively "deflates" the nominal value by one single year's inflation rate, rather than discounting to PV.
-                 // It matches the specific request: "real value to be the nominal value - (nominal value*inflation rate)"
+                 // Inflation Table: Use Deterministic Median
+                 const ssVal = det_median;
                  const realVal = ssVal * (1 - inflationRate);
 
                  inflationData.push({
@@ -2880,7 +2853,6 @@ export default function RiskReturnOptimiser() {
           }
 
           // Batch Insert
-          // Split into chunks of 1000 to be safe
           const chunkInsert = async (table, data) => {
               const SIZE = 1000;
               for (let i = 0; i < data.length; i += SIZE) {
@@ -2896,12 +2868,11 @@ export default function RiskReturnOptimiser() {
           if (riskData.length > 0) await chunkInsert('verification_risk', riskData);
           if (inflationData.length > 0) await chunkInsert('verification_inflation', inflationData);
           
-          console.log(`v1.314 Verification Complete: ${riskData.length} risk rows, ${inflationData.length} inflation rows.`);
-          // alert(`Verification Dump Success: Written to Supabase (Risk: ${riskData.length}, Inf: ${inflationData.length})`);
+          console.log(`v1.322 Verification Complete.`);
 
       } catch (err) {
           console.error("Verification Dump Failed:", err);
-          alert(`Verification Dump Failed: ${err.message}. \n\nCheck browser console and ensure Supabase tables 'verification_risk' and 'verification_inflation' exist and have RLS disabled (or policies added).`);
+          alert(`Verification Dump Failed: ${err.message}`);
       }
   };
 
