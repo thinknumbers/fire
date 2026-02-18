@@ -2414,7 +2414,7 @@ export default function RiskReturnOptimiser() {
                         portfolios: portfolioSummary,
                         entity_results: entitySummary,
 
-                        app_version: 'v1.329'
+                        app_version: 'v1.330'
                     }]);
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
@@ -2863,14 +2863,32 @@ export default function RiskReturnOptimiser() {
                  const ssVal = det_median;
                  const realVal = ssVal * (1 - inflationRate);
 
-                 inflationData.push({
-                     run_id: runId,
-                     portfolio_id: p.id,
-                     year: d.year,
-                     nominal: ssVal, 
-                     real_value: realVal,
-                     inflation_rate: inflationRate
-                 });
+                  // v1.330: Real Value Variance (Spread on Opening Real Balance)
+                  let prevRealVal = realVal;
+                  if (yIdx > 0 && inflationData[yIdx - 1]) {
+                      prevRealVal = inflationData[yIdx - 1].real_value;
+                  }
+
+                  let real_upside = realVal;
+                  let real_downside = realVal;
+
+                  if (yIdx > 0) {
+                      const sigma = prevRealVal * netRisk;
+                      real_upside = realVal + sigma;
+                      real_downside = realVal - (2 * sigma);
+                  }
+
+                  inflationData.push({
+                      run_id: runId,
+                      portfolio_id: p.id,
+                      year: d.year,
+                      nominal: ssVal, 
+                      real_value: realVal,
+                      real_upside: real_upside,
+                      real_downside: real_downside,
+                      real_risk: netRisk,
+                      inflation_rate: inflationRate
+                  });
              });
           }
 
@@ -5235,7 +5253,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.329 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.329</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.330</span>
              </div>
           </div>
         </div>
