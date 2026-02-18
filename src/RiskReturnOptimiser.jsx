@@ -1,4 +1,4 @@
-// Deployment trigger: v1.341 - 2026-02-19
+// Deployment trigger: v1.342 - 2026-02-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -3162,7 +3162,50 @@ export default function RiskReturnOptimiser() {
                         </div>
                     </div>
 
+                    <div className="border-t border-gray-100"></div>
 
+                    {/* Simulation Assumptions */}
+                    <div className="space-y-4">
+                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                             <Calculator className="w-4 h-4" /> Simulation Assumptions
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Inflation Rate (%)</label>
+                                <input 
+                                    type="number"
+                                    step="0.01"
+                                    value={(settingsDraft?.inflationRate ?? 0.025) * 100}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value);
+                                        if (!isNaN(val)) {
+                                            setSettingsDraft(prev => ({ ...prev, inflationRate: val / 100 }));
+                                        }
+                                    }}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Used for Real vs Nominal calc (Default: 2.50%)</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Advice Fee (%)</label>
+                                <input 
+                                    type="number"
+                                    step="0.01"
+                                    value={(settingsDraft?.adviceFee ?? 0.01) * 100}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value);
+                                        if (!isNaN(val)) {
+                                            setSettingsDraft(prev => ({ ...prev, adviceFee: val / 100 }));
+                                        }
+                                    }}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Deducted from portfolio growth annually (Default: 1.00%)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-gray-100"></div>
 
                     {/* Scenarios Section (Load) */}
                     <div className="space-y-4">
@@ -3238,8 +3281,13 @@ export default function RiskReturnOptimiser() {
                         </button>
                         <button 
                             onClick={() => {
+                                // Save Simulation Assumptions from Draft to State
+                                if (settingsDraft.inflationRate !== undefined) setInflationRate(settingsDraft.inflationRate);
+                                if (settingsDraft.adviceFee !== undefined) setAdviceFee(settingsDraft.adviceFee);
+
                                 // Save App Settings (Appearance, Identity)
-                                setAppSettings(settingsDraft);
+                                const { inflationRate: _i, adviceFee: _f, ...restSettings } = settingsDraft;
+                                setAppSettings(restSettings);
                                 setIsSettingsOpen(false);
                             }}
                             className="px-5 py-2 text-sm font-medium bg-fire-accent text-white rounded-lg shadow-sm hover:opacity-90 transition-opacity flex items-center"
@@ -3920,195 +3968,7 @@ export default function RiskReturnOptimiser() {
 
       {/* Projection Input Assumptions REMOVED (Moved to Projections Tab) */}
 
-      {/* Cashflow Projections */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
-            Cashflow Projections
-          </h3>
-          
-          <div className="grid md:grid-cols-2 gap-8">
-             {/* Inflows */}
-             <div>
-               <h4 className="text-sm font-bold text-gray-700 mb-3 border-b pb-2">Inflows</h4>
-               {incomeStreams.map((item) => (
-                 <div key={item.id} className="flex flex-col gap-2 mb-3 bg-gray-50 p-2 rounded border border-gray-100">
-                   <div className="flex gap-2 items-center text-sm w-full">
-                       <input 
-                         type="text" 
-                         defaultValue={item.name} 
-                         onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i))}
-                         className="flex-1 border rounded px-2 py-1 text-black" 
-                         placeholder="Name" 
-                       />
-                       <div className="w-24">
-                           <div className="relative w-full">
-                             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none">$</span>
-                             <input 
-                               type="text"
-                               defaultValue={(item.amount || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                               onBlur={(e) => {
-                                 const rawValue = e.target.value.replace(/[^0-9.-]/g, '');
-                                 const val = (rawValue === '' || rawValue === '-') ? 0 : parseFloat(rawValue);
-                                 if (!isNaN(val)) {
-                                   setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, amount: val } : i));
-                                 }
-                               }}
-                               onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                               className="w-full border rounded px-2 py-1 text-xs text-black pl-4"
-                             />
-                           </div>
-                       </div>
-                       <button 
-                         onClick={() => setIncomeStreams(prev => prev.filter(i => i.id !== item.id))}
-                         className="text-gray-400 hover:text-red-500"
-                       >
-                         <Trash2 className="w-4 h-4" />
-                       </button>
-                   </div>
-                   <div className="flex flex-wrap items-center gap-2 text-xs">
-                       <label className="flex items-center text-gray-600">
-                           <input type="checkbox" className="mr-1" 
-                             checked={item.isOneOff} 
-                             onChange={() => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, isOneOff: !i.isOneOff } : i))}
-                           />
-                           One-off
-                       </label>
-                       
-                       {item.isOneOff ? (
-                           <div className="flex items-center">
-                               Year: <input type="number" className="w-12 border rounded ml-1 text-center text-black" 
-                                 defaultValue={item.year || 1}
-                                 onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, year: parseInt(e.target.value) || 1 } : i))}
-                               />
-                           </div>
-                       ) : (
-                           <div className="flex items-center">
-                               Yrs <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
-                                 defaultValue={item.startYear}
-                                 onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, startYear: parseInt(e.target.value) || 1 } : i))}
-                               />
-                               to <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
-                                 defaultValue={item.endYear}
-                                 onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, endYear: parseInt(e.target.value) || 30 } : i))}
-                               />
-                           </div>
-                       )}
-
-                       {/* Per-Item Entity Selector */}
-                       <div className="flex items-center ml-auto gap-1">
-                           <span className="text-gray-400">Owner:</span>
-                           <select 
-                              value={item.entityId || ''} 
-                              onChange={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, entityId: e.target.value } : i))}
-                              className="border rounded px-1 py-0.5 text-xs text-black max-w-[100px]"
-                           >
-                              <option value="">Default (Personal)</option>
-                              {structures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                           </select>
-                       </div>
-                   </div>
-                 </div>
-               ))}
-               <button 
-                 onClick={() => setIncomeStreams(prev => [...prev, { id: Date.now(), name: 'New Income', amount: 0, startYear: 1, endYear: 30, isOneOff: false }])}
-                 className="flex items-center text-sm font-medium text-fire-accent hover:text-blue-800"
-               >
-                 <Plus className="w-4 h-4 mr-1" /> Add Inflow
-               </button>
-             </div>
-
-             {/* Outflows */}
-             <div>
-               <h4 className="text-sm font-bold text-gray-700 mb-3 border-b pb-2">Outflows</h4>
-               {expenseStreams.map((item) => (
-                 <div key={item.id} className="flex flex-col gap-2 mb-3 bg-gray-50 p-2 rounded border border-gray-100">
-                   <div className="flex gap-2 items-center text-sm w-full">
-                       <input 
-                         type="text" 
-                         defaultValue={item.name} 
-                         onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i))}
-                         className="flex-1 border rounded px-2 py-1 text-black" 
-                         placeholder="Name" 
-                       />
-                       <div className="w-24">
-                           <div className="relative w-full">
-                             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none">$</span>
-                             <input 
-                               type="text"
-                               defaultValue={(item.amount || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                               onBlur={(e) => {
-                                 const rawValue = e.target.value.replace(/[^0-9.-]/g, '');
-                                 const val = (rawValue === '' || rawValue === '-') ? 0 : parseFloat(rawValue);
-                                 if (!isNaN(val)) {
-                                   setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, amount: val } : i));
-                                 }
-                               }}
-                               onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                               className="w-full border rounded px-2 py-1 text-xs text-black pl-4"
-                             />
-                           </div>
-                       </div>
-                       <button 
-                         onClick={() => setExpenseStreams(prev => prev.filter(i => i.id !== item.id))}
-                         className="text-gray-400 hover:text-red-500"
-                       >
-                         <Trash2 className="w-4 h-4" />
-                       </button>
-                   </div>
-                   <div className="flex flex-wrap items-center gap-2 text-xs">
-                       <label className="flex items-center text-gray-600">
-                           <input type="checkbox" className="mr-1" 
-                             checked={item.isOneOff} 
-                             onChange={() => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, isOneOff: !i.isOneOff } : i))}
-                           />
-                           One-off
-                       </label>
-                       
-                       {item.isOneOff ? (
-                           <div className="flex items-center">
-                               Year: <input type="number" className="w-12 border rounded ml-1 text-center text-black" 
-                                 defaultValue={item.year || 1}
-                                 onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, year: parseInt(e.target.value) || 1 } : i))}
-                               />
-                           </div>
-                       ) : (
-                           <div className="flex items-center">
-                               Yrs <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
-                                 defaultValue={item.startYear}
-                                 onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, startYear: parseInt(e.target.value) || 1 } : i))}
-                               />
-                               to <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
-                                 defaultValue={item.endYear}
-                                 onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, endYear: parseInt(e.target.value) || 30 } : i))}
-                               />
-                           </div>
-                       )}
-
-                       {/* Per-Item Entity Selector */}
-                       <div className="flex items-center ml-auto gap-1">
-                           <span className="text-gray-400">Owner:</span>
-                           <select 
-                              value={item.entityId || ''} 
-                              onChange={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, entityId: e.target.value } : i))}
-                              className="border rounded px-1 py-0.5 text-xs text-black max-w-[100px]"
-                           >
-                              <option value="">Default (Personal)</option>
-                              {structures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                           </select>
-                       </div>
-                   </div>
-                 </div>
-               ))}
-               <button 
-                 onClick={() => setExpenseStreams(prev => [...prev, { id: Date.now(), name: 'New Expense', amount: 0, startYear: 1, endYear: 30, isOneOff: false }])}
-                 className="flex items-center text-sm font-medium text-fire-accent hover:text-blue-800"
-               >
-                 <Plus className="w-4 h-4 mr-1" /> Add Outflow
-               </button>
-             </div>
-          </div>
-      </div>
+      {/* Cashflow Projections moved to Projections tab in v1.342 */}
     </div>
   );
 
@@ -5066,50 +4926,193 @@ export default function RiskReturnOptimiser() {
 
     return (
       <div className="space-y-6 animate-in fade-in">
-        {/* Projection Assumptions */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-          <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2 mb-3">
-            <Calculator className="w-4 h-4 text-fire-accent" /> Projection Assumptions
-          </h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Inflation Rate (%)</label>
-              <input 
-                type="number"
-                step="0.01"
-                value={(inflationRate * 100).toFixed(2)}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  if (!isNaN(val)) setInflationRate(val / 100);
-                }}
-                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Advice Fee (%)</label>
-              <input 
-                type="number"
-                step="0.01"
-                value={(adviceFee * 100).toFixed(2)}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  if (!isNaN(val)) setAdviceFee(val / 100);
-                }}
-                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Projection Years</label>
-              <input 
-                type="number"
-                value={projectionYears}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  if (!isNaN(val) && val > 0) setProjectionYears(val);
-                }}
-                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
-              />
-            </div>
+        {/* Cashflow Projections - moved from Client Details in v1.342 */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
+            Cashflow Projections
+          </h3>
+          
+          <div className="grid md:grid-cols-2 gap-8">
+             {/* Inflows */}
+             <div>
+               <h4 className="text-sm font-bold text-gray-700 mb-3 border-b pb-2">Inflows</h4>
+               {incomeStreams.map((item) => (
+                 <div key={item.id} className="flex flex-col gap-2 mb-3 bg-gray-50 p-2 rounded border border-gray-100">
+                   <div className="flex gap-2 items-center text-sm w-full">
+                       <input 
+                         type="text" 
+                         defaultValue={item.name} 
+                         onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i))}
+                         className="flex-1 border rounded px-2 py-1 text-black" 
+                         placeholder="Name" 
+                       />
+                       <div className="w-24">
+                           <div className="relative w-full">
+                             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none">$</span>
+                             <input 
+                               type="text"
+                               defaultValue={(item.amount || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                               onBlur={(e) => {
+                                 const rawValue = e.target.value.replace(/[^0-9.-]/g, '');
+                                 const val = (rawValue === '' || rawValue === '-') ? 0 : parseFloat(rawValue);
+                                 if (!isNaN(val)) {
+                                   setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, amount: val } : i));
+                                 }
+                               }}
+                               onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                               className="w-full border rounded px-2 py-1 text-xs text-black pl-4"
+                             />
+                           </div>
+                       </div>
+                       <button 
+                         onClick={() => setIncomeStreams(prev => prev.filter(i => i.id !== item.id))}
+                         className="text-gray-400 hover:text-red-500"
+                       >
+                         <Trash2 className="w-4 h-4" />
+                       </button>
+                   </div>
+                   <div className="flex flex-wrap items-center gap-2 text-xs">
+                       <label className="flex items-center text-gray-600">
+                           <input type="checkbox" className="mr-1" 
+                             checked={item.isOneOff} 
+                             onChange={() => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, isOneOff: !i.isOneOff } : i))}
+                           />
+                           One-off
+                       </label>
+                       
+                       {item.isOneOff ? (
+                           <div className="flex items-center">
+                               Year: <input type="number" className="w-12 border rounded ml-1 text-center text-black" 
+                                 defaultValue={item.year || 1}
+                                 onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, year: parseInt(e.target.value) || 1 } : i))}
+                               />
+                           </div>
+                       ) : (
+                           <div className="flex items-center">
+                               Yrs <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
+                                 defaultValue={item.startYear}
+                                 onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, startYear: parseInt(e.target.value) || 1 } : i))}
+                               />
+                               to <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
+                                 defaultValue={item.endYear}
+                                 onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, endYear: parseInt(e.target.value) || 30 } : i))}
+                               />
+                           </div>
+                       )}
+
+                       {/* Per-Item Entity Selector */}
+                       <div className="flex items-center ml-auto gap-1">
+                           <span className="text-gray-400">Owner:</span>
+                           <select 
+                              value={item.entityId || ''} 
+                              onChange={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, entityId: e.target.value } : i))}
+                              className="border rounded px-1 py-0.5 text-xs text-black max-w-[100px]"
+                           >
+                              <option value="">Default (Personal)</option>
+                              {structures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                           </select>
+                       </div>
+                   </div>
+                 </div>
+               ))}
+               <button 
+                 onClick={() => setIncomeStreams(prev => [...prev, { id: Date.now(), name: 'New Income', amount: 0, startYear: 1, endYear: 30, isOneOff: false }])}
+                 className="flex items-center text-sm font-medium text-fire-accent hover:text-blue-800"
+               >
+                 <Plus className="w-4 h-4 mr-1" /> Add Inflow
+               </button>
+             </div>
+
+             {/* Outflows */}
+             <div>
+               <h4 className="text-sm font-bold text-gray-700 mb-3 border-b pb-2">Outflows</h4>
+               {expenseStreams.map((item) => (
+                 <div key={item.id} className="flex flex-col gap-2 mb-3 bg-gray-50 p-2 rounded border border-gray-100">
+                   <div className="flex gap-2 items-center text-sm w-full">
+                       <input 
+                         type="text" 
+                         defaultValue={item.name} 
+                         onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i))}
+                         className="flex-1 border rounded px-2 py-1 text-black" 
+                         placeholder="Name" 
+                       />
+                       <div className="w-24">
+                           <div className="relative w-full">
+                             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none">$</span>
+                             <input 
+                               type="text"
+                               defaultValue={(item.amount || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                               onBlur={(e) => {
+                                 const rawValue = e.target.value.replace(/[^0-9.-]/g, '');
+                                 const val = (rawValue === '' || rawValue === '-') ? 0 : parseFloat(rawValue);
+                                 if (!isNaN(val)) {
+                                   setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, amount: val } : i));
+                                 }
+                               }}
+                               onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                               className="w-full border rounded px-2 py-1 text-xs text-black pl-4"
+                             />
+                           </div>
+                       </div>
+                       <button 
+                         onClick={() => setExpenseStreams(prev => prev.filter(i => i.id !== item.id))}
+                         className="text-gray-400 hover:text-red-500"
+                       >
+                         <Trash2 className="w-4 h-4" />
+                       </button>
+                   </div>
+                   <div className="flex flex-wrap items-center gap-2 text-xs">
+                       <label className="flex items-center text-gray-600">
+                           <input type="checkbox" className="mr-1" 
+                             checked={item.isOneOff} 
+                             onChange={() => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, isOneOff: !i.isOneOff } : i))}
+                           />
+                           One-off
+                       </label>
+                       
+                       {item.isOneOff ? (
+                           <div className="flex items-center">
+                               Year: <input type="number" className="w-12 border rounded ml-1 text-center text-black" 
+                                 defaultValue={item.year || 1}
+                                 onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, year: parseInt(e.target.value) || 1 } : i))}
+                               />
+                           </div>
+                       ) : (
+                           <div className="flex items-center">
+                               Yrs <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
+                                 defaultValue={item.startYear}
+                                 onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, startYear: parseInt(e.target.value) || 1 } : i))}
+                               />
+                               to <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
+                                 defaultValue={item.endYear}
+                                 onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, endYear: parseInt(e.target.value) || 30 } : i))}
+                               />
+                           </div>
+                       )}
+
+                       {/* Per-Item Entity Selector */}
+                       <div className="flex items-center ml-auto gap-1">
+                           <span className="text-gray-400">Owner:</span>
+                           <select 
+                              value={item.entityId || ''} 
+                              onChange={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, entityId: e.target.value } : i))}
+                              className="border rounded px-1 py-0.5 text-xs text-black max-w-[100px]"
+                           >
+                              <option value="">Default (Personal)</option>
+                              {structures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                           </select>
+                       </div>
+                   </div>
+                 </div>
+               ))}
+               <button 
+                 onClick={() => setExpenseStreams(prev => [...prev, { id: Date.now(), name: 'New Expense', amount: 0, startYear: 1, endYear: 30, isOneOff: false }])}
+                 className="flex items-center text-sm font-medium text-fire-accent hover:text-blue-800"
+               >
+                 <Plus className="w-4 h-4 mr-1" /> Add Outflow
+               </button>
+             </div>
           </div>
         </div>
 
@@ -5318,8 +5321,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.341 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.341</span>
+                {/* Deployment trigger: v1.342 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.342</span>
              </div>
           </div>
         </div>
@@ -5401,7 +5404,7 @@ export default function RiskReturnOptimiser() {
 
             <button 
               onClick={() => {
-                  setSettingsDraft({ ...appSettings }); // v1.339: Assumptions moved to Projections tab
+                  setSettingsDraft({ ...appSettings, inflationRate, adviceFee }); // Init draft with assumptions
                   setIsSettingsOpen(true);
               }}
               className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium text-gray-700 shadow-sm"
