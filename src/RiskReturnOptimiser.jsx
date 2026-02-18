@@ -3162,50 +3162,7 @@ export default function RiskReturnOptimiser() {
                         </div>
                     </div>
 
-                    <div className="border-t border-gray-100"></div>
 
-                    {/* v1.316: Simulation Assumptions Section */}
-                    <div className="space-y-4">
-                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                             <Calculator className="w-4 h-4" /> Simulation Assumptions
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Inflation Rate (%)</label>
-                                <input 
-                                    type="number"
-                                    step="0.01"
-                                    value={(settingsDraft?.inflationRate ?? 0.025) * 100}
-                                    onChange={(e) => {
-                                        const val = parseFloat(e.target.value);
-                                        if (!isNaN(val)) {
-                                            setSettingsDraft(prev => ({ ...prev, inflationRate: val / 100 }));
-                                        }
-                                    }}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Used for Real vs Nominal calc (Default: 2.50%)</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Advice Fee (%)</label>
-                                <input 
-                                    type="number"
-                                    step="0.01"
-                                    value={(settingsDraft?.adviceFee ?? 0.008) * 100}
-                                    onChange={(e) => {
-                                        const val = parseFloat(e.target.value);
-                                        if (!isNaN(val)) {
-                                            setSettingsDraft(prev => ({ ...prev, adviceFee: val / 100 }));
-                                        }
-                                    }}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Deducted from portfolio growth annually (Default: 0.80%)</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="border-t border-gray-100"></div>
 
                     {/* Scenarios Section (Load) */}
                     <div className="space-y-4">
@@ -3281,13 +3238,8 @@ export default function RiskReturnOptimiser() {
                         </button>
                         <button 
                             onClick={() => {
-                                // v1.316: Save Simulation Assumptions from Draft to State
-                                if (settingsDraft.inflationRate !== undefined) setInflationRate(settingsDraft.inflationRate);
-                                if (settingsDraft.adviceFee !== undefined) setAdviceFee(settingsDraft.adviceFee);
-
                                 // Save App Settings (Appearance, Identity)
-                                const { inflationRate: _i, adviceFee: _f, ...restSettings } = settingsDraft;
-                                setAppSettings(restSettings);
+                                setAppSettings(settingsDraft);
                                 setIsSettingsOpen(false);
                             }}
                             className="px-5 py-2 text-sm font-medium bg-fire-accent text-white rounded-lg shadow-sm hover:opacity-90 transition-opacity flex items-center"
@@ -5114,6 +5066,53 @@ export default function RiskReturnOptimiser() {
 
     return (
       <div className="space-y-6 animate-in fade-in">
+        {/* Projection Assumptions */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+          <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+            <Calculator className="w-4 h-4 text-fire-accent" /> Projection Assumptions
+          </h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Inflation Rate (%)</label>
+              <input 
+                type="number"
+                step="0.01"
+                value={(inflationRate * 100).toFixed(2)}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  if (!isNaN(val)) setInflationRate(val / 100);
+                }}
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Advice Fee (%)</label>
+              <input 
+                type="number"
+                step="0.01"
+                value={(adviceFee * 100).toFixed(2)}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  if (!isNaN(val)) setAdviceFee(val / 100);
+                }}
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Projection Years</label>
+              <input 
+                type="number"
+                value={projectionYears}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (!isNaN(val) && val > 0) setProjectionYears(val);
+                }}
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -5402,7 +5401,7 @@ export default function RiskReturnOptimiser() {
 
             <button 
               onClick={() => {
-                  setSettingsDraft({ ...appSettings, inflationRate, adviceFee }); // v1.316: Init draft with assumptions
+                  setSettingsDraft({ ...appSettings }); // v1.339: Assumptions moved to Projections tab
                   setIsSettingsOpen(true);
               }}
               className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium text-gray-700 shadow-sm"
