@@ -2414,7 +2414,7 @@ export default function RiskReturnOptimiser() {
                         portfolios: portfolioSummary,
                         entity_results: entitySummary,
 
-                        app_version: 'v1.334'
+                        app_version: 'v1.335'
                     }]);
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
@@ -2703,8 +2703,12 @@ export default function RiskReturnOptimiser() {
           let p50 = raw_p50;
           let p84 = raw_p84;
 
-          if (deterministicPath) {
-              // v1.333: UI Sync - Use Deterministic Base for BOTH Nominal and Real
+          // v1.335: Logic Reversion
+          // User wants Nominal "Before Tax" to work as it did previously (Raw MC)
+          // Real Values and Nominal "After Tax" use the Deterministic Hybrid base.
+          
+          if (deterministicPath && (!isNominalMode || !isPreTax)) {
+              // v1.333: UI Sync - Use Deterministic Base
               let detVal = deterministicPath[yIdx];
               
               // If Real Mode, deflate the deterministic nominal value
@@ -2738,6 +2742,11 @@ export default function RiskReturnOptimiser() {
                   p84 = p50 + sigma; // +1 SD
                   p02 = p50 - (2 * sigma); // -2 SD
               }
+          } else {
+              // NOMINAL BEFORE TAX: Use raw MC percentiles (Reverted to original behavior)
+              p02 = raw_p02;
+              p50 = raw_p50;
+              p84 = raw_p84;
           }
           
           return {
@@ -5267,8 +5276,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.334 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.334</span>
+                {/* Deployment trigger: v1.335 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.335</span>
              </div>
           </div>
         </div>
