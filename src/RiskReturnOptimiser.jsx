@@ -2413,7 +2413,8 @@ export default function RiskReturnOptimiser() {
                         elapsed_seconds: elapsedSec,
                         portfolios: portfolioSummary,
                         entity_results: entitySummary,
-                        app_version: 'v1.326'
+
+                        app_version: 'v1.327-hotfix'
                     }]);
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
@@ -2709,10 +2710,19 @@ export default function RiskReturnOptimiser() {
               
               if (isNominalMode) {
                   p50 = detVal;
-                  // Calculate spread based on single-year impact factors relative to current median
-                  // Note: simReturn and simRisk are annual rates (e.g. 0.07, 0.10)
-                  p84 = p50 + (p50 * (simReturn + simRisk));
-                  p02 = p50 + (p50 * (simReturn - (2 * simRisk)));
+                  
+                  // v1.327 HOTFIX: Logic = Median + (Median * Risk)
+                  // Use CURRENT Year Median (p50), not Previous Year, per user feedback.
+                  
+                  if (yIdx === 0) {
+                      // Year 0 has no variance
+                      p84 = p50;
+                      p02 = p50;
+                  } else {
+                      const sigma = p50 * simRisk;
+                      p84 = p50 + sigma; // +1 SD
+                      p02 = p50 - (2 * sigma); // -2 SD
+                  }
               }
           }
           
@@ -2810,8 +2820,10 @@ export default function RiskReturnOptimiser() {
                  
                  // Apply Single-Year Factor Impact
                  // v1.324: Formula = Median + Median * (Return +/- k*Risk)
-                 const hybrid_upside = det_median + (det_median * (netReturn + netRisk));
-                 const hybrid_downside = det_median + (det_median * (netReturn - (2 * netRisk)));
+                 // v1.327 HOTFIX: Formula = Median + (Median * Risk) [Current Year Median]
+                  const sigma = det_median * netRisk;
+                  const hybrid_upside = det_median + sigma;
+                 const hybrid_downside = det_median - (2 * sigma);
 
                   // Table A: Risk
                   riskData.push({
@@ -5205,8 +5217,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.326 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.326</span>
+                {/* Deployment trigger: v1.327 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.327-hotfix</span>
              </div>
           </div>
         </div>
