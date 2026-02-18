@@ -2413,7 +2413,7 @@ export default function RiskReturnOptimiser() {
                         elapsed_seconds: elapsedSec,
                         portfolios: portfolioSummary,
                         entity_results: entitySummary,
-                        app_version: 'v1.324'
+                        app_version: 'v1.325'
                     }]);
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
@@ -5205,8 +5205,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.272 - 2026-01-19 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.321</span>
+                {/* Deployment trigger: v1.325 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.325</span>
              </div>
           </div>
         </div>
