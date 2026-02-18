@@ -2414,7 +2414,7 @@ export default function RiskReturnOptimiser() {
                         portfolios: portfolioSummary,
                         entity_results: entitySummary,
 
-                        app_version: 'v1.328'
+                        app_version: 'v1.329'
                     }]);
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
@@ -2711,15 +2711,20 @@ export default function RiskReturnOptimiser() {
               if (isNominalMode) {
                   p50 = detVal;
                   
-                  // v1.327 HOTFIX: Logic = Median + (Median * Risk)
-                  // Use CURRENT Year Median (p50), not Previous Year, per user feedback.
+                  // v1.329: Logic = Median + (Previous_Year_Median * Risk)
+                  // Per user feedback, the spread is calculated on the Opening Balance (Previous Year Median).
                   
+                  let prevMedian = p50; // Default for Y0
+                  if (yIdx > 0 && deterministicPath[yIdx - 1] !== undefined) {
+                      prevMedian = deterministicPath[yIdx - 1];
+                  }
+
                   if (yIdx === 0) {
                       // Year 0 has no variance
                       p84 = p50;
                       p02 = p50;
                   } else {
-                      const sigma = p50 * simRisk;
+                      const sigma = prevMedian * simRisk;
                       p84 = p50 + sigma; // +1 SD
                       p02 = p50 - (2 * sigma); // -2 SD
                   }
@@ -2820,10 +2825,22 @@ export default function RiskReturnOptimiser() {
                  
                  // Apply Single-Year Factor Impact
                  // v1.324: Formula = Median + Median * (Return +/- k*Risk)
-                 // v1.327 HOTFIX: Formula = Median + (Median * Risk) [Current Year Median]
-                  const sigma = det_median * netRisk;
-                  const hybrid_upside = det_median + sigma;
-                 const hybrid_downside = det_median - (2 * sigma);
+                 // v1.329: Logic = Median + (Previous_Year_Median * Risk)
+                  // Per user feedback, the spread is calculated on the Opening Balance.
+                  
+                  let prevMedian = det_median;
+                  if (yIdx > 0 && ss_median_path[yIdx - 1] !== undefined) {
+                      prevMedian = ss_median_path[yIdx - 1];
+                  }
+
+                  let hybrid_upside = det_median;
+                  let hybrid_downside = det_median;
+                  
+                  if (yIdx > 0) {
+                      const sigma = prevMedian * netRisk;
+                      hybrid_upside = det_median + sigma;
+                      hybrid_downside = det_median - (2 * sigma);
+                  }
 
                   // Table A: Risk
                   riskData.push({
@@ -5217,8 +5234,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.328 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.328</span>
+                {/* Deployment trigger: v1.329 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.329</span>
              </div>
           </div>
         </div>
