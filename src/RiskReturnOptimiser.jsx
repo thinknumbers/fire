@@ -1,4 +1,4 @@
-// Deployment trigger: v1.336 - 2026-02-19
+// Deployment trigger: v1.337 - 2026-02-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -2703,18 +2703,12 @@ export default function RiskReturnOptimiser() {
           let p50 = raw_p50;
           let p84 = raw_p84;
 
-          // v1.336: Simplified Real Value calculation
-          // Real = Nominal * (1 - inflationRate) — simple, uniform deflation
-          // Nominal After Tax still uses Deterministic Hybrid base for median/spread
+          // v1.337: Compute nominal values first, then deflate for Real mode
+          // Step 1: Start with raw MC percentiles (Nominal Before Tax baseline)
           
-          if (!isNominalMode) {
-              // REAL MODE: just deflate nominal percentiles by inflation rate
-              const realFactor = (1 - inflationRate);
-              p02 = raw_p02 * realFactor;
-              p50 = raw_p50 * realFactor;
-              p84 = raw_p84 * realFactor;
-          } else if (deterministicPath && !isPreTax) {
-              // NOMINAL AFTER TAX: Use Deterministic Hybrid base
+          // Step 2: Apply Deterministic Hybrid if After Tax
+          // (This produces the same nominal values the user sees in Nominal mode)
+          if (deterministicPath && !isPreTax) {
               let detVal = deterministicPath[yIdx];
               p50 = detVal;
               
@@ -2732,7 +2726,16 @@ export default function RiskReturnOptimiser() {
                   p02 = p50 - (2 * sigma);
               }
           }
-          // else: NOMINAL BEFORE TAX — raw MC percentiles (already set above)
+          // else: Before Tax — raw MC percentiles (already set above)
+          
+          // Step 3: If Real mode, deduct inflation from the nominal values
+          // Real = Nominal * (1 - inflationRate)  i.e. Nominal - (Nominal × inflationRate)
+          if (!isNominalMode) {
+              const realFactor = (1 - inflationRate);
+              p02 = p02 * realFactor;
+              p50 = p50 * realFactor;
+              p84 = p84 * realFactor;
+          }
           
           return {
             year: r.year,
@@ -5316,8 +5319,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.336 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.336</span>
+                {/* Deployment trigger: v1.337 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.337</span>
              </div>
           </div>
         </div>
