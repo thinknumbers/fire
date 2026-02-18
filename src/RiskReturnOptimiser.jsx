@@ -452,7 +452,7 @@ export default function RiskReturnOptimiser() {
 
 
   const [selectedPortfolioId, setSelectedPortfolioId] = useState(5);
-  const [forecastConfidenceLevel, setForecastConfidenceLevel] = useState(3); // 1=Low, 2=Med, 3=High
+  const [forecastConfidenceLevel, setForecastConfidenceLevel] = useState(2); // 1=Low, 2=Med, 3=High (Default: Medium)
   const [showPreTaxFrontier, setShowPreTaxFrontier] = useState(false); // Toggle for optimization chart
   const [isExporting, setIsExporting] = useState(false); // For PDF generation cleaning
   
@@ -3143,6 +3143,19 @@ export default function RiskReturnOptimiser() {
                                 />
                                 <p className="text-xs text-gray-500 mt-1">Number of Monte Carlo simulations (recommended: 500+)</p>
                             </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Forecast Confidence</label>
+                                <select 
+                                    value={forecastConfidenceLevel}
+                                    onChange={(e) => setForecastConfidenceLevel(parseInt(e.target.value))}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-fire-accent/50 outline-none text-sm"
+                                >
+                                    <option value={1}>Low (T=15)</option>
+                                    <option value={2}>Medium (T=50)</option>
+                                    <option value={3}>High (T=200)</option>
+                                </select>
+                                <p className="text-xs text-gray-500 mt-1">Controls how tightly the optimizer tracks historical estimates. Higher = closer to inputs (Default: Medium)</p>
+                            </div>
                         </div>
                     </div>
 
@@ -4559,18 +4572,7 @@ export default function RiskReturnOptimiser() {
                </div>
              )}
 
-             <div className="text-right">
-               <label className="block text-xs font-bold text-gray-500 mb-1">Forecast Confidence</label>
-               <select 
-                  value={forecastConfidenceLevel}
-                  onChange={(e) => setForecastConfidenceLevel(parseInt(e.target.value))}
-                  className="w-32 text-right border border-gray-300 rounded px-2 py-1 text-sm bg-white"
-               >
-                   <option value={1}>Low</option>
-                   <option value={2}>Medium</option>
-                   <option value={3}>High</option>
-               </select>
-             </div>
+             {/* Forecast Confidence moved to Settings Modal */}
 
              {/* Simulations moved to Settings Modal in v1.273 */}
 
