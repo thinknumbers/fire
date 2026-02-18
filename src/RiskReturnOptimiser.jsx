@@ -2413,7 +2413,7 @@ export default function RiskReturnOptimiser() {
                         elapsed_seconds: elapsedSec,
                         portfolios: portfolioSummary,
                         entity_results: entitySummary,
-                        app_version: 'v1.325'
+                        app_version: 'v1.326'
                     }]);
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
@@ -2813,22 +2813,22 @@ export default function RiskReturnOptimiser() {
                  const hybrid_upside = det_median + (det_median * (netReturn + netRisk));
                  const hybrid_downside = det_median + (det_median * (netReturn - (2 * netRisk)));
 
-                 // Table A: Risk
-                 riskData.push({
-                     run_id: runId,
-                     portfolio_id: p.id,
-                     year: d.year,
-                     downside_2sd: raw_p02,
-                     median: raw_p50,
-                     upside_1sd: raw_p84,
-                     // v1.324: Hybrid "SS" Columns
-                     ss_downside: hybrid_downside,
-                     ss_median: det_median,
-                     ss_upside: hybrid_upside,
-                     
-                     sim_return: netReturn,
-                     sim_risk: netRisk
-                 });
+                  // Table A: Risk
+                  riskData.push({
+                      run_id: runId,
+                      portfolio_id: p.id,
+                      year: d.year,
+                      
+                      // v1.326: Removed legacy columns (downside_2sd, median, upside_1sd)
+                      // Only keeping the Hybrid "SS" Columns + Core Sim Metrics
+                      
+                      ss_downside: hybrid_downside,
+                      ss_median: det_median,
+                      ss_upside: hybrid_upside,
+                      
+                      sim_return: netReturn,
+                      sim_risk: netRisk
+                  });
 
                  // Inflation Table: Use Deterministic Median
                  const ssVal = det_median;
@@ -5205,8 +5205,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.325 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.325</span>
+                {/* Deployment trigger: v1.326 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.326</span>
              </div>
           </div>
         </div>
