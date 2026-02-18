@@ -2414,7 +2414,7 @@ export default function RiskReturnOptimiser() {
                         portfolios: portfolioSummary,
                         entity_results: entitySummary,
 
-                        app_version: 'v1.333'
+                        app_version: 'v1.334'
                     }]);
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
@@ -5041,8 +5041,8 @@ export default function RiskReturnOptimiser() {
         if (!cfSimulationResults[idx]) return null;
         const res = cfSimulationResults[idx];
         
-        // Apply inflation adjustment if showing real values
-        const inflationFactor = showNominal ? 1 : Math.pow(1 + inflationRate, -yr);
+        // v1.334: Double-deflation fix. runSim results are already deflated in Real mode.
+        const inflationFactor = 1;
         
         // For before/after tax, we'd need to calculate differently
         // For now, the simulation already uses after-tax returns
@@ -5267,8 +5267,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.333 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.333</span>
+                {/* Deployment trigger: v1.334 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.334</span>
              </div>
           </div>
         </div>
