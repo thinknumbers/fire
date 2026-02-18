@@ -1,4 +1,4 @@
-// Deployment trigger: v1.310 - 2026-02-16
+// Deployment trigger: v1.336 - 2026-02-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -436,7 +436,7 @@ export default function RiskReturnOptimiser() {
   const [expenseStreams, setExpenseStreams] = useState(DEFAULT_EXPENSE_STREAMS);
   const [projectionYears, setProjectionYears] = useState(30);
   const [inflationRate, setInflationRate] = useState(0.025);
-  const [adviceFee, setAdviceFee] = useState(0.011); // 1.1% Default incl GST maybe? Let's say 1.1% or just 0.0. User implies they want to add it. Let's default 0.0 to be safe or 0.01. Let's do 0.8% + GST = ~0.88%. Let's default to 0.0 for now so it doesn't surprise, or 0.01. Let's stick to 0.008 (0.8%).
+  const [adviceFee, setAdviceFee] = useState(0.01); // 1.0% Default advice fee
   
   // Simulation State
   const [simulations, setSimulations] = useState([]);
@@ -1975,6 +1975,12 @@ export default function RiskReturnOptimiser() {
             }
             
             // Parse Group Constraints
+            // Group constraints allow users to cap the COMBINED allocation across multiple related assets.
+            // Each asset row can have a "groupLimit" string in format "GroupName:MaxPercent" (e.g. "Alternatives:15").
+            // Assets sharing the same group name are collected, and the optimizer ensures their TOTAL weight
+            // does not exceed the specified max percentage. This is enforced by Dykstra's alternating projections
+            // in projectConstraints() (MichaudOptimizer.js), which iteratively adjusts weights to satisfy
+            // box constraints, sum-to-1, return target, AND these group caps simultaneously.
             const groupConstraints = [];
             const groupMap = {};
             
@@ -2683,8 +2689,8 @@ export default function RiskReturnOptimiser() {
             balance += annualNetFlows[y];
             if (balance < 0) balance = 0;
 
-            const reportBalance = isNominalMode ? balance : (balance / Math.pow(1 + inflationRate, y));
-            results[y].paths.push(reportBalance);
+            // v1.336: Always simulate in nominal terms
+            results[y].paths.push(balance);
           }
         }
 
@@ -2693,61 +2699,40 @@ export default function RiskReturnOptimiser() {
           const raw_p50 = calculatePercentile(r.paths, 50);
           const raw_p84 = calculatePercentile(r.paths, 84.1);
 
-
-          // v1.324: Hybrid Logic (Revised)
-          // Median = Deterministic Median
-          // Upside = Median + Median * (Return + Risk)
-          // Downside = Median + Median * (Return - 2*Risk) [Using Add because R-2Risk is negative drop]
-          
           let p02 = raw_p02;
           let p50 = raw_p50;
           let p84 = raw_p84;
 
-          // v1.335: Logic Reversion
-          // User wants Nominal "Before Tax" to work as it did previously (Raw MC)
-          // Real Values and Nominal "After Tax" use the Deterministic Hybrid base.
+          // v1.336: Simplified Real Value calculation
+          // Real = Nominal * (1 - inflationRate) — simple, uniform deflation
+          // Nominal After Tax still uses Deterministic Hybrid base for median/spread
           
-          if (deterministicPath && (!isNominalMode || !isPreTax)) {
-              // v1.333: UI Sync - Use Deterministic Base
+          if (!isNominalMode) {
+              // REAL MODE: just deflate nominal percentiles by inflation rate
+              const realFactor = (1 - inflationRate);
+              p02 = raw_p02 * realFactor;
+              p50 = raw_p50 * realFactor;
+              p84 = raw_p84 * realFactor;
+          } else if (deterministicPath && !isPreTax) {
+              // NOMINAL AFTER TAX: Use Deterministic Hybrid base
               let detVal = deterministicPath[yIdx];
-              
-              // If Real Mode, deflate the deterministic nominal value
-              // v1.333: Use simple deflation logic from verification_inflation (User request: Source of Truth)
-              if (!isNominalMode) {
-                  detVal = detVal * (1 - inflationRate);
-              }
-              
-              // Set Median
               p50 = detVal;
               
-              // v1.329/v1.330: Spread on Opening Balance
-              let prevMedian = p50; // Default for Y0
-              
+              let prevMedian = p50;
               if (yIdx > 0) {
-                  let prevDetVal = deterministicPath[yIdx - 1]; // Nominal
-                  if (!isNominalMode) {
-                      // Deflate previous year (y-1) using simple logic
-                      prevDetVal = prevDetVal * (1 - inflationRate);
-                  }
-                  prevMedian = prevDetVal;
+                  prevMedian = deterministicPath[yIdx - 1];
               }
 
               if (yIdx === 0) {
-                  // Year 0 has no variance
                   p84 = p50;
                   p02 = p50;
               } else {
-                  // Apply Risk to Opening Balance (Nominal Risk used for both per user req)
                   const sigma = prevMedian * simRisk;
-                  p84 = p50 + sigma; // +1 SD
-                  p02 = p50 - (2 * sigma); // -2 SD
+                  p84 = p50 + sigma;
+                  p02 = p50 - (2 * sigma);
               }
-          } else {
-              // NOMINAL BEFORE TAX: Use raw MC percentiles (Reverted to original behavior)
-              p02 = raw_p02;
-              p50 = raw_p50;
-              p84 = raw_p84;
           }
+          // else: NOMINAL BEFORE TAX — raw MC percentiles (already set above)
           
           return {
             year: r.year,
@@ -3200,6 +3185,59 @@ export default function RiskReturnOptimiser() {
                                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
                                 />
                                 <p className="text-xs text-gray-500 mt-1">Deducted from portfolio growth annually (Default: 0.80%)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-gray-100"></div>
+
+                    {/* Scenarios Section (Load) */}
+                    <div className="space-y-4">
+                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                             <FolderOpen className="w-4 h-4" /> Scenarios
+                        </h4>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Load Saved Scenario</label>
+                            <div className="relative">
+                              <button 
+                                onClick={() => setShowLoadMenu(!showLoadMenu)}
+                                className="w-full flex items-center justify-between px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
+                              >
+                                <span className="flex items-center">
+                                  <FolderOpen className="w-4 h-4 mr-2"/>
+                                  Select Scenario...
+                                </span>
+                                <ChevronDown className="w-3 h-3"/>
+                              </button>
+                              
+                              {showLoadMenu && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-64 overflow-y-auto">
+                                  <div className="p-2 border-b border-gray-100 text-xs font-semibold text-gray-500">Saved Scenarios</div>
+                                  {savedScenarios.length === 0 ? (
+                                     <div className="p-4 text-center text-sm text-gray-400">No saved scenarios</div>
+                                  ) : (
+                                    savedScenarios.map(s => (
+                                      <div 
+                                        key={s.id}
+                                        onClick={() => { handleLoadScenario(s.id); setIsSettingsOpen(false); }}
+                                        className="w-full flex justify-between items-center px-4 py-3 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0 cursor-pointer group"
+                                      >
+                                        <div>
+                                          <div className="font-medium text-gray-900">{s.name || 'Untitled'}</div>
+                                          <div className="text-xs text-gray-500">{new Date(s.created_at).toLocaleDateString()}</div>
+                                        </div>
+                                        <button 
+                                          onClick={(e) => handleDeleteScenario(s.id, e)}
+                                          className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                          title="Delete Scenario"
+                                        >
+                                          <Trash2 className="w-4 h-4"/>
+                                        </button>
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              )}
                             </div>
                         </div>
                     </div>
@@ -5276,8 +5314,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.335 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.335</span>
+                {/* Deployment trigger: v1.336 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.336</span>
              </div>
           </div>
         </div>
@@ -5303,44 +5341,7 @@ export default function RiskReturnOptimiser() {
               <Plus className="w-4 h-4 mr-1"/> New
             </button>
 
-            <div className="relative">
-              <button 
-                onClick={() => setShowLoadMenu(!showLoadMenu)}
-                className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium"
-              >
-                <FolderOpen className="w-4 h-4 mr-2"/> Load
-                <ChevronDown className="w-3 h-3 ml-1"/>
-              </button>
-              
-              {showLoadMenu && (
-                <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
-                  <div className="p-2 border-b border-gray-100 text-xs font-semibold text-gray-500">Saved Scenarios</div>
-                  {savedScenarios.length === 0 ? (
-                     <div className="p-4 text-center text-sm text-gray-400">No saved scenarios</div>
-                  ) : (
-                    savedScenarios.map(s => (
-                      <div 
-                        key={s.id}
-                        onClick={() => handleLoadScenario(s.id)}
-                        className="w-full flex justify-between items-center px-4 py-3 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0 cursor-pointer group"
-                      >
-                        <div>
-                          <div className="font-medium text-gray-900">{s.name || 'Untitled'}</div>
-                          <div className="text-xs text-gray-500">{new Date(s.created_at).toLocaleDateString()}</div>
-                        </div>
-                        <button 
-                          onClick={(e) => handleDeleteScenario(s.id, e)}
-                          className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                          title="Delete Scenario"
-                        >
-                          <Trash2 className="w-4 h-4"/>
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
+
 
             <button 
               onClick={() => handleSaveScenario(true)}
