@@ -2414,7 +2414,7 @@ export default function RiskReturnOptimiser() {
                         portfolios: portfolioSummary,
                         entity_results: entitySummary,
 
-                        app_version: 'v1.331'
+                        app_version: 'v1.332'
                     }]);
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
@@ -2706,12 +2706,13 @@ export default function RiskReturnOptimiser() {
           let p84 = raw_p84;
 
           if (deterministicPath) {
-              // v1.331: UI Sync - Use Deterministic Base for BOTH Nominal and Real
+              // v1.332: UI Sync - Use Deterministic Base for BOTH Nominal and Real
               let detVal = deterministicPath[yIdx];
               
               // If Real Mode, deflate the deterministic nominal value
+              // v1.332: Use simple deflation logic from verification_inflation (User request: Source of Truth)
               if (!isNominalMode) {
-                  detVal = detVal / Math.pow(1 + inflationRate, yIdx);
+                  detVal = detVal * (1 - inflationRate);
               }
               
               // Set Median
@@ -2723,8 +2724,8 @@ export default function RiskReturnOptimiser() {
               if (yIdx > 0) {
                   let prevDetVal = deterministicPath[yIdx - 1]; // Nominal
                   if (!isNominalMode) {
-                      // Deflate previous year (y-1)
-                      prevDetVal = prevDetVal / Math.pow(1 + inflationRate, yIdx - 1);
+                      // Deflate previous year (y-1) using simple logic
+                      prevDetVal = prevDetVal * (1 - inflationRate);
                   }
                   prevMedian = prevDetVal;
               }
@@ -5262,8 +5263,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.331 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.331</span>
+                {/* Deployment trigger: v1.332 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.332</span>
              </div>
           </div>
         </div>
