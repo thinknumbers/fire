@@ -2414,7 +2414,7 @@ export default function RiskReturnOptimiser() {
                         portfolios: portfolioSummary,
                         entity_results: entitySummary,
 
-                        app_version: 'v1.330'
+                        app_version: 'v1.331'
                     }]);
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
@@ -2705,29 +2705,39 @@ export default function RiskReturnOptimiser() {
           let p50 = raw_p50;
           let p84 = raw_p84;
 
-          if (deterministicPath && isNominalMode) {
-              const detVal = deterministicPath[yIdx];
+          if (deterministicPath) {
+              // v1.331: UI Sync - Use Deterministic Base for BOTH Nominal and Real
+              let detVal = deterministicPath[yIdx];
               
-              if (isNominalMode) {
-                  p50 = detVal;
-                  
-                  // v1.329: Logic = Median + (Previous_Year_Median * Risk)
-                  // Per user feedback, the spread is calculated on the Opening Balance (Previous Year Median).
-                  
-                  let prevMedian = p50; // Default for Y0
-                  if (yIdx > 0 && deterministicPath[yIdx - 1] !== undefined) {
-                      prevMedian = deterministicPath[yIdx - 1];
+              // If Real Mode, deflate the deterministic nominal value
+              if (!isNominalMode) {
+                  detVal = detVal / Math.pow(1 + inflationRate, yIdx);
+              }
+              
+              // Set Median
+              p50 = detVal;
+              
+              // v1.329/v1.330: Spread on Opening Balance
+              let prevMedian = p50; // Default for Y0
+              
+              if (yIdx > 0) {
+                  let prevDetVal = deterministicPath[yIdx - 1]; // Nominal
+                  if (!isNominalMode) {
+                      // Deflate previous year (y-1)
+                      prevDetVal = prevDetVal / Math.pow(1 + inflationRate, yIdx - 1);
                   }
+                  prevMedian = prevDetVal;
+              }
 
-                  if (yIdx === 0) {
-                      // Year 0 has no variance
-                      p84 = p50;
-                      p02 = p50;
-                  } else {
-                      const sigma = prevMedian * simRisk;
-                      p84 = p50 + sigma; // +1 SD
-                      p02 = p50 - (2 * sigma); // -2 SD
-                  }
+              if (yIdx === 0) {
+                  // Year 0 has no variance
+                  p84 = p50;
+                  p02 = p50;
+              } else {
+                  // Apply Risk to Opening Balance (Nominal Risk used for both per user req)
+                  const sigma = prevMedian * simRisk;
+                  p84 = p50 + sigma; // +1 SD
+                  p02 = p50 - (2 * sigma); // -2 SD
               }
           }
           
@@ -5252,8 +5262,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.329 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.330</span>
+                {/* Deployment trigger: v1.331 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.331</span>
              </div>
           </div>
         </div>
