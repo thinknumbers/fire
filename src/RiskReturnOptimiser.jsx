@@ -2413,7 +2413,7 @@ export default function RiskReturnOptimiser() {
                         elapsed_seconds: elapsedSec,
                         portfolios: portfolioSummary,
                         entity_results: entitySummary,
-                        app_version: 'v1.323'
+                        app_version: 'v1.324'
                     }]);
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
@@ -2525,7 +2525,7 @@ export default function RiskReturnOptimiser() {
     }, 200);
   };
 
-    // v1.323: Shared Helpers (Pure) defined outside to be accessible by both runCashflowMonteCarlo and verifyDetailedProjections
+    // v1.324: Shared Helpers (Pure) defined outside to be accessible by both runCashflowMonteCarlo and verifyDetailedProjections
     const calculateAnnualNetFlows = (years, isPreTax, structures, entityTypes, inflationRate, incomeStreams, expenseStreams) => {
         const flows = new Array(years + 1).fill(0);
         
@@ -2648,10 +2648,10 @@ export default function RiskReturnOptimiser() {
              }
         }
 
-        // v1.323: Use shared helper (Pure)
+        // v1.324: Use shared helper (Pure)
         const { annualNetFlows, wTaxRate } = calculateAnnualNetFlows(years, isPreTax, structures, entityTypes, inflationRate, incomeStreams, expenseStreams);
         
-        // v1.323: Calculate Deterministic Path (ss_median equivalent)
+        // v1.324: Calculate Deterministic Path (ss_median equivalent)
         let deterministicPath = null;
         if (!isPreTax) {
              deterministicPath = calculateDeterministicPath(simReturn, years, annualNetFlows, totalWealth, adviceFee, wTaxRate);
@@ -2694,10 +2694,11 @@ export default function RiskReturnOptimiser() {
           const raw_p50 = calculatePercentile(r.paths, 50);
           const raw_p84 = calculatePercentile(r.paths, 84.1);
 
-          // v1.323: Hybrid Logic
-          // Median = Deterministic
-          // Upside = Deterministic + (MC_p84 - MC_p50)
-          // Downside = Deterministic - (MC_p50 - MC_p02)
+
+          // v1.324: Hybrid Logic (Revised)
+          // Median = Deterministic Median
+          // Upside = Median + Median * (Return + Risk)
+          // Downside = Median + Median * (Return - 2*Risk) [Using Add because R-2Risk is negative drop]
           
           let p02 = raw_p02;
           let p50 = raw_p50;
@@ -2705,19 +2706,13 @@ export default function RiskReturnOptimiser() {
 
           if (deterministicPath && isNominalMode) {
               const detVal = deterministicPath[yIdx];
-              // Adjust for Nominal/Real view if needed. Note: deterministicPath is computed as Nominal.
-              // If isNominalMode is false (Real mode), we'd need to deflate the deterministic path too.
-              // But currently Estimating Outcomes is Nominal? The chart title doesn't say.
-              // "Wealth Projection" chart has a toggle. Estimating Outcomes table seems to follow it?
-              // `adjustedOutcomes` in CashflowTab filters `cfSimulationResults`.
-              // `runSim` is called with `showNominal`.
               
               if (isNominalMode) {
                   p50 = detVal;
-                  const spreadUp = raw_p84 - raw_p50;
-                  const spreadDown = raw_p50 - raw_p02;
-                  p84 = Math.max(0, p50 + spreadUp);
-                  p02 = Math.max(0, p50 - spreadDown);
+                  // Calculate spread based on single-year impact factors relative to current median
+                  // Note: simReturn and simRisk are annual rates (e.g. 0.07, 0.10)
+                  p84 = p50 + (p50 * (simReturn + simRisk));
+                  p02 = p50 + (p50 * (simReturn - (2 * simRisk)));
               }
           }
           
@@ -2745,7 +2740,7 @@ export default function RiskReturnOptimiser() {
   // v1.312: Detailed Verification Dump (Two Tables: Risk & Inflation)
   const verifyDetailedProjections = async (profiles, activeAssets, activeCorrelations, numSims, runId) => {
       try {
-          console.log('Running v1.323 Verification Dump (Full Portfolio Set)...');
+          console.log('Running v1.324 Verification Dump (Full Portfolio Set)...');
           
           if (!runId) {
              alert("Verification Dump Error: Missing run_id. Check optimization_runs table.");
@@ -2771,10 +2766,10 @@ export default function RiskReturnOptimiser() {
              const { annualNetFlows, wTaxRate } = calculateAnnualNetFlows(projectionYears, false, structures, entityTypes, inflationRate, incomeStreams, expenseStreams); // After-Tax Flows
 
              // 2. Deterministic Paths (The "Truth" Baseline)
-             // v1.323: ss_median now includes Fees to match Real World projection standard
+             // v1.324: ss_median now includes Fees to match Real World projection standard
              const ss_median_path = calculateDeterministicPath(netReturn, projectionYears, annualNetFlows, totalWealth, adviceFee, wTaxRate);
              
-             // v1.323 Hybrid Logic for Upside/Downside: 
+             // v1.324 Hybrid Logic (Revised): Single-Year Factor Impact
              // We can't just run deterministic with rate +/- risk because of compounding asymmetry.
              // We need the MC spread. So we run MC first.
              
@@ -2813,12 +2808,10 @@ export default function RiskReturnOptimiser() {
                  // Hybrid Calculation
                  const det_median = ss_median_path[yIdx];
                  
-                 // Apply MC Spread to Deterministic Median
-                 const spread_up = raw_p84 - raw_p50;
-                 const spread_down = raw_p50 - raw_p02;
-                 
-                 const hybrid_upside = det_median + spread_up;
-                 const hybrid_downside = det_median - spread_down;
+                 // Apply Single-Year Factor Impact
+                 // v1.324: Formula = Median + Median * (Return +/- k*Risk)
+                 const hybrid_upside = det_median + (det_median * (netReturn + netRisk));
+                 const hybrid_downside = det_median + (det_median * (netReturn - (2 * netRisk)));
 
                  // Table A: Risk
                  riskData.push({
@@ -2828,7 +2821,7 @@ export default function RiskReturnOptimiser() {
                      downside_2sd: raw_p02,
                      median: raw_p50,
                      upside_1sd: raw_p84,
-                     // v1.323: Hybrid "SS" Columns
+                     // v1.324: Hybrid "SS" Columns
                      ss_downside: hybrid_downside,
                      ss_median: det_median,
                      ss_upside: hybrid_upside,
@@ -2868,7 +2861,7 @@ export default function RiskReturnOptimiser() {
           if (riskData.length > 0) await chunkInsert('verification_risk', riskData);
           if (inflationData.length > 0) await chunkInsert('verification_inflation', inflationData);
           
-          console.log(`v1.323 Verification Complete.`);
+          console.log(`v1.324 Verification Complete.`);
 
       } catch (err) {
           console.error("Verification Dump Failed:", err);
