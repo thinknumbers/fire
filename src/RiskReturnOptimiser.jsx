@@ -1,4 +1,4 @@
-// Deployment trigger: v1.343 - 2026-02-19
+// Deployment trigger: v1.344 - 2026-02-20
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -4250,6 +4250,41 @@ export default function RiskReturnOptimiser() {
     const chartData = efficientFrontier;
     const simulationData = simulations;
 
+    // v1.344: Calculate dynamic scaling for axes (0 to max + padding)
+    const { maxRisk, maxReturn } = useMemo(() => {
+        let rMax = 0.15; // Minimum default max
+        let retMax = 0.10; // Minimum default max
+
+        // Helper to update maxes
+        const updateMax = (data) => {
+            if (!data || !data.length) return;
+            data.forEach(d => {
+                if (d.risk > rMax) rMax = d.risk;
+                if (d.return > retMax) retMax = d.return;
+            });
+        };
+
+        updateMax(simulationData);
+        updateMax(chartData);
+
+        // Pre-tax frontier if enabled
+        if (showPreTaxFrontier && efficientFrontier.length > 0) {
+            const activeAssetList = assets.filter(a => a.active);
+            efficientFrontier.forEach(p => {
+                let preTaxReturn = 0;
+                p.weights.forEach((w, i) => {
+                    if (activeAssetList[i]) preTaxReturn += w * activeAssetList[i].return;
+                });
+                if (preTaxReturn > retMax) retMax = preTaxReturn;
+            });
+        }
+
+        return {
+            maxRisk: rMax * 1.15, // 15% padding
+            maxReturn: retMax * 1.15 // 15% padding
+        };
+    }, [simulationData, chartData, showPreTaxFrontier, efficientFrontier, assets]);
+
     // v1.283: CSV Download of optimization results (Detailed)
     const handleDownloadCSV = () => {
         const hasFullData = Object.keys(simulationResults).length > 0;
@@ -4455,7 +4490,7 @@ export default function RiskReturnOptimiser() {
                   unit="" 
                   tickFormatter={(val) => formatPercent(val)}
                   label={{ value: 'Risk', position: 'bottom', offset: 0, fill: '#004876' }}
-                  domain={[0, 1]}
+                  domain={[0, maxRisk]}
                   tick={{ fill: '#004876' }}
                   stroke="#004876"
                 />
@@ -4466,7 +4501,7 @@ export default function RiskReturnOptimiser() {
                   unit="" 
                   tickFormatter={(val) => formatPercent(val)}
                   label={{ value: 'Return', angle: -90, position: 'insideLeft', fill: '#004876' }}
-                  domain={[0, 1]}
+                  domain={[0, maxReturn]}
                   tick={{ fill: '#004876' }}
                   stroke="#004876"
                 />
