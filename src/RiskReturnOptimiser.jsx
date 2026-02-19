@@ -1,4 +1,4 @@
-// Deployment trigger: v1.342 - 2026-02-19
+// Deployment trigger: v1.345 - 2026-02-19
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -2420,7 +2420,7 @@ export default function RiskReturnOptimiser() {
                         portfolios: portfolioSummary,
                         entity_results: entitySummary,
 
-                        app_version: 'v1.335'
+                        app_version: 'v1.345'
                     }]);
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
@@ -5321,8 +5321,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.342 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.342</span>
+                {/* Deployment trigger: v1.345 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.345</span>
              </div>
           </div>
         </div>
@@ -5612,7 +5612,6 @@ const DebugLogsModal = ({ open, onClose, logs }) => {
     </div>
   );
 };
-
 
 
 
