@@ -1,4 +1,4 @@
-// Deployment trigger: v1.344 - 2026-02-20
+// Deployment trigger: v1.345 - 2026-02-20
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -4250,40 +4250,37 @@ export default function RiskReturnOptimiser() {
     const chartData = efficientFrontier;
     const simulationData = simulations;
 
-    // v1.344: Calculate dynamic scaling for axes (0 to max + padding)
-    const { maxRisk, maxReturn } = useMemo(() => {
-        let rMax = 0.15; // Minimum default max
-        let retMax = 0.10; // Minimum default max
+    // v1.345: Calculate dynamic scaling for axes (0 to max + padding)
+    // Removed useMemo because OptimizationTab is called as a function within a conditional block
+    let rMax = 0.15; // Minimum default max
+    let retMax = 0.10; // Minimum default max
 
-        // Helper to update maxes
-        const updateMax = (data) => {
-            if (!data || !data.length) return;
-            data.forEach(d => {
-                if (d.risk > rMax) rMax = d.risk;
-                if (d.return > retMax) retMax = d.return;
+    // Helper to update maxes
+    const updateMaxForBounds = (data) => {
+        if (!data || !data.length) return;
+        data.forEach(d => {
+            if (d.risk > rMax) rMax = d.risk;
+            if (d.return > retMax) retMax = d.return;
+        });
+    };
+
+    updateMaxForBounds(simulationData);
+    updateMaxForBounds(chartData);
+
+    // Pre-tax frontier if enabled
+    if (showPreTaxFrontier && efficientFrontier.length > 0) {
+        const activeAssetList = assets.filter(a => a.active);
+        efficientFrontier.forEach(p => {
+            let preTaxReturn = 0;
+            p.weights.forEach((w, i) => {
+                if (activeAssetList[i]) preTaxReturn += w * activeAssetList[i].return;
             });
-        };
+            if (preTaxReturn > retMax) retMax = preTaxReturn;
+        });
+    }
 
-        updateMax(simulationData);
-        updateMax(chartData);
-
-        // Pre-tax frontier if enabled
-        if (showPreTaxFrontier && efficientFrontier.length > 0) {
-            const activeAssetList = assets.filter(a => a.active);
-            efficientFrontier.forEach(p => {
-                let preTaxReturn = 0;
-                p.weights.forEach((w, i) => {
-                    if (activeAssetList[i]) preTaxReturn += w * activeAssetList[i].return;
-                });
-                if (preTaxReturn > retMax) retMax = preTaxReturn;
-            });
-        }
-
-        return {
-            maxRisk: rMax * 1.15, // 15% padding
-            maxReturn: retMax * 1.15 // 15% padding
-        };
-    }, [simulationData, chartData, showPreTaxFrontier, efficientFrontier, assets]);
+    const maxRisk = rMax * 1.15; // 15% padding
+    const maxReturn = retMax * 1.15; // 15% padding
 
     // v1.283: CSV Download of optimization results (Detailed)
     const handleDownloadCSV = () => {
