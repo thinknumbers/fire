@@ -1,4 +1,4 @@
-// Deployment trigger: v1.345 - 2026-02-20
+// Deployment trigger: v1.347 - 2026-02-20
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -4250,7 +4250,7 @@ export default function RiskReturnOptimiser() {
     const chartData = efficientFrontier;
     const simulationData = simulations;
 
-    // v1.345: Calculate dynamic scaling for axes (0 to max + padding)
+    // v1.347: Calculate dynamic scaling for axes (0 to max + padding)
     // Removed useMemo because OptimizationTab is called as a function within a conditional block
     let rMax = 0.15; // Minimum default max
     let retMax = 0.10; // Minimum default max
@@ -5353,8 +5353,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.343 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.343</span>
+                {/* Deployment trigger: v1.347 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.347</span>
              </div>
           </div>
         </div>
