@@ -1,4 +1,4 @@
-// Deployment trigger: v1.347 - 2026-02-20
+// Deployment trigger: v1.348 - 2026-02-20
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -2749,11 +2749,10 @@ export default function RiskReturnOptimiser() {
     // 1. Run for Current View (to display)
     const currentData = runSim(showBeforeTax, showNominal);
     setCfSimulationResults(currentData);
-
-    // 2. Run for "Global Max" (Before Tax, Nominal) to lock axis
-    const maxData = runSim(true, true);
-    const maxVal = Math.max(...maxData.map(d => d.p84));
-    // Add 10% buffer
+    
+    // v1.348: Scale Y-axis to current data points with 10% buffer
+    // (Removed v1.307 logic that locked to Global Max/Nominal Before Tax)
+    const maxVal = Math.max(...currentData.map(d => d.p84));
     setMaxProjectionY(maxVal * 1.1);
     
   }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, projectionYears, inflationRate, adviceFee, structures, entityTypes, showBeforeTax, showNominal, optimizationAssets, assets, correlations]);
@@ -4250,7 +4249,7 @@ export default function RiskReturnOptimiser() {
     const chartData = efficientFrontier;
     const simulationData = simulations;
 
-    // v1.347: Calculate dynamic scaling for axes (0 to max + padding)
+    // v1.348: Calculate dynamic scaling for axes (0 to max + padding)
     // Removed useMemo because OptimizationTab is called as a function within a conditional block
     let rMax = 0.15; // Minimum default max
     let retMax = 0.10; // Minimum default max
@@ -5353,8 +5352,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.347 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.347</span>
+                {/* Deployment trigger: v1.348 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.348</span>
              </div>
           </div>
         </div>
