@@ -5086,7 +5086,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.352 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.352</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.353</span>
              </div>
           </div>
         </div>
@@ -5441,7 +5441,7 @@ const SettingsModal = ({
     );
 
     // Icons
-    const { Settings, X, Activity, Upload, Type, Cpu, Calculator, FolderOpen, ChevronDown, Trash2, Save } = window.LucideIcons || {};
+
 
     return (
       <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
