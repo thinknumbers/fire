@@ -1,4 +1,4 @@
-// Deployment trigger: v1.349 - 2026-02-20
+// Deployment trigger: v1.350 - 2026-02-20
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -4597,12 +4597,12 @@ export default function RiskReturnOptimiser() {
             'Cash': ['cash']
         };
         const groupColors = {
-            'Australian Equities': '#AEC6CF',
-            'Global Equities': '#FFB347', 
-            'Property': '#FDFD96',
-            'Fixed Interest': '#77DD77',
-            'Alternatives': '#B39EB5',
-            'Cash': '#CFCFC4'
+            'Australian Equities': '#1e3a8a', // Blue 900
+            'Global Equities': '#3b82f6', // Blue 500
+            'Property': '#93c5fd', // Blue 300
+            'Fixed Interest': '#14b8a6', // Teal 500
+            'Alternatives': '#c4b5fd', // Violet 300
+            'Cash': '#e2e8f0' // Slate 200
         };
 
         return Object.entries(groups).map(([groupName, ids]) => {
@@ -4797,11 +4797,11 @@ export default function RiskReturnOptimiser() {
                               dataKey="value"
                               isAnimationActive={!isExporting}
                               label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                                const radius = outerRadius + 10;
+                                const radius = outerRadius + 15;
                                 const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
                                 const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
                                 return percent > 0.05 ? (
-                                  <text x={x} y={y} fill="#4b5563" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="9">
+                                  <text x={x} y={y} fill="#4b5563" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={isExporting ? 12 : 9} fontWeight={isExporting ? "bold" : "normal"}>
                                     {`${(percent * 100).toFixed(0)}%`}
                                   </text>
                                 ) : null;
@@ -4819,21 +4819,48 @@ export default function RiskReturnOptimiser() {
                 })}
               </div>
 
-              {/* Shared Legend Below Pie Charts - High Level Groups (v1.306) */}
-              <div className="mt-6 flex flex-wrap justify-start gap-4 border-t border-gray-100 pt-4">
-                 {Object.entries({
-                    'Australian Equities': '#AEC6CF',
-                    'Global Equities': '#FFB347', 
-                    'Property': '#FDFD96',
-                    'Fixed Interest': '#77DD77',
-                    'Alternatives': '#B39EB5',
-                    'Cash': '#CFCFC4'
-                 }).map(([name, color]) => (
-                   <div key={name} className="flex items-center">
-                      <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: color }} />
-                      <span className="text-xs text-gray-600">{name}</span>
-                   </div>
-                 ))}
+              
+              {/* v1.350: Hierarchical Legend (Group -> Assets) */}
+              <div className="mt-8 border-t border-gray-100 pt-4">
+                  <h5 className="text-xs font-bold text-gray-900 mb-3 uppercase tracking-wider">Asset Allocation Legend</h5>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-6">
+                      {Object.entries({
+                          'Australian Equities': ['aus_eq'],
+                          'Global Equities': ['us_large', 'us_small', 'dev_world', 'em_eq'],
+                          'Property': ['reits'],
+                          'Fixed Interest': ['aus_bond', 'gl_bond', 'hy_bond', 'em_bond'],
+                          'Alternatives': ['hedge', 'comm'],
+                          'Cash': ['cash']
+                      }).map(([groupName, groupIds]) => {
+                           const groupColor = {
+                                'Australian Equities': '#1e3a8a',
+                                'Global Equities': '#3b82f6', 
+                                'Property': '#93c5fd',
+                                'Fixed Interest': '#14b8a6',
+                                'Alternatives': '#c4b5fd',
+                                'Cash': '#e2e8f0'
+                           }[groupName];
+
+                           return (
+                               <div key={groupName} className="flex flex-col gap-1">
+                                   <div className="flex items-center mb-1">
+                                       <div className="w-3 h-3 rounded-full mr-2 shadow-sm" style={{ backgroundColor: groupColor }} />
+                                       <span className="text-xs font-bold text-gray-800">{groupName}</span>
+                                   </div>
+                                   {groupIds.map(assetId => {
+                                       const asset = assets.find(a => a.id === assetId);
+                                       if (!asset) return null;
+                                       return (
+                                           <div key={assetId} className="flex items-center pl-5">
+                                               <div className="w-2 h-2 rounded-full mr-2 opacity-75" style={{ backgroundColor: asset.color }} />
+                                                <span className="text-[10px] text-gray-500">{asset.name}</span>
+                                           </div>
+                                       );
+                                   })}
+                               </div>
+                           );
+                      })}
+                  </div>
               </div>
             </div>
           </div>
