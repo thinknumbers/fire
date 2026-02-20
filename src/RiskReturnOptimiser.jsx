@@ -1,4 +1,4 @@
-// Deployment trigger: v1.352 - 2026-02-20
+// Deployment trigger: v1.353 - 2026-02-20
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -2990,316 +2990,6 @@ export default function RiskReturnOptimiser() {
       }
   };
 
-  const SettingsModal = () => {
-      if (!isSettingsOpen) return null;
-      // Initialize draft on open
-      if (!settingsDraft) return null;
-
-      return (
-        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
-                <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                    <h3 className="text-xl font-bold text-gray-900 flex items-center">
-                        <Settings className="w-6 h-6 mr-2 text-fire-accent" />
-                        Application Settings
-                    </h3>
-                    <button 
-                        onClick={() => setIsSettingsOpen(false)}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                        <X className="w-6 h-6" />
-                    </button>
-                </div>
-                
-                <div className="p-6 space-y-8">
-                    {/* Identity Section */}
-                    <div className="space-y-4">
-                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                            <Activity className="w-4 h-4" /> Identity
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Application Title</label>
-                                <input 
-                                    type="text" 
-                                    defaultValue={settingsDraft.title}
-                                    onBlur={(e) => setSettingsDraft(prev => ({ ...prev, title: e.target.value }))}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-fire-accent/50 outline-none transition-all"
-                                />
-                            </div>
-                            <div>
-                               <label className="block text-sm font-medium text-gray-700 mb-1">Logo</label>
-                               <div className="flex gap-3 items-start">
-                                   <div className="w-16 h-16 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center p-2 shrink-0">
-                                       <img src={settingsDraft.logo || fireLogo} alt="Preview" className="max-w-full max-h-full object-contain" />
-                                   </div>
-                                   <div className="flex-1">
-                                       <label className="flex items-center justify-center w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors">
-                                            <Upload className="w-4 h-4 mr-2" />
-                                            {isUploading ? 'Uploading...' : 'Upload New Logo'}
-                                            <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} disabled={isUploading} />
-                                       </label>
-                                       <p className="text-xs text-gray-500 mt-2">Recommended: PNG or SVG with transparent background.</p>
-                                   </div>
-                               </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="border-t border-gray-100"></div>
-
-                    {/* Appearance Section */}
-                    <div className="space-y-4">
-                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                             <Type className="w-4 h-4" /> Appearance
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Font Family</label>
-                                <select 
-                                    value={settingsDraft.font || 'Calibri'}
-                                    onChange={(e) => setSettingsDraft(prev => ({ ...prev, font: e.target.value }))}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-fire-accent/50 outline-none"
-                                >
-                                    {AVAILABLE_FONTS.map(font => (
-                                        <option key={font.id} value={font.id}>{font.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>
-                                    <div className="flex items-center gap-2">
-                                        <div className="relative">
-                                            <input 
-                                                type="color" 
-                                                value={settingsDraft.colors.accent}
-                                                onChange={(e) => setSettingsDraft(prev => ({ ...prev, colors: { ...prev.colors, accent: e.target.value } }))}
-                                                className="w-10 h-10 rounded cursor-pointer border-0 p-0 overflow-hidden shadow-sm"
-                                            />
-                                        </div>
-                                        <input 
-                                            type="text"
-                                            key={`accent-${settingsDraft.colors.accent}`}
-                                            defaultValue={settingsDraft.colors.accent}
-                                            onBlur={(e) => {
-                                                let val = e.target.value.trim();
-                                                if (!val.startsWith('#')) val = '#' + val;
-                                                if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
-                                                    setSettingsDraft(prev => ({ ...prev, colors: { ...prev.colors, accent: val } }));
-                                                }
-                                            }}
-                                            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                                            className="text-xs font-mono text-gray-700 border border-gray-300 rounded px-2 py-1 w-20"
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Heading Color</label>
-                                    <div className="flex items-center gap-2">
-                                        <div className="relative">
-                                            <input 
-                                                type="color" 
-                                                value={settingsDraft.colors.heading}
-                                                onChange={(e) => setSettingsDraft(prev => ({ ...prev, colors: { ...prev.colors, heading: e.target.value } }))}
-                                                className="w-10 h-10 rounded cursor-pointer border-0 p-0 overflow-hidden shadow-sm"
-                                            />
-                                        </div>
-                                        <input 
-                                            type="text"
-                                            key={`heading-${settingsDraft.colors.heading}`}
-                                            defaultValue={settingsDraft.colors.heading}
-                                            onBlur={(e) => {
-                                                let val = e.target.value.trim();
-                                                if (!val.startsWith('#')) val = '#' + val;
-                                                if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
-                                                    setSettingsDraft(prev => ({ ...prev, colors: { ...prev.colors, heading: val } }));
-                                                }
-                                            }}
-                                            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                                            className="text-xs font-mono text-gray-700 border border-gray-300 rounded px-2 py-1 w-20"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="border-t border-gray-100"></div>
-
-                    {/* Optimisation Section */}
-                    <div className="space-y-4">
-                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                             <Cpu className="w-4 h-4" /> Optimisation
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Simulations</label>
-                                <NumberInput 
-                                  value={simulationCount} 
-                                  onChange={(val) => setSimulationCount(val || 50)}
-                                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
-                                  placeholder="50"
-                                  prefix=""
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Number of Monte Carlo simulations (recommended: 500+)</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Forecast Confidence</label>
-                                <select 
-                                    value={forecastConfidenceLevel}
-                                    onChange={(e) => setForecastConfidenceLevel(parseInt(e.target.value))}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-fire-accent/50 outline-none text-sm"
-                                >
-                                    <option value={1}>Low (T=15)</option>
-                                    <option value={2}>Medium (T=50)</option>
-                                    <option value={3}>High (T=200)</option>
-                                </select>
-                                <p className="text-xs text-gray-500 mt-1">Controls how tightly the optimizer tracks historical estimates. Higher = closer to inputs (Default: Medium)</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="border-t border-gray-100"></div>
-
-                    {/* Simulation Assumptions */}
-                    <div className="space-y-4">
-                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                             <Calculator className="w-4 h-4" /> Simulation Assumptions
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Inflation Rate (%)</label>
-                                <input 
-                                    type="number"
-                                    step="0.01"
-                                    value={(settingsDraft?.inflationRate ?? 0.025) * 100}
-                                    onChange={(e) => {
-                                        const val = parseFloat(e.target.value);
-                                        if (!isNaN(val)) {
-                                            setSettingsDraft(prev => ({ ...prev, inflationRate: val / 100 }));
-                                        }
-                                    }}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Used for Real vs Nominal calc (Default: 2.50%)</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Advice Fee (%)</label>
-                                <input 
-                                    type="number"
-                                    step="0.01"
-                                    value={(settingsDraft?.adviceFee ?? 0.01) * 100}
-                                    onChange={(e) => {
-                                        const val = parseFloat(e.target.value);
-                                        if (!isNaN(val)) {
-                                            setSettingsDraft(prev => ({ ...prev, adviceFee: val / 100 }));
-                                        }
-                                    }}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Deducted from portfolio growth annually (Default: 1.00%)</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="border-t border-gray-100"></div>
-
-                    {/* Scenarios Section (Load) */}
-                    <div className="space-y-4">
-                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                             <FolderOpen className="w-4 h-4" /> Scenarios
-                        </h4>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Load Saved Scenario</label>
-                            <div className="relative">
-                              <button 
-                                onClick={() => setShowLoadMenu(!showLoadMenu)}
-                                className="w-full flex items-center justify-between px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
-                              >
-                                <span className="flex items-center">
-                                  <FolderOpen className="w-4 h-4 mr-2"/>
-                                  Select Scenario...
-                                </span>
-                                <ChevronDown className="w-3 h-3"/>
-                              </button>
-                              
-                              {showLoadMenu && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-64 overflow-y-auto">
-                                  <div className="p-2 border-b border-gray-100 text-xs font-semibold text-gray-500">Saved Scenarios</div>
-                                  {savedScenarios.length === 0 ? (
-                                     <div className="p-4 text-center text-sm text-gray-400">No saved scenarios</div>
-                                  ) : (
-                                    savedScenarios.map(s => (
-                                      <div 
-                                        key={s.id}
-                                        onClick={() => { handleLoadScenario(s.id); setIsSettingsOpen(false); }}
-                                        className="w-full flex justify-between items-center px-4 py-3 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0 cursor-pointer group"
-                                      >
-                                        <div>
-                                          <div className="font-medium text-gray-900">{s.name || 'Untitled'}</div>
-                                          <div className="text-xs text-gray-500">{new Date(s.created_at).toLocaleDateString()}</div>
-                                        </div>
-                                        <button 
-                                          onClick={(e) => handleDeleteScenario(s.id, e)}
-                                          className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                                          title="Delete Scenario"
-                                        >
-                                          <Trash2 className="w-4 h-4"/>
-                                        </button>
-                                      </div>
-                                    ))
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-center rounded-b-xl">
-                    <button 
-                      onClick={() => {
-                          if(window.confirm('Reset all settings to default?')) {
-                              setAppSettings(DEFAULT_APP_SETTINGS);
-                              setSettingsDraft(DEFAULT_APP_SETTINGS);
-                              setIsSettingsOpen(false);
-                          }
-                      }}
-                      className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                        Reset to Defaults
-                    </button>
-                    <div className="flex gap-3">
-                         <button 
-                            onClick={() => setIsSettingsOpen(false)}
-                            className="px-5 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button 
-                            onClick={() => {
-                                // Save Simulation Assumptions from Draft to State
-                                if (settingsDraft.inflationRate !== undefined) setInflationRate(settingsDraft.inflationRate);
-                                if (settingsDraft.adviceFee !== undefined) setAdviceFee(settingsDraft.adviceFee);
-
-                                // Save App Settings (Appearance, Identity)
-                                const { inflationRate: _i, adviceFee: _f, ...restSettings } = settingsDraft;
-                                setAppSettings(restSettings);
-                                setIsSettingsOpen(false);
-                            }}
-                            className="px-5 py-2 text-sm font-medium bg-fire-accent text-white rounded-lg shadow-sm hover:opacity-90 transition-opacity flex items-center"
-                        >
-                            <Save className="w-4 h-4 mr-2" />
-                            Save Changes
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-      );
-  };
    
 
   const DataTab = () => (
@@ -5492,7 +5182,29 @@ export default function RiskReturnOptimiser() {
         <main id="report-content">
           {/* Settings Modal is Global */}
           <DebugLogsModal open={showDebugModal} onClose={() => setShowDebugModal(false)} logs={debugLogs} />
-          <SettingsModal />
+          <SettingsModal 
+            isSettingsOpen={isSettingsOpen}
+            setIsSettingsOpen={setIsSettingsOpen}
+            settingsDraft={settingsDraft}
+            setSettingsDraft={setSettingsDraft}
+            isUploading={isUploading}
+            handleLogoUpload={handleLogoUpload}
+            simulationCount={simulationCount}
+            setSimulationCount={setSimulationCount}
+            forecastConfidenceLevel={forecastConfidenceLevel}
+            setForecastConfidenceLevel={setForecastConfidenceLevel}
+            showLoadMenu={showLoadMenu}
+            setShowLoadMenu={setShowLoadMenu}
+            savedScenarios={savedScenarios}
+            handleLoadScenario={handleLoadScenario}
+            handleDeleteScenario={handleDeleteScenario}
+            setAppSettings={setAppSettings}
+            setInflationRate={setInflationRate}
+            setAdviceFee={setAdviceFee}
+            DEFAULT_APP_SETTINGS={DEFAULT_APP_SETTINGS}
+            fireLogo={fireLogo}
+            AVAILABLE_FONTS={AVAILABLE_FONTS}
+          />
           
           {activeTab === 'data' && <div id="data-tab-content">{DataTab()}</div>}
           {activeTab === 'client' && <div id="client-tab-content">{ClientTab()}</div>}
@@ -5685,6 +5397,357 @@ const DebugLogsModal = ({ open, onClose, logs }) => {
       </div>
     </div>
   );
+};
+
+const SettingsModal = ({ 
+    isSettingsOpen, 
+    setIsSettingsOpen, 
+    settingsDraft, 
+    setSettingsDraft, 
+    isUploading, 
+    handleLogoUpload,
+    simulationCount, 
+    setSimulationCount,
+    forecastConfidenceLevel, 
+    setForecastConfidenceLevel,
+    showLoadMenu, 
+    setShowLoadMenu,
+    savedScenarios, 
+    handleLoadScenario, 
+    handleDeleteScenario,
+    setAppSettings,
+    setInflationRate,
+    setAdviceFee,
+    DEFAULT_APP_SETTINGS,
+    fireLogo,
+    AVAILABLE_FONTS
+}) => {
+    if (!isSettingsOpen) return null;
+    // Initialize draft on open
+    if (!settingsDraft) return null;
+
+    // Helper for SettingsModal
+    const NumberInput = ({ value, onChange, className, placeholder, prefix }) => (
+        <div className="relative">
+            {prefix && <span className="absolute left-3 top-2 text-gray-400">{prefix}</span>}
+            <input
+                type="number"
+                value={value}
+                onChange={(e) => onChange(parseInt(e.target.value))}
+                className={`${className} ${prefix ? 'pl-8' : ''}`}
+                placeholder={placeholder}
+            />
+        </div>
+    );
+
+    // Icons
+    const { Settings, X, Activity, Upload, Type, Cpu, Calculator, FolderOpen, ChevronDown, Trash2, Save } = window.LucideIcons || {};
+
+    return (
+      <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
+              <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                      <Settings className="w-6 h-6 mr-2 text-fire-accent" />
+                      Application Settings
+                  </h3>
+                  <button 
+                      onClick={() => setIsSettingsOpen(false)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                      <X className="w-6 h-6" />
+                  </button>
+              </div>
+              
+              <div className="p-6 space-y-8">
+                  {/* Identity Section */}
+                  <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                          <Activity className="w-4 h-4" /> Identity
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Application Title</label>
+                              <input 
+                                  type="text" 
+                                  defaultValue={settingsDraft.title}
+                                  onBlur={(e) => setSettingsDraft(prev => ({ ...prev, title: e.target.value }))}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-fire-accent/50 outline-none transition-all"
+                              />
+                          </div>
+                          <div>
+                             <label className="block text-sm font-medium text-gray-700 mb-1">Logo</label>
+                             <div className="flex gap-3 items-start">
+                                 <div className="w-16 h-16 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center p-2 shrink-0">
+                                     <img src={settingsDraft.logo || fireLogo} alt="Preview" className="max-w-full max-h-full object-contain" />
+                                 </div>
+                                 <div className="flex-1">
+                                     <label className="flex items-center justify-center w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors">
+                                          <Upload className="w-4 h-4 mr-2" />
+                                          {isUploading ? 'Uploading...' : 'Upload New Logo'}
+                                          <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} disabled={isUploading} />
+                                     </label>
+                                     <p className="text-xs text-gray-500 mt-2">Recommended: PNG or SVG with transparent background.</p>
+                                 </div>
+                             </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div className="border-t border-gray-100"></div>
+
+                  {/* Appearance Section */}
+                  <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                           <Type className="w-4 h-4" /> Appearance
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Font Family</label>
+                              <select 
+                                  value={settingsDraft.font || 'Calibri'}
+                                  onChange={(e) => setSettingsDraft(prev => ({ ...prev, font: e.target.value }))}
+                                  className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-fire-accent/50 outline-none"
+                              >
+                                  {AVAILABLE_FONTS.map(font => (
+                                      <option key={font.id} value={font.id}>{font.label}</option>
+                                  ))}
+                              </select>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>
+                                  <div className="flex items-center gap-2">
+                                      <div className="relative">
+                                          <input 
+                                              type="color" 
+                                              value={settingsDraft.colors.accent}
+                                              onChange={(e) => setSettingsDraft(prev => ({ ...prev, colors: { ...prev.colors, accent: e.target.value } }))}
+                                              className="w-10 h-10 rounded cursor-pointer border-0 p-0 overflow-hidden shadow-sm"
+                                          />
+                                      </div>
+                                      <input 
+                                          type="text"
+                                          key={`accent-${settingsDraft.colors.accent}`}
+                                          defaultValue={settingsDraft.colors.accent}
+                                          onBlur={(e) => {
+                                              let val = e.target.value.trim();
+                                              if (!val.startsWith('#')) val = '#' + val;
+                                              if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                                                  setSettingsDraft(prev => ({ ...prev, colors: { ...prev.colors, accent: val } }));
+                                              }
+                                          }}
+                                          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                          className="text-xs font-mono text-gray-700 border border-gray-300 rounded px-2 py-1 w-20"
+                                      />
+                                  </div>
+                              </div>
+                              <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Heading Color</label>
+                                  <div className="flex items-center gap-2">
+                                      <div className="relative">
+                                          <input 
+                                              type="color" 
+                                              value={settingsDraft.colors.heading}
+                                              onChange={(e) => setSettingsDraft(prev => ({ ...prev, colors: { ...prev.colors, heading: e.target.value } }))}
+                                              className="w-10 h-10 rounded cursor-pointer border-0 p-0 overflow-hidden shadow-sm"
+                                          />
+                                      </div>
+                                      <input 
+                                          type="text"
+                                          key={`heading-${settingsDraft.colors.heading}`}
+                                          defaultValue={settingsDraft.colors.heading}
+                                          onBlur={(e) => {
+                                              let val = e.target.value.trim();
+                                              if (!val.startsWith('#')) val = '#' + val;
+                                              if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                                                  setSettingsDraft(prev => ({ ...prev, colors: { ...prev.colors, heading: val } }));
+                                              }
+                                          }}
+                                          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                          className="text-xs font-mono text-gray-700 border border-gray-300 rounded px-2 py-1 w-20"
+                                      />
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div className="border-t border-gray-100"></div>
+
+                  {/* Optimisation Section */}
+                  <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                           <Cpu className="w-4 h-4" /> Optimisation
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Simulations</label>
+                              <NumberInput 
+                                value={simulationCount} 
+                                onChange={(val) => setSimulationCount(val || 50)}
+                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
+                                placeholder="50"
+                                prefix=""
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Number of Monte Carlo simulations (recommended: 500+)</p>
+                          </div>
+                          <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Forecast Confidence</label>
+                              <select 
+                                  value={forecastConfidenceLevel}
+                                  onChange={(e) => setForecastConfidenceLevel(parseInt(e.target.value))}
+                                  className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-fire-accent/50 outline-none text-sm"
+                              >
+                                  <option value={1}>Low (T=15)</option>
+                                  <option value={2}>Medium (T=50)</option>
+                                  <option value={3}>High (T=200)</option>
+                              </select>
+                              <p className="text-xs text-gray-500 mt-1">Controls how tightly the optimizer tracks historical estimates. Higher = closer to inputs (Default: Medium)</p>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div className="border-t border-gray-100"></div>
+
+                  {/* Simulation Assumptions */}
+                  <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                           <Calculator className="w-4 h-4" /> Simulation Assumptions
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Inflation Rate (%)</label>
+                              <input 
+                                  type="number"
+                                  step="0.01"
+                                  value={(settingsDraft?.inflationRate ?? 0.025) * 100}
+                                  onChange={(e) => {
+                                      const val = parseFloat(e.target.value);
+                                      if (!isNaN(val)) {
+                                          setSettingsDraft(prev => ({ ...prev, inflationRate: val / 100 }));
+                                      }
+                                  }}
+                                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Used for Real vs Nominal calc (Default: 2.50%)</p>
+                          </div>
+                          <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Advice Fee (%)</label>
+                              <input 
+                                  type="number"
+                                  step="0.01"
+                                  value={(settingsDraft?.adviceFee ?? 0.01) * 100}
+                                  onChange={(e) => {
+                                      const val = parseFloat(e.target.value);
+                                      if (!isNaN(val)) {
+                                          setSettingsDraft(prev => ({ ...prev, adviceFee: val / 100 }));
+                                      }
+                                  }}
+                                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Deducted from portfolio growth annually (Default: 1.00%)</p>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div className="border-t border-gray-100"></div>
+
+                  {/* Scenarios Section (Load) */}
+                  <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                           <FolderOpen className="w-4 h-4" /> Scenarios
+                      </h4>
+                      <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Load Saved Scenario</label>
+                          <div className="relative">
+                            <button 
+                              onClick={() => setShowLoadMenu(!showLoadMenu)}
+                              className="w-full flex items-center justify-between px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
+                            >
+                              <span className="flex items-center">
+                                <FolderOpen className="w-4 h-4 mr-2"/>
+                                Select Scenario...
+                              </span>
+                              <ChevronDown className="w-3 h-3"/>
+                            </button>
+                            
+                            {showLoadMenu && (
+                              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-64 overflow-y-auto">
+                                <div className="p-2 border-b border-gray-100 text-xs font-semibold text-gray-500">Saved Scenarios</div>
+                                {savedScenarios.length === 0 ? (
+                                   <div className="p-4 text-center text-sm text-gray-400">No saved scenarios</div>
+                                ) : (
+                                  savedScenarios.map(s => (
+                                    <div 
+                                      key={s.id}
+                                      onClick={() => { handleLoadScenario(s.id); setIsSettingsOpen(false); }}
+                                      className="w-full flex justify-between items-center px-4 py-3 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0 cursor-pointer group"
+                                    >
+                                      <div>
+                                        <div className="font-medium text-gray-900">{s.name || 'Untitled'}</div>
+                                        <div className="text-xs text-gray-500">{new Date(s.created_at).toLocaleDateString()}</div>
+                                      </div>
+                                      <button 
+                                        onClick={(e) => handleDeleteScenario(s.id, e)}
+                                        className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                        title="Delete Scenario"
+                                      >
+                                        <Trash2 className="w-4 h-4"/>
+                                      </button>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-center rounded-b-xl">
+                  <button 
+                    onClick={() => {
+                        if(window.confirm('Reset all settings to default?')) {
+                            setAppSettings(DEFAULT_APP_SETTINGS);
+                            setSettingsDraft(DEFAULT_APP_SETTINGS);
+                            setIsSettingsOpen(false);
+                        }
+                    }}
+                    className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                      Reset to Defaults
+                  </button>
+                  <div className="flex gap-3">
+                       <button 
+                          onClick={() => setIsSettingsOpen(false)}
+                          className="px-5 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                      >
+                          Cancel
+                      </button>
+                      <button 
+                          onClick={() => {
+                              // Save Simulation Assumptions from Draft to State
+                              // Ensure we update core state so app reflects changes immediately
+                              if (settingsDraft.inflationRate !== undefined) setInflationRate(settingsDraft.inflationRate);
+                              if (settingsDraft.adviceFee !== undefined) setAdviceFee(settingsDraft.adviceFee);
+
+                              // Save App Settings (Appearance, Identity)
+                              const { inflationRate: _i, adviceFee: _f, ...restSettings } = settingsDraft;
+                              setAppSettings(restSettings);
+                              setIsSettingsOpen(false);
+                          }}
+                          className="px-5 py-2 text-sm font-medium bg-fire-accent text-white rounded-lg shadow-sm hover:opacity-90 transition-opacity flex items-center"
+                      >
+                          <Save className="w-4 h-4 mr-2" />
+                          Save Changes
+                      </button>
+                  </div>
+              </div>
+          </div>
+      </div>
+    );
 };
 
 
