@@ -1,4 +1,4 @@
-// Deployment trigger: v1.351 - 2026-02-20
+// Deployment trigger: v1.352 - 2026-02-20
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -2729,9 +2729,9 @@ export default function RiskReturnOptimiser() {
           // else: Before Tax — raw MC percentiles (already set above)
           
           // Step 3: If Real mode, deduct inflation from the nominal values
-          // Real = Nominal * (1 - inflationRate)  i.e. Nominal - (Nominal × inflationRate)
+          // Real = Nominal / (1 + inflationRate)^year
           if (!isNominalMode) {
-              const realFactor = (1 - inflationRate);
+              const realFactor = Math.pow(1 + inflationRate, -yIdx);
               p02 = p02 * realFactor;
               p50 = p50 * realFactor;
               p84 = p84 * realFactor;
@@ -4396,12 +4396,7 @@ export default function RiskReturnOptimiser() {
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
           <div className="flex items-center gap-3">
             {/* Timer display */}
-            {simulationElapsed !== null && !isSimulating && efficientFrontier.length > 0 && (
-              <div className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
-                <Timer className="w-3.5 h-3.5" />
-                <span>Completed in <strong>{formatTime(simulationElapsed)}</strong></span>
-              </div>
-            )}
+            {/* Timer display removed v1.352 */}
           </div>
           
            <div className="flex items-center gap-4">
@@ -5400,8 +5395,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.351 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.351</span>
+                {/* Deployment trigger: v1.352 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.352</span>
              </div>
           </div>
         </div>
