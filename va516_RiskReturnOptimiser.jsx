@@ -1,4 +1,4 @@
-// Deployment trigger: v1.349 - 2026-02-20
+// Deployment trigger: v1.310 - 2026-02-16
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -10,7 +10,7 @@ import {
   Settings, User, Activity, PieChart as PieIcon, TrendingUp, 
   ChevronRight, Save, Calculator, ArrowRight, DollarSign, Plus, Trash2, Calendar,
   AlertCircle, FileText, CheckSquare, Square, Clock, Percent, Loader, Cpu, Cloud,
-  FolderOpen, ChevronDown, X, Upload, Type, Download, Timer, HelpCircle
+  FolderOpen, ChevronDown, X, Upload, Type, Download, Timer
 } from 'lucide-react';
 import { supabase } from './supabase';
 import html2canvas from 'html2canvas';
@@ -57,20 +57,20 @@ const NumberInput = ({ value, onChange, className, placeholder, prefix = "$" }) 
 
 
 const DEFAULT_ASSETS = [
-  { id: 'aus_eq', name: 'Australian Equities', return: 0.087000, stdev: 0.174200, incomeRatio: 0.67, minWeight: 0, maxWeight: 100, color: '#1e3a8a', active: true, isDefault: true }, // Blue 900
-  { id: 'us_large', name: 'US Large Cap Equities', return: 0.084000, stdev: 0.171100, incomeRatio: 0.35, minWeight: 0, maxWeight: 100, color: '#1d4ed8', active: true, isDefault: true }, // Blue 700
-  { id: 'us_small', name: 'US Small Cap Equities', return: 0.077000, stdev: 0.208100, incomeRatio: 0.40, minWeight: 0, maxWeight: 100, color: '#2563eb', active: true, isDefault: true }, // Blue 600
-  { id: 'dev_world', name: 'Developed World Equities', return: 0.070000, stdev: 0.167300, incomeRatio: 0.49, minWeight: 0, maxWeight: 100, color: '#3b82f6', active: true, isDefault: true }, // Blue 500
-  { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.083000, stdev: 0.200000, incomeRatio: 0.44, minWeight: 0, maxWeight: 100, color: '#60a5fa', active: true, isDefault: true }, // Blue 400
-  { id: 'reits', name: 'Global REITs', return: 0.060000, stdev: 0.151877, incomeRatio: 0.63, minWeight: 0, maxWeight: 100, color: '#93c5fd', active: true, isDefault: true }, // Blue 300
+  { id: 'aus_eq', name: 'Australian Equities', return: 0.087000, stdev: 0.174200, incomeRatio: 0.67, minWeight: 0, maxWeight: 100, color: '#AEC6CF', active: true, isDefault: true },
+  { id: 'us_large', name: 'US Large Cap Equities', return: 0.084000, stdev: 0.171100, incomeRatio: 0.35, minWeight: 0, maxWeight: 100, color: '#FFB347', active: true, isDefault: true },
+  { id: 'us_small', name: 'US Small Cap Equities', return: 0.077000, stdev: 0.208100, incomeRatio: 0.40, minWeight: 0, maxWeight: 100, color: '#FF6961', active: true, isDefault: true },
+  { id: 'dev_world', name: 'Developed World Equities', return: 0.070000, stdev: 0.167300, incomeRatio: 0.49, minWeight: 0, maxWeight: 100, color: '#CB99C9', active: true, isDefault: true },
+  { id: 'em_eq', name: 'Emerging Markets Equities', return: 0.083000, stdev: 0.200000, incomeRatio: 0.44, minWeight: 0, maxWeight: 100, color: '#779ECB', active: true, isDefault: true },
+  { id: 'reits', name: 'Global REITs', return: 0.060000, stdev: 0.151877, incomeRatio: 0.63, minWeight: 0, maxWeight: 100, color: '#FDFD96', active: true, isDefault: true }, // SD: 15.18769% -> 0.151877
   // v1.31: Unconstrained Defaults - Hedge/Comm set to 100% max. User must constrain if desired.
-  { id: 'hedge', name: 'Hedge Fund', return: 0.052000, stdev: 0.117100, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#c4b5fd', active: true, isDefault: true }, // Violet 300 (Keep distinct)
-  { id: 'comm', name: 'Commodities', return: 0.042000, stdev: 0.208375, incomeRatio: 0.0, minWeight: 0, maxWeight: 100, color: '#a5b4fc', active: true, isDefault: true }, // Indigo 300
-  { id: 'aus_bond', name: 'Australian Bonds', return: 0.038000, stdev: 0.039376, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#0f766e', active: true, isDefault: true }, // Teal 700
-  { id: 'gl_bond', name: 'Global Bonds', return: 0.036000, stdev: 0.035757, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#14b8a6', active: true, isDefault: true }, // Teal 500
-  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054000, stdev: 0.111227, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#5eead4', active: true, isDefault: true }, // Teal 300
-  { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.067000, stdev: 0.126213, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#99f6e4', active: true, isDefault: true }, // Teal 200
-  { id: 'cash', name: 'Cash', return: 0.029000, stdev: 0.006139, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#e2e8f0', active: true, isDefault: true }, // Slate 200
+  { id: 'hedge', name: 'Hedge Fund', return: 0.052000, stdev: 0.117100, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#B39EB5', active: true, isDefault: true },
+  { id: 'comm', name: 'Commodities', return: 0.042000, stdev: 0.208375, incomeRatio: 0.0, minWeight: 0, maxWeight: 100, color: '#C23B22', active: true, isDefault: true }, // SD: 20.83749% -> 0.208375
+  { id: 'aus_bond', name: 'Australian Bonds', return: 0.038000, stdev: 0.039376, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#77DD77', active: true, isDefault: true }, // SD: 3.93760% -> 0.039376
+  { id: 'gl_bond', name: 'Global Bonds', return: 0.036000, stdev: 0.035757, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#836953', active: true, isDefault: true }, // SD: 3.57570% -> 0.035757
+  { id: 'hy_bond', name: 'High Yield Bonds', return: 0.054000, stdev: 0.111227, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#FFD1DC', active: true, isDefault: true }, // SD: 11.12267% -> 0.111227
+  { id: 'em_bond', name: 'Emerging Markets Bonds', return: 0.067000, stdev: 0.126213, incomeRatio: 0.99, minWeight: 0, maxWeight: 100, color: '#826d85', active: true, isDefault: true }, // SD: 12.62131% -> 0.126213
+  { id: 'cash', name: 'Cash', return: 0.029000, stdev: 0.006139, incomeRatio: 1.0, minWeight: 0, maxWeight: 100, color: '#CFCFC4', active: true, isDefault: true }, // SD: 0.61391% -> 0.006139
 ];
 
 const INITIAL_CORRELATIONS_DATA = {
@@ -122,16 +122,16 @@ const DEFAULT_ENTITY_TYPES = {
 };
 
 const MODEL_NAMES = {
-  1: "Model 1",
-  2: "Model 2",
-  3: "Model 3",
-  4: "Model 4",
-  5: "Model 5",
-  6: "Model 6",
-  7: "Model 7",
-  8: "Model 8",
-  9: "Model 9",
-  10: "Model 10"
+  1: "Conservative",
+  2: "Moderate Conservative",
+  3: "Moderate",
+  4: "Balanced",
+  5: "Balanced Growth",
+  6: "Growth",
+  7: "High Growth",
+  8: "Aggressive",
+  9: "High Aggressive",
+  10: "Ultra Aggressive"
 };
 
 const DEFAULT_STRUCTURES = [
@@ -436,7 +436,7 @@ export default function RiskReturnOptimiser() {
   const [expenseStreams, setExpenseStreams] = useState(DEFAULT_EXPENSE_STREAMS);
   const [projectionYears, setProjectionYears] = useState(30);
   const [inflationRate, setInflationRate] = useState(0.025);
-  const [adviceFee, setAdviceFee] = useState(0.01); // 1.0% Default advice fee
+  const [adviceFee, setAdviceFee] = useState(0.011); // 1.1% Default incl GST maybe? Let's say 1.1% or just 0.0. User implies they want to add it. Let's default 0.0 to be safe or 0.01. Let's do 0.8% + GST = ~0.88%. Let's default to 0.0 for now so it doesn't surprise, or 0.01. Let's stick to 0.008 (0.8%).
   
   // Simulation State
   const [simulations, setSimulations] = useState([]);
@@ -452,7 +452,7 @@ export default function RiskReturnOptimiser() {
 
 
   const [selectedPortfolioId, setSelectedPortfolioId] = useState(5);
-  const [forecastConfidenceLevel, setForecastConfidenceLevel] = useState(2); // 1=Low, 2=Med, 3=High (Default: Medium)
+  const [forecastConfidenceLevel, setForecastConfidenceLevel] = useState(3); // 1=Low, 2=Med, 3=High
   const [showPreTaxFrontier, setShowPreTaxFrontier] = useState(false); // Toggle for optimization chart
   const [isExporting, setIsExporting] = useState(false); // For PDF generation cleaning
   
@@ -1975,12 +1975,6 @@ export default function RiskReturnOptimiser() {
             }
             
             // Parse Group Constraints
-            // Group constraints allow users to cap the COMBINED allocation across multiple related assets.
-            // Each asset row can have a "groupLimit" string in format "GroupName:MaxPercent" (e.g. "Alternatives:15").
-            // Assets sharing the same group name are collected, and the optimizer ensures their TOTAL weight
-            // does not exceed the specified max percentage. This is enforced by Dykstra's alternating projections
-            // in projectConstraints() (MichaudOptimizer.js), which iteratively adjusts weights to satisfy
-            // box constraints, sum-to-1, return target, AND these group caps simultaneously.
             const groupConstraints = [];
             const groupMap = {};
             
@@ -2420,7 +2414,7 @@ export default function RiskReturnOptimiser() {
                         portfolios: portfolioSummary,
                         entity_results: entitySummary,
 
-                        app_version: 'v1.335'
+                        app_version: 'v1.332'
                     }]);
                 } catch (logErr) {
                     console.warn('optimization_log insert failed:', logErr.message);
@@ -2659,8 +2653,10 @@ export default function RiskReturnOptimiser() {
         const { annualNetFlows, wTaxRate } = calculateAnnualNetFlows(years, isPreTax, structures, entityTypes, inflationRate, incomeStreams, expenseStreams);
         
         // v1.324: Calculate Deterministic Path (ss_median equivalent)
-        // v1.333: Always calculate deterministic base for Hybrid projection (matches dump)
-        const deterministicPath = calculateDeterministicPath(simReturn, years, annualNetFlows, totalWealth, adviceFee, isPreTax ? 0 : wTaxRate);
+        let deterministicPath = null;
+        if (!isPreTax) {
+             deterministicPath = calculateDeterministicPath(simReturn, years, annualNetFlows, totalWealth, adviceFee, wTaxRate);
+        }
 
         const results = [];
         for (let y = 0; y <= years; y++) {
@@ -2689,8 +2685,8 @@ export default function RiskReturnOptimiser() {
             balance += annualNetFlows[y];
             if (balance < 0) balance = 0;
 
-            // v1.336: Always simulate in nominal terms
-            results[y].paths.push(balance);
+            const reportBalance = isNominalMode ? balance : (balance / Math.pow(1 + inflationRate, y));
+            results[y].paths.push(reportBalance);
           }
         }
 
@@ -2699,42 +2695,51 @@ export default function RiskReturnOptimiser() {
           const raw_p50 = calculatePercentile(r.paths, 50);
           const raw_p84 = calculatePercentile(r.paths, 84.1);
 
+
+          // v1.324: Hybrid Logic (Revised)
+          // Median = Deterministic Median
+          // Upside = Median + Median * (Return + Risk)
+          // Downside = Median + Median * (Return - 2*Risk) [Using Add because R-2Risk is negative drop]
+          
           let p02 = raw_p02;
           let p50 = raw_p50;
           let p84 = raw_p84;
 
-          // v1.337: Compute nominal values first, then deflate for Real mode
-          // Step 1: Start with raw MC percentiles (Nominal Before Tax baseline)
-          
-          // Step 2: Apply Deterministic Hybrid if After Tax
-          // (This produces the same nominal values the user sees in Nominal mode)
-          if (deterministicPath && !isPreTax) {
+          if (deterministicPath) {
+              // v1.332: UI Sync - Use Deterministic Base for BOTH Nominal and Real
               let detVal = deterministicPath[yIdx];
+              
+              // If Real Mode, deflate the deterministic nominal value
+              // v1.332: Use simple deflation logic from verification_inflation (User request: Source of Truth)
+              if (!isNominalMode) {
+                  detVal = detVal * (1 - inflationRate);
+              }
+              
+              // Set Median
               p50 = detVal;
               
-              let prevMedian = p50;
+              // v1.329/v1.330: Spread on Opening Balance
+              let prevMedian = p50; // Default for Y0
+              
               if (yIdx > 0) {
-                  prevMedian = deterministicPath[yIdx - 1];
+                  let prevDetVal = deterministicPath[yIdx - 1]; // Nominal
+                  if (!isNominalMode) {
+                      // Deflate previous year (y-1) using simple logic
+                      prevDetVal = prevDetVal * (1 - inflationRate);
+                  }
+                  prevMedian = prevDetVal;
               }
 
               if (yIdx === 0) {
+                  // Year 0 has no variance
                   p84 = p50;
                   p02 = p50;
               } else {
+                  // Apply Risk to Opening Balance (Nominal Risk used for both per user req)
                   const sigma = prevMedian * simRisk;
-                  p84 = p50 + sigma;
-                  p02 = p50 - (2 * sigma);
+                  p84 = p50 + sigma; // +1 SD
+                  p02 = p50 - (2 * sigma); // -2 SD
               }
-          }
-          // else: Before Tax — raw MC percentiles (already set above)
-          
-          // Step 3: If Real mode, deduct inflation from the nominal values
-          // Real = Nominal * (1 - inflationRate)  i.e. Nominal - (Nominal × inflationRate)
-          if (!isNominalMode) {
-              const realFactor = (1 - inflationRate);
-              p02 = p02 * realFactor;
-              p50 = p50 * realFactor;
-              p84 = p84 * realFactor;
           }
           
           return {
@@ -2749,10 +2754,11 @@ export default function RiskReturnOptimiser() {
     // 1. Run for Current View (to display)
     const currentData = runSim(showBeforeTax, showNominal);
     setCfSimulationResults(currentData);
-    
-    // v1.348: Scale Y-axis to current data points with 10% buffer
-    // (Removed v1.307 logic that locked to Global Max/Nominal Before Tax)
-    const maxVal = Math.max(...currentData.map(d => d.p84));
+
+    // 2. Run for "Global Max" (Before Tax, Nominal) to lock axis
+    const maxData = runSim(true, true);
+    const maxVal = Math.max(...maxData.map(d => d.p84));
+    // Add 10% buffer
     setMaxProjectionY(maxVal * 1.1);
     
   }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, projectionYears, inflationRate, adviceFee, structures, entityTypes, showBeforeTax, showNominal, optimizationAssets, assets, correlations]);
@@ -2779,7 +2785,6 @@ export default function RiskReturnOptimiser() {
 
           // Iterate all 10 portfolios
           for (const p of profiles) {
-             const currentPortInflationData = [];
              const netReturn = p.return;
              const netRisk = p.risk;
 
@@ -2869,11 +2874,10 @@ export default function RiskReturnOptimiser() {
                  const ssVal = det_median;
                  const realVal = ssVal * (1 - inflationRate);
 
-                  // v1.333: Real Value Variance (Spread on Opening Real Balance)
-                  // Fixed: Use local tracking to avoid cross-portfolio leakage
+                  // v1.330: Real Value Variance (Spread on Opening Real Balance)
                   let prevRealVal = realVal;
-                  if (yIdx > 0 && currentPortInflationData[yIdx - 1]) {
-                      prevRealVal = currentPortInflationData[yIdx - 1].real_value;
+                  if (yIdx > 0 && inflationData[yIdx - 1]) {
+                      prevRealVal = inflationData[yIdx - 1].real_value;
                   }
 
                   let real_upside = realVal;
@@ -2884,10 +2888,6 @@ export default function RiskReturnOptimiser() {
                       real_upside = realVal + sigma;
                       real_downside = realVal - (2 * sigma);
                   }
-
-                  currentPortInflationData.push({
-                      real_value: realVal
-                  });
 
                   inflationData.push({
                       run_id: runId,
@@ -3145,25 +3145,12 @@ export default function RiskReturnOptimiser() {
                                 />
                                 <p className="text-xs text-gray-500 mt-1">Number of Monte Carlo simulations (recommended: 500+)</p>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Forecast Confidence</label>
-                                <select 
-                                    value={forecastConfidenceLevel}
-                                    onChange={(e) => setForecastConfidenceLevel(parseInt(e.target.value))}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-fire-accent/50 outline-none text-sm"
-                                >
-                                    <option value={1}>Low (T=15)</option>
-                                    <option value={2}>Medium (T=50)</option>
-                                    <option value={3}>High (T=200)</option>
-                                </select>
-                                <p className="text-xs text-gray-500 mt-1">Controls how tightly the optimizer tracks historical estimates. Higher = closer to inputs (Default: Medium)</p>
-                            </div>
                         </div>
                     </div>
 
                     <div className="border-t border-gray-100"></div>
 
-                    {/* Simulation Assumptions */}
+                    {/* v1.316: Simulation Assumptions Section */}
                     <div className="space-y-4">
                         <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
                              <Calculator className="w-4 h-4" /> Simulation Assumptions
@@ -3190,7 +3177,7 @@ export default function RiskReturnOptimiser() {
                                 <input 
                                     type="number"
                                     step="0.01"
-                                    value={(settingsDraft?.adviceFee ?? 0.01) * 100}
+                                    value={(settingsDraft?.adviceFee ?? 0.008) * 100}
                                     onChange={(e) => {
                                         const val = parseFloat(e.target.value);
                                         if (!isNaN(val)) {
@@ -3199,60 +3186,7 @@ export default function RiskReturnOptimiser() {
                                     }}
                                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-fire-accent/50 outline-none"
                                 />
-                                <p className="text-xs text-gray-500 mt-1">Deducted from portfolio growth annually (Default: 1.00%)</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="border-t border-gray-100"></div>
-
-                    {/* Scenarios Section (Load) */}
-                    <div className="space-y-4">
-                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                             <FolderOpen className="w-4 h-4" /> Scenarios
-                        </h4>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Load Saved Scenario</label>
-                            <div className="relative">
-                              <button 
-                                onClick={() => setShowLoadMenu(!showLoadMenu)}
-                                className="w-full flex items-center justify-between px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
-                              >
-                                <span className="flex items-center">
-                                  <FolderOpen className="w-4 h-4 mr-2"/>
-                                  Select Scenario...
-                                </span>
-                                <ChevronDown className="w-3 h-3"/>
-                              </button>
-                              
-                              {showLoadMenu && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-64 overflow-y-auto">
-                                  <div className="p-2 border-b border-gray-100 text-xs font-semibold text-gray-500">Saved Scenarios</div>
-                                  {savedScenarios.length === 0 ? (
-                                     <div className="p-4 text-center text-sm text-gray-400">No saved scenarios</div>
-                                  ) : (
-                                    savedScenarios.map(s => (
-                                      <div 
-                                        key={s.id}
-                                        onClick={() => { handleLoadScenario(s.id); setIsSettingsOpen(false); }}
-                                        className="w-full flex justify-between items-center px-4 py-3 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0 cursor-pointer group"
-                                      >
-                                        <div>
-                                          <div className="font-medium text-gray-900">{s.name || 'Untitled'}</div>
-                                          <div className="text-xs text-gray-500">{new Date(s.created_at).toLocaleDateString()}</div>
-                                        </div>
-                                        <button 
-                                          onClick={(e) => handleDeleteScenario(s.id, e)}
-                                          className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                                          title="Delete Scenario"
-                                        >
-                                          <Trash2 className="w-4 h-4"/>
-                                        </button>
-                                      </div>
-                                    ))
-                                  )}
-                                </div>
-                              )}
+                                <p className="text-xs text-gray-500 mt-1">Deducted from portfolio growth annually (Default: 0.80%)</p>
                             </div>
                         </div>
                     </div>
@@ -3280,7 +3214,7 @@ export default function RiskReturnOptimiser() {
                         </button>
                         <button 
                             onClick={() => {
-                                // Save Simulation Assumptions from Draft to State
+                                // v1.316: Save Simulation Assumptions from Draft to State
                                 if (settingsDraft.inflationRate !== undefined) setInflationRate(settingsDraft.inflationRate);
                                 if (settingsDraft.adviceFee !== undefined) setAdviceFee(settingsDraft.adviceFee);
 
@@ -3814,12 +3748,7 @@ export default function RiskReturnOptimiser() {
                                       {/* Risk Removed v1.244 */}
                                       <th className="px-3 py-2 text-center">Tolerance (Min %)</th>
                                       <th className="px-3 py-2 text-center">Tolerance (Max %)</th>
-                                      <th className="px-3 py-2 text-center">
-                                          <div className="flex items-center justify-center gap-1">
-                                              Group Constraint (Max %)
-                                              <HelpCircle className="w-3 h-3 text-gray-400 cursor-help" title="Limit total allocation for assets with the same Group Name (e.g. 'Alternatives:15' limits all 'Alternatives' to 15% combined)." />
-                                          </div>
-                                      </th>
+                                      <th className="px-3 py-2 text-center">Group Constraint (Max %)</th>
                                   </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100">
@@ -3972,7 +3901,195 @@ export default function RiskReturnOptimiser() {
 
       {/* Projection Input Assumptions REMOVED (Moved to Projections Tab) */}
 
-      {/* Cashflow Projections moved to Projections tab in v1.342 */}
+      {/* Cashflow Projections */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
+            Cashflow Projections
+          </h3>
+          
+          <div className="grid md:grid-cols-2 gap-8">
+             {/* Inflows */}
+             <div>
+               <h4 className="text-sm font-bold text-gray-700 mb-3 border-b pb-2">Inflows</h4>
+               {incomeStreams.map((item) => (
+                 <div key={item.id} className="flex flex-col gap-2 mb-3 bg-gray-50 p-2 rounded border border-gray-100">
+                   <div className="flex gap-2 items-center text-sm w-full">
+                       <input 
+                         type="text" 
+                         defaultValue={item.name} 
+                         onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i))}
+                         className="flex-1 border rounded px-2 py-1 text-black" 
+                         placeholder="Name" 
+                       />
+                       <div className="w-24">
+                           <div className="relative w-full">
+                             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none">$</span>
+                             <input 
+                               type="text"
+                               defaultValue={(item.amount || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                               onBlur={(e) => {
+                                 const rawValue = e.target.value.replace(/[^0-9.-]/g, '');
+                                 const val = (rawValue === '' || rawValue === '-') ? 0 : parseFloat(rawValue);
+                                 if (!isNaN(val)) {
+                                   setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, amount: val } : i));
+                                 }
+                               }}
+                               onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                               className="w-full border rounded px-2 py-1 text-xs text-black pl-4"
+                             />
+                           </div>
+                       </div>
+                       <button 
+                         onClick={() => setIncomeStreams(prev => prev.filter(i => i.id !== item.id))}
+                         className="text-gray-400 hover:text-red-500"
+                       >
+                         <Trash2 className="w-4 h-4" />
+                       </button>
+                   </div>
+                   <div className="flex flex-wrap items-center gap-2 text-xs">
+                       <label className="flex items-center text-gray-600">
+                           <input type="checkbox" className="mr-1" 
+                             checked={item.isOneOff} 
+                             onChange={() => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, isOneOff: !i.isOneOff } : i))}
+                           />
+                           One-off
+                       </label>
+                       
+                       {item.isOneOff ? (
+                           <div className="flex items-center">
+                               Year: <input type="number" className="w-12 border rounded ml-1 text-center text-black" 
+                                 defaultValue={item.year || 1}
+                                 onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, year: parseInt(e.target.value) || 1 } : i))}
+                               />
+                           </div>
+                       ) : (
+                           <div className="flex items-center">
+                               Yrs <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
+                                 defaultValue={item.startYear}
+                                 onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, startYear: parseInt(e.target.value) || 1 } : i))}
+                               />
+                               to <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
+                                 defaultValue={item.endYear}
+                                 onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, endYear: parseInt(e.target.value) || 30 } : i))}
+                               />
+                           </div>
+                       )}
+
+                       {/* Per-Item Entity Selector */}
+                       <div className="flex items-center ml-auto gap-1">
+                           <span className="text-gray-400">Owner:</span>
+                           <select 
+                              value={item.entityId || ''} 
+                              onChange={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, entityId: e.target.value } : i))}
+                              className="border rounded px-1 py-0.5 text-xs text-black max-w-[100px]"
+                           >
+                              <option value="">Default (Personal)</option>
+                              {structures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                           </select>
+                       </div>
+                   </div>
+                 </div>
+               ))}
+               <button 
+                 onClick={() => setIncomeStreams(prev => [...prev, { id: Date.now(), name: 'New Income', amount: 0, startYear: 1, endYear: 30, isOneOff: false }])}
+                 className="flex items-center text-sm font-medium text-fire-accent hover:text-blue-800"
+               >
+                 <Plus className="w-4 h-4 mr-1" /> Add Inflow
+               </button>
+             </div>
+
+             {/* Outflows */}
+             <div>
+               <h4 className="text-sm font-bold text-gray-700 mb-3 border-b pb-2">Outflows</h4>
+               {expenseStreams.map((item) => (
+                 <div key={item.id} className="flex flex-col gap-2 mb-3 bg-gray-50 p-2 rounded border border-gray-100">
+                   <div className="flex gap-2 items-center text-sm w-full">
+                       <input 
+                         type="text" 
+                         defaultValue={item.name} 
+                         onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i))}
+                         className="flex-1 border rounded px-2 py-1 text-black" 
+                         placeholder="Name" 
+                       />
+                       <div className="w-24">
+                           <div className="relative w-full">
+                             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none">$</span>
+                             <input 
+                               type="text"
+                               defaultValue={(item.amount || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                               onBlur={(e) => {
+                                 const rawValue = e.target.value.replace(/[^0-9.-]/g, '');
+                                 const val = (rawValue === '' || rawValue === '-') ? 0 : parseFloat(rawValue);
+                                 if (!isNaN(val)) {
+                                   setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, amount: val } : i));
+                                 }
+                               }}
+                               onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                               className="w-full border rounded px-2 py-1 text-xs text-black pl-4"
+                             />
+                           </div>
+                       </div>
+                       <button 
+                         onClick={() => setExpenseStreams(prev => prev.filter(i => i.id !== item.id))}
+                         className="text-gray-400 hover:text-red-500"
+                       >
+                         <Trash2 className="w-4 h-4" />
+                       </button>
+                   </div>
+                   <div className="flex flex-wrap items-center gap-2 text-xs">
+                       <label className="flex items-center text-gray-600">
+                           <input type="checkbox" className="mr-1" 
+                             checked={item.isOneOff} 
+                             onChange={() => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, isOneOff: !i.isOneOff } : i))}
+                           />
+                           One-off
+                       </label>
+                       
+                       {item.isOneOff ? (
+                           <div className="flex items-center">
+                               Year: <input type="number" className="w-12 border rounded ml-1 text-center text-black" 
+                                 defaultValue={item.year || 1}
+                                 onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, year: parseInt(e.target.value) || 1 } : i))}
+                               />
+                           </div>
+                       ) : (
+                           <div className="flex items-center">
+                               Yrs <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
+                                 defaultValue={item.startYear}
+                                 onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, startYear: parseInt(e.target.value) || 1 } : i))}
+                               />
+                               to <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
+                                 defaultValue={item.endYear}
+                                 onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, endYear: parseInt(e.target.value) || 30 } : i))}
+                               />
+                           </div>
+                       )}
+
+                       {/* Per-Item Entity Selector */}
+                       <div className="flex items-center ml-auto gap-1">
+                           <span className="text-gray-400">Owner:</span>
+                           <select 
+                              value={item.entityId || ''} 
+                              onChange={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, entityId: e.target.value } : i))}
+                              className="border rounded px-1 py-0.5 text-xs text-black max-w-[100px]"
+                           >
+                              <option value="">Default (Personal)</option>
+                              {structures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                           </select>
+                       </div>
+                   </div>
+                 </div>
+               ))}
+               <button 
+                 onClick={() => setExpenseStreams(prev => [...prev, { id: Date.now(), name: 'New Expense', amount: 0, startYear: 1, endYear: 30, isOneOff: false }])}
+                 className="flex items-center text-sm font-medium text-fire-accent hover:text-blue-800"
+               >
+                 <Plus className="w-4 h-4 mr-1" /> Add Outflow
+               </button>
+             </div>
+          </div>
+      </div>
     </div>
   );
 
@@ -4254,38 +4371,6 @@ export default function RiskReturnOptimiser() {
     const chartData = efficientFrontier;
     const simulationData = simulations;
 
-    // v1.348: Calculate dynamic scaling for axes (0 to max + padding)
-    // Removed useMemo because OptimizationTab is called as a function within a conditional block
-    let rMax = 0.15; // Minimum default max
-    let retMax = 0.10; // Minimum default max
-
-    // Helper to update maxes
-    const updateMaxForBounds = (data) => {
-        if (!data || !data.length) return;
-        data.forEach(d => {
-            if (d.risk > rMax) rMax = d.risk;
-            if (d.return > retMax) retMax = d.return;
-        });
-    };
-
-    updateMaxForBounds(simulationData);
-    updateMaxForBounds(chartData);
-
-    // Pre-tax frontier if enabled
-    if (showPreTaxFrontier && efficientFrontier.length > 0) {
-        const activeAssetList = assets.filter(a => a.active);
-        efficientFrontier.forEach(p => {
-            let preTaxReturn = 0;
-            p.weights.forEach((w, i) => {
-                if (activeAssetList[i]) preTaxReturn += w * activeAssetList[i].return;
-            });
-            if (preTaxReturn > retMax) retMax = preTaxReturn;
-        });
-    }
-
-    const maxRisk = rMax * 1.15; // 15% padding
-    const maxReturn = retMax * 1.15; // 15% padding
-
     // v1.283: CSV Download of optimization results (Detailed)
     const handleDownloadCSV = () => {
         const hasFullData = Object.keys(simulationResults).length > 0;
@@ -4423,7 +4508,18 @@ export default function RiskReturnOptimiser() {
                </div>
              )}
 
-             {/* Forecast Confidence moved to Settings Modal */}
+             <div className="text-right">
+               <label className="block text-xs font-bold text-gray-500 mb-1">Forecast Confidence</label>
+               <select 
+                  value={forecastConfidenceLevel}
+                  onChange={(e) => setForecastConfidenceLevel(parseInt(e.target.value))}
+                  className="w-32 text-right border border-gray-300 rounded px-2 py-1 text-sm bg-white"
+               >
+                   <option value={1}>Low</option>
+                   <option value={2}>Medium</option>
+                   <option value={3}>High</option>
+               </select>
+             </div>
 
              {/* Simulations moved to Settings Modal in v1.273 */}
 
@@ -4491,7 +4587,7 @@ export default function RiskReturnOptimiser() {
                   unit="" 
                   tickFormatter={(val) => formatPercent(val)}
                   label={{ value: 'Risk', position: 'bottom', offset: 0, fill: '#004876' }}
-                  domain={[0, maxRisk]}
+                  domain={[0, 'auto']}
                   tick={{ fill: '#004876' }}
                   stroke="#004876"
                 />
@@ -4502,7 +4598,7 @@ export default function RiskReturnOptimiser() {
                   unit="" 
                   tickFormatter={(val) => formatPercent(val)}
                   label={{ value: 'Return', angle: -90, position: 'insideLeft', fill: '#004876' }}
-                  domain={[0, maxReturn]}
+                  domain={[0, 'auto']}
                   tick={{ fill: '#004876' }}
                   stroke="#004876"
                 />
@@ -4778,10 +4874,8 @@ export default function RiskReturnOptimiser() {
                     };
                   }).filter(a => a.value > 0.5);
 
-                  // v1.349: Granular Entities for Per-Entity Charts (Requested by User)
-                  // Previously used getGroupedAssets(entityAssets) - reverted to granular entityAssets
-                  // Filter out small allocations (< 1%) for cleaner charts
-                  const granularEntityAssets = entityAssets.filter(a => a.value > 1.0);
+                  // v1.298: Group Entity Assets using same logic as Total Portfolio
+                  const groupedEntityAssets = getGroupedAssets(entityAssets);
                   
                   return (
                     <div key={struct.id} className="flex-shrink-0" style={{ width: `${Math.min(200, 100 / structures.length)}%`, minWidth: '130px', maxWidth: '180px' }}>
@@ -4790,7 +4884,7 @@ export default function RiskReturnOptimiser() {
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie 
-                              data={granularEntityAssets} 
+                              data={groupedEntityAssets} 
                               cx="50%" cy="50%" 
                               outerRadius={50} 
                               paddingAngle={2} 
@@ -4808,9 +4902,9 @@ export default function RiskReturnOptimiser() {
                               }}
                               labelLine={false}
                             >
-                              {granularEntityAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                              {groupedEntityAssets.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                             </Pie>
-                            {!isExporting && <Tooltip formatter={(val, name) => [`${val.toFixed(1)}%`, name]} />}
+                            {!isExporting && <Tooltip formatter={(val) => `${val.toFixed(1)}%`} />}
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
@@ -4943,8 +5037,8 @@ export default function RiskReturnOptimiser() {
         if (!cfSimulationResults[idx]) return null;
         const res = cfSimulationResults[idx];
         
-        // v1.334: Double-deflation fix. runSim results are already deflated in Real mode.
-        const inflationFactor = 1;
+        // Apply inflation adjustment if showing real values
+        const inflationFactor = showNominal ? 1 : Math.pow(1 + inflationRate, -yr);
         
         // For before/after tax, we'd need to calculate differently
         // For now, the simulation already uses after-tax returns
@@ -4964,196 +5058,6 @@ export default function RiskReturnOptimiser() {
 
     return (
       <div className="space-y-6 animate-in fade-in">
-        {/* Cashflow Projections - moved from Client Details in v1.342 */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <TrendingUp className="w-5 h-5 mr-2 text-fire-accent" />
-            Cashflow Projections
-          </h3>
-          
-          <div className="grid md:grid-cols-2 gap-8">
-             {/* Inflows */}
-             <div>
-               <h4 className="text-sm font-bold text-gray-700 mb-3 border-b pb-2">Inflows</h4>
-               {incomeStreams.map((item) => (
-                 <div key={item.id} className="flex flex-col gap-2 mb-3 bg-gray-50 p-2 rounded border border-gray-100">
-                   <div className="flex gap-2 items-center text-sm w-full">
-                       <input 
-                         type="text" 
-                         defaultValue={item.name} 
-                         onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i))}
-                         className="flex-1 border rounded px-2 py-1 text-black" 
-                         placeholder="Name" 
-                       />
-                       <div className="w-24">
-                           <div className="relative w-full">
-                             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none">$</span>
-                             <input 
-                               type="text"
-                               defaultValue={(item.amount || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                               onBlur={(e) => {
-                                 const rawValue = e.target.value.replace(/[^0-9.-]/g, '');
-                                 const val = (rawValue === '' || rawValue === '-') ? 0 : parseFloat(rawValue);
-                                 if (!isNaN(val)) {
-                                   setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, amount: val } : i));
-                                 }
-                               }}
-                               onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                               className="w-full border rounded px-2 py-1 text-xs text-black pl-4"
-                             />
-                           </div>
-                       </div>
-                       <button 
-                         onClick={() => setIncomeStreams(prev => prev.filter(i => i.id !== item.id))}
-                         className="text-gray-400 hover:text-red-500"
-                       >
-                         <Trash2 className="w-4 h-4" />
-                       </button>
-                   </div>
-                   <div className="flex flex-wrap items-center gap-2 text-xs">
-                       <label className="flex items-center text-gray-600">
-                           <input type="checkbox" className="mr-1" 
-                             checked={item.isOneOff} 
-                             onChange={() => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, isOneOff: !i.isOneOff } : i))}
-                           />
-                           One-off
-                       </label>
-                       
-                       {item.isOneOff ? (
-                           <div className="flex items-center">
-                               Year: <input type="number" className="w-12 border rounded ml-1 text-center text-black" 
-                                 defaultValue={item.year || 1}
-                                 onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, year: parseInt(e.target.value) || 1 } : i))}
-                               />
-                           </div>
-                       ) : (
-                           <div className="flex items-center">
-                               Yrs <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
-                                 defaultValue={item.startYear}
-                                 onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, startYear: parseInt(e.target.value) || 1 } : i))}
-                               />
-                               to <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
-                                 defaultValue={item.endYear}
-                                 onBlur={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, endYear: parseInt(e.target.value) || 30 } : i))}
-                               />
-                           </div>
-                       )}
-
-                       {/* Per-Item Entity Selector */}
-                       <div className="flex items-center ml-auto gap-1">
-                           <span className="text-gray-400">Owner:</span>
-                           <select 
-                              value={item.entityId || ''} 
-                              onChange={(e) => setIncomeStreams(prev => prev.map(i => i.id === item.id ? { ...i, entityId: e.target.value } : i))}
-                              className="border rounded px-1 py-0.5 text-xs text-black max-w-[100px]"
-                           >
-                              <option value="">Default (Personal)</option>
-                              {structures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                           </select>
-                       </div>
-                   </div>
-                 </div>
-               ))}
-               <button 
-                 onClick={() => setIncomeStreams(prev => [...prev, { id: Date.now(), name: 'New Income', amount: 0, startYear: 1, endYear: 30, isOneOff: false }])}
-                 className="flex items-center text-sm font-medium text-fire-accent hover:text-blue-800"
-               >
-                 <Plus className="w-4 h-4 mr-1" /> Add Inflow
-               </button>
-             </div>
-
-             {/* Outflows */}
-             <div>
-               <h4 className="text-sm font-bold text-gray-700 mb-3 border-b pb-2">Outflows</h4>
-               {expenseStreams.map((item) => (
-                 <div key={item.id} className="flex flex-col gap-2 mb-3 bg-gray-50 p-2 rounded border border-gray-100">
-                   <div className="flex gap-2 items-center text-sm w-full">
-                       <input 
-                         type="text" 
-                         defaultValue={item.name} 
-                         onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i))}
-                         className="flex-1 border rounded px-2 py-1 text-black" 
-                         placeholder="Name" 
-                       />
-                       <div className="w-24">
-                           <div className="relative w-full">
-                             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none">$</span>
-                             <input 
-                               type="text"
-                               defaultValue={(item.amount || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                               onBlur={(e) => {
-                                 const rawValue = e.target.value.replace(/[^0-9.-]/g, '');
-                                 const val = (rawValue === '' || rawValue === '-') ? 0 : parseFloat(rawValue);
-                                 if (!isNaN(val)) {
-                                   setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, amount: val } : i));
-                                 }
-                               }}
-                               onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                               className="w-full border rounded px-2 py-1 text-xs text-black pl-4"
-                             />
-                           </div>
-                       </div>
-                       <button 
-                         onClick={() => setExpenseStreams(prev => prev.filter(i => i.id !== item.id))}
-                         className="text-gray-400 hover:text-red-500"
-                       >
-                         <Trash2 className="w-4 h-4" />
-                       </button>
-                   </div>
-                   <div className="flex flex-wrap items-center gap-2 text-xs">
-                       <label className="flex items-center text-gray-600">
-                           <input type="checkbox" className="mr-1" 
-                             checked={item.isOneOff} 
-                             onChange={() => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, isOneOff: !i.isOneOff } : i))}
-                           />
-                           One-off
-                       </label>
-                       
-                       {item.isOneOff ? (
-                           <div className="flex items-center">
-                               Year: <input type="number" className="w-12 border rounded ml-1 text-center text-black" 
-                                 defaultValue={item.year || 1}
-                                 onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, year: parseInt(e.target.value) || 1 } : i))}
-                               />
-                           </div>
-                       ) : (
-                           <div className="flex items-center">
-                               Yrs <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
-                                 defaultValue={item.startYear}
-                                 onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, startYear: parseInt(e.target.value) || 1 } : i))}
-                               />
-                               to <input type="number" className="w-10 border rounded mx-1 text-center text-black" 
-                                 defaultValue={item.endYear}
-                                 onBlur={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, endYear: parseInt(e.target.value) || 30 } : i))}
-                               />
-                           </div>
-                       )}
-
-                       {/* Per-Item Entity Selector */}
-                       <div className="flex items-center ml-auto gap-1">
-                           <span className="text-gray-400">Owner:</span>
-                           <select 
-                              value={item.entityId || ''} 
-                              onChange={(e) => setExpenseStreams(prev => prev.map(i => i.id === item.id ? { ...i, entityId: e.target.value } : i))}
-                              className="border rounded px-1 py-0.5 text-xs text-black max-w-[100px]"
-                           >
-                              <option value="">Default (Personal)</option>
-                              {structures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                           </select>
-                       </div>
-                   </div>
-                 </div>
-               ))}
-               <button 
-                 onClick={() => setExpenseStreams(prev => [...prev, { id: Date.now(), name: 'New Expense', amount: 0, startYear: 1, endYear: 30, isOneOff: false }])}
-                 className="flex items-center text-sm font-medium text-fire-accent hover:text-blue-800"
-               >
-                 <Plus className="w-4 h-4 mr-1" /> Add Outflow
-               </button>
-             </div>
-          </div>
-        </div>
-
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -5162,35 +5066,21 @@ export default function RiskReturnOptimiser() {
             </h3>
             
             <div className="flex flex-wrap items-center gap-4 bg-gray-50 p-2 rounded-lg border border-gray-200">
-                {/* Portfolio Selector */}
-                <div className="flex items-center gap-2">
-                   <span className="text-xs font-medium text-gray-500">Portfolio:</span>
-                   <select
-                     value={selectedPortfolioId}
-                     onChange={(e) => setSelectedPortfolioId(parseInt(e.target.value))}
-                     className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-fire-accent focus:border-fire-accent"
-                   >
-                     {efficientFrontier.map((p, i) => (
-                       <option key={i+1} value={i+1}>{MODEL_NAMES[i+1] || `Portfolio ${i+1}`}</option>
-                     ))}
-                   </select>
-                </div>
+               {/* Portfolio Selector */}
+               <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-500">Portfolio:</span>
+                  <select
+                    value={selectedPortfolioId}
+                    onChange={(e) => setSelectedPortfolioId(parseInt(e.target.value))}
+                    className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-fire-accent focus:border-fire-accent"
+                  >
+                    {efficientFrontier.map((p, i) => (
+                      <option key={i+1} value={i+1}>{MODEL_NAMES[i+1] || `Portfolio ${i+1}`}</option>
+                    ))}
+                  </select>
+               </div>
 
-                {/* v1.349: Portfolio Metrics Box (Return/Risk) */}
-                {selectedPortfolio && (
-                  <div className="flex items-center gap-3 px-3 border-l border-gray-300">
-                      <div className="flex flex-col items-center">
-                          <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Return</span>
-                          <span className="text-sm font-bold text-gray-900 leading-none">{formatPercent(selectedPortfolio.return)}</span>
-                      </div>
-                      <div className="flex flex-col items-center">
-                         <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Risk</span>
-                         <span className="text-sm font-bold text-gray-900 leading-none">{formatPercent(selectedPortfolio.risk)}</span>
-                      </div>
-                  </div>
-                )}
-
-                {/* Tax Toggle */}
+               {/* Tax Toggle */}
                <div className="flex items-center gap-2 border-l border-gray-300 pl-4 h-6">
                   <span className="text-xs font-medium text-gray-500">Display:</span>
                   <button
@@ -5373,8 +5263,8 @@ export default function RiskReturnOptimiser() {
                </div>
              </div>
              <div className="text-right">
-                {/* Deployment trigger: v1.348 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.348</span>
+                {/* Deployment trigger: v1.332 */}
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.332</span>
              </div>
           </div>
         </div>
@@ -5400,7 +5290,44 @@ export default function RiskReturnOptimiser() {
               <Plus className="w-4 h-4 mr-1"/> New
             </button>
 
-
+            <div className="relative">
+              <button 
+                onClick={() => setShowLoadMenu(!showLoadMenu)}
+                className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium"
+              >
+                <FolderOpen className="w-4 h-4 mr-2"/> Load
+                <ChevronDown className="w-3 h-3 ml-1"/>
+              </button>
+              
+              {showLoadMenu && (
+                <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
+                  <div className="p-2 border-b border-gray-100 text-xs font-semibold text-gray-500">Saved Scenarios</div>
+                  {savedScenarios.length === 0 ? (
+                     <div className="p-4 text-center text-sm text-gray-400">No saved scenarios</div>
+                  ) : (
+                    savedScenarios.map(s => (
+                      <div 
+                        key={s.id}
+                        onClick={() => handleLoadScenario(s.id)}
+                        className="w-full flex justify-between items-center px-4 py-3 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0 cursor-pointer group"
+                      >
+                        <div>
+                          <div className="font-medium text-gray-900">{s.name || 'Untitled'}</div>
+                          <div className="text-xs text-gray-500">{new Date(s.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <button 
+                          onClick={(e) => handleDeleteScenario(s.id, e)}
+                          className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                          title="Delete Scenario"
+                        >
+                          <Trash2 className="w-4 h-4"/>
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
 
             <button 
               onClick={() => handleSaveScenario(true)}
@@ -5456,7 +5383,7 @@ export default function RiskReturnOptimiser() {
 
             <button 
               onClick={() => {
-                  setSettingsDraft({ ...appSettings, inflationRate, adviceFee }); // Init draft with assumptions
+                  setSettingsDraft({ ...appSettings, inflationRate, adviceFee }); // v1.316: Init draft with assumptions
                   setIsSettingsOpen(true);
               }}
               className="flex items-center px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium text-gray-700 shadow-sm"
@@ -5664,6 +5591,7 @@ const DebugLogsModal = ({ open, onClose, logs }) => {
     </div>
   );
 };
+
 
 
 
