@@ -1,4 +1,4 @@
-// Deployment trigger: v1.354 - 2026-02-20
+// Deployment trigger: v1.356 - 2026-02-20
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -3497,19 +3497,7 @@ export default function RiskReturnOptimiser() {
                           </div>
                           <div className="ml-3 text-sm font-medium text-gray-700">Current Asset Allocation</div>
                       </label>
-                      <button 
-                          onClick={() => {
-                              const resetAlloc = struct.assetAllocation.map(a => ({
-                                  ...a,
-                                  weight: a.id === 'cash' ? 100 : 0
-                              }));
-                              setStructures(structures.map(s => s.id === struct.id ? {...s, assetAllocation: resetAlloc} : s));
-                          }}
-                          className="ml-auto text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded border border-gray-300"
-                          title="Set Cash to 100%, others to 0%"
-                      >
-                          Reset to Cash
-                      </button>
+
                   </div>
 
                   {struct.useAssetAllocation && (
@@ -5094,7 +5082,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.352 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.354</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.356</span>
              </div>
           </div>
         </div>
