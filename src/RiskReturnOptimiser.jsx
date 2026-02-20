@@ -1,4 +1,4 @@
-// Deployment trigger: v1.353 - 2026-02-20
+// Deployment trigger: v1.354 - 2026-02-20
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -1495,7 +1495,7 @@ export default function RiskReturnOptimiser() {
         useAssetAllocation: false,
         useCustomTax: false,
         customTax: { incomeTax: 0.47, ltCgt: 0.235, stCgt: 0.47 },
-        assetAllocation: DEFAULT_ASSETS.map(a => ({ id: a.id, weight: 0, min: 0, max: 100 }))
+        assetAllocation: DEFAULT_ASSETS.map(a => ({ id: a.id, weight: a.id === 'cash' ? 100 : 0, min: 0, max: 100 }))
       })));
       setIncomeStreams(DEFAULT_INCOME_STREAMS);
       setExpenseStreams(DEFAULT_EXPENSE_STREAMS);
@@ -3471,7 +3471,26 @@ export default function RiskReturnOptimiser() {
                           <div className="relative">
                               <input type="checkbox" className="sr-only" 
                                 checked={struct.useAssetAllocation}
-                                onChange={() => setStructures(structures.map(s => s.id === struct.id ? {...s, useAssetAllocation: !s.useAssetAllocation} : s))}
+                                onChange={() => {
+                                    setStructures(structures.map(s => {
+                                        if (s.id === struct.id) {
+                                            const newUseAlloc = !s.useAssetAllocation;
+                                            // If enabling and current weights are 0, default to Cash 100%
+                                            let newAssetAlloc = s.assetAllocation;
+                                            if (newUseAlloc) {
+                                                const totalW = s.assetAllocation.reduce((sum, a) => sum + (a.weight || 0), 0);
+                                                if (totalW < 0.1) {
+                                                    newAssetAlloc = s.assetAllocation.map(a => ({
+                                                        ...a,
+                                                        weight: a.id === 'cash' ? 100 : 0
+                                                    }));
+                                                }
+                                            }
+                                            return { ...s, useAssetAllocation: newUseAlloc, assetAllocation: newAssetAlloc };
+                                        }
+                                        return s;
+                                    }));
+                                }}
                               />
                               <div className={`block w-10 h-6 rounded-full ${struct.useAssetAllocation ? 'bg-fire-accent' : 'bg-gray-300'}`}></div>
                               <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition ${struct.useAssetAllocation ? 'transform translate-x-4' : ''}`}></div>
@@ -3504,12 +3523,7 @@ export default function RiskReturnOptimiser() {
                                       {/* Risk Removed v1.244 */}
                                       <th className="px-3 py-2 text-center">Tolerance (Min %)</th>
                                       <th className="px-3 py-2 text-center">Tolerance (Max %)</th>
-                                      <th className="px-3 py-2 text-center">
-                                          <div className="flex items-center justify-center gap-1">
-                                              Group Constraint (Max %)
-                                              <HelpCircle className="w-3 h-3 text-gray-400 cursor-help" title="Limit total allocation for assets with the same Group Name (e.g. 'Alternatives:15' limits all 'Alternatives' to 15% combined)." />
-                                          </div>
-                                      </th>
+
                                   </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100">
@@ -3555,7 +3569,15 @@ export default function RiskReturnOptimiser() {
                                                           onBlur={(e) => {
                                                               const val = parseFloat(e.target.value) || 0;
                                                               if (val !== alloc.weight) {
-                                                                const newAlloc = allocations.map(x => x.id === alloc.id ? {...x, weight: val} : x);
+                                                                let newAlloc = allocations.map(x => x.id === alloc.id ? {...x, weight: val} : x);
+                                                                
+                                                                // v1.354: Auto-balance Cash if we are modifying a non-cash asset
+                                                                if (alloc.id !== 'cash') {
+                                                                    const otherSum = newAlloc.reduce((sum, a) => (a.id !== 'cash' ? sum + (a.weight || 0) : sum), 0);
+                                                                    const remaining = Math.max(0, 100 - otherSum);
+                                                                    newAlloc = newAlloc.map(x => x.id === 'cash' ? {...x, weight: remaining} : x);
+                                                                }
+
                                                                 setStructures(structures.map(s => s.id === struct.id ? {...s, assetAllocation: newAlloc} : s));
                                                               }
                                                           }}
@@ -3594,21 +3616,7 @@ export default function RiskReturnOptimiser() {
                                                           onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                                                       />
                                                   </td>
-                                                  <td className="px-3 py-1 text-center">
-                                                      <input type="text" className="w-16 border rounded text-center text-black" 
-                                                          key={`group-${alloc.id}-${alloc.groupLimit}`}
-                                                          defaultValue={alloc.groupLimit || ''}
-                                                          placeholder="-"
-                                                          onBlur={(e) => {
-                                                              const val = e.target.value;
-                                                              if (val !== alloc.groupLimit) {
-                                                                const newAlloc = allocations.map(x => x.id === alloc.id ? {...x, groupLimit: val} : x);
-                                                                setStructures(structures.map(s => s.id === struct.id ? {...s, assetAllocation: newAlloc} : s));
-                                                              }
-                                                          }}
-                                                          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                                                      />
-                                                  </td>
+
                                               </tr>
                                           );
                                         })}
@@ -3619,8 +3627,8 @@ export default function RiskReturnOptimiser() {
                                             <td className="px-3 py-2 text-center"></td>
                                             <td className="px-3 py-2"></td>
                                             <td className="px-3 py-2"></td>
-                                            <td className="px-3 py-2"></td>
-                                            <td className="px-3 py-2"></td>
+
+
                                           </tr>
                                       </>
                                     );
@@ -5086,7 +5094,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.352 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.353</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.354</span>
              </div>
           </div>
         </div>
