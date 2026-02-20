@@ -1,4 +1,4 @@
-// Deployment trigger: v1.356 - 2026-02-20
+// Deployment trigger: v1.357 - 2026-02-20
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -2748,17 +2748,36 @@ export default function RiskReturnOptimiser() {
 
     // 1. Run for Current View (to display)
     const currentData = runSim(showBeforeTax, showNominal);
+
+    // 2. v1.357: If showing After-Tax (default), also run Pre-Tax for Comparison Overlay
+    if (!showBeforeTax) {
+        const overlayData = runSim(true, showNominal); // Comparison: Pre-Tax
+        
+        // Merge overlay data into currentData
+        currentData.forEach((d, i) => {
+            if (overlayData[i]) {
+                d.p02_overlay = overlayData[i].p02;
+                d.p50_overlay = overlayData[i].p50;
+                d.p84_overlay = overlayData[i].p84;
+            }
+        });
+    }
+    
     setCfSimulationResults(currentData);
     
     // v1.348: Scale Y-axis to current data points with 10% buffer
-    // (Removed v1.307 logic that locked to Global Max/Nominal Before Tax)
-    const maxVal = Math.max(...currentData.map(d => d.p84));
+    // v1.357: Include overlay data in max calculation if present
+    let maxVal = Math.max(...currentData.map(d => d.p84));
+    if (!showBeforeTax) {
+         const maxOverlay = Math.max(...currentData.map(d => d.p84_overlay || 0));
+         maxVal = Math.max(maxVal, maxOverlay);
+    }
     setMaxProjectionY(maxVal * 1.1);
     
   }, [selectedPortfolio, totalWealth, incomeStreams, expenseStreams, projectionYears, inflationRate, adviceFee, structures, entityTypes, showBeforeTax, showNominal, optimizationAssets, assets, correlations]);
 
   // v1.312: Detailed Verification Dump (Two Tables: Risk & Inflation)
-  const verifyDetailedProjections = async (profiles, activeAssets, activeCorrelations, numSims, runId) => {
+  const verifyDetailedProjections = async (profiles, activeAssets, activeCorrelations, numSims, runId, scenarioName) => {
       try {
           console.log('Running v1.324 Verification Dump (Full Portfolio Set)...');
           
@@ -2851,54 +2870,32 @@ export default function RiskReturnOptimiser() {
                   // Table A: Risk
                   riskData.push({
                       run_id: runId,
+                      scenario_name: scenarioName || 'Unnamed',
                       portfolio_id: p.id,
-                      year: d.year,
-                      
-                      // v1.326: Removed legacy columns (downside_2sd, median, upside_1sd)
-                      // Only keeping the Hybrid "SS" Columns + Core Sim Metrics
-                      
-                      ss_downside: hybrid_downside,
-                      ss_median: det_median,
-                      ss_upside: hybrid_upside,
-                      
-                      sim_return: netReturn,
-                      sim_risk: netRisk
+                      year: yIdx,
+                      mc_p50: raw_p50,
+                      ss_median: det_median, 
+                      hybrid_upside: hybrid_upside,
+                      hybrid_downside: hybrid_downside
                   });
 
-                 // Inflation Table: Use Deterministic Median
-                 const ssVal = det_median;
-                 const realVal = ssVal * (1 - inflationRate);
-
-                  // v1.333: Real Value Variance (Spread on Opening Real Balance)
-                  // Fixed: Use local tracking to avoid cross-portfolio leakage
-                  let prevRealVal = realVal;
-                  if (yIdx > 0 && currentPortInflationData[yIdx - 1]) {
-                      prevRealVal = currentPortInflationData[yIdx - 1].real_value;
-                  }
-
-                  let real_upside = realVal;
-                  let real_downside = realVal;
-
-                  if (yIdx > 0) {
-                      const sigma = prevRealVal * netRisk;
-                      real_upside = realVal + sigma;
-                      real_downside = realVal - (2 * sigma);
-                  }
-
+                  // v1.312: Inflation Check Logic (Deflator Proof)
+                  // We simulate Real Growth to prove Real = Nominal / Inflation
+                  // Real Return = (1+Nom)/(1+Inf) - 1
+                  const realReturn = ((1+netReturn)/(1+inflationRate)) - 1;
+                  const realBalance = det_median * Math.pow(1+inflationRate, -yIdx);
+                  
                   currentPortInflationData.push({
-                      real_value: realVal
-                  });
-
-                  inflationData.push({
                       run_id: runId,
+                      scenario_name: scenarioName || 'Unnamed',
                       portfolio_id: p.id,
-                      year: d.year,
-                      nominal: ssVal, 
-                      real_value: realVal,
-                      real_upside: real_upside,
-                      real_downside: real_downside,
-                      real_risk: netRisk,
-                      inflation_rate: inflationRate
+                      year: yIdx,
+                      nominal_val: det_median,
+                      deflator: Math.pow(1+inflationRate, yIdx), // (1+i)^n
+                      real_calc: realBalance,
+                      // We don't have a separate Real simulation here for comparison in this loop,
+                      // but this proves the arithmetic used in the chart.
+                      real_sim: 0 
                   });
              });
           }
@@ -2926,6 +2923,8 @@ export default function RiskReturnOptimiser() {
           alert(`Verification Dump Failed: ${err.message}`);
       }
   };
+
+
 
   useEffect(() => {
     // Run simulation immediately when portfolio is selected (after optimization or tab change)
@@ -5082,7 +5081,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.352 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.356</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.357</span>
              </div>
           </div>
         </div>
@@ -5395,6 +5394,8 @@ const DebugLogsModal = ({ open, onClose, logs }) => {
   );
 };
 
+
+
 const SettingsModal = ({ 
     isSettingsOpen, 
     setIsSettingsOpen, 
@@ -5422,19 +5423,7 @@ const SettingsModal = ({
     // Initialize draft on open
     if (!settingsDraft) return null;
 
-    // Helper for SettingsModal
-    const NumberInput = ({ value, onChange, className, placeholder, prefix }) => (
-        <div className="relative">
-            {prefix && <span className="absolute left-3 top-2 text-gray-400">{prefix}</span>}
-            <input
-                type="number"
-                value={value}
-                onChange={(e) => onChange(parseInt(e.target.value))}
-                className={`${className} ${prefix ? 'pl-8' : ''}`}
-                placeholder={placeholder}
-            />
-        </div>
-    );
+    if (!settingsDraft) return null;
 
     // Icons
 
