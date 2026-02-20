@@ -1,4 +1,4 @@
-// Deployment trigger: v1.357 - 2026-02-20
+// Deployment trigger: v1.358 - 2026-02-20
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -2746,12 +2746,12 @@ export default function RiskReturnOptimiser() {
         });
     };
 
-    // 1. Run for Current View (to display)
-    const currentData = runSim(showBeforeTax, showNominal);
+    // v1.358: After-Tax is ALWAYS the base view
+    const currentData = runSim(false, showNominal); // Always After-Tax as primary
 
-    // 2. v1.357: If showing After-Tax (default), also run Pre-Tax for Comparison Overlay
-    if (!showBeforeTax) {
-        const overlayData = runSim(true, showNominal); // Comparison: Pre-Tax
+    // When "Before Tax" toggle is active, overlay Pre-Tax lines on top
+    if (showBeforeTax) {
+        const overlayData = runSim(true, showNominal); // Pre-Tax overlay
         
         // Merge overlay data into currentData
         currentData.forEach((d, i) => {
@@ -2768,7 +2768,7 @@ export default function RiskReturnOptimiser() {
     // v1.348: Scale Y-axis to current data points with 10% buffer
     // v1.357: Include overlay data in max calculation if present
     let maxVal = Math.max(...currentData.map(d => d.p84));
-    if (!showBeforeTax) {
+    if (showBeforeTax) {
          const maxOverlay = Math.max(...currentData.map(d => d.p84_overlay || 0));
          maxVal = Math.max(maxVal, maxOverlay);
     }
@@ -2870,32 +2870,53 @@ export default function RiskReturnOptimiser() {
                   // Table A: Risk
                   riskData.push({
                       run_id: runId,
-                      scenario_name: scenarioName || 'Unnamed',
+                      // scenario_name: scenarioName ... (Removed as column missing in DB)
                       portfolio_id: p.id,
                       year: yIdx,
-                      mc_p50: raw_p50,
+                      // mc_p50: raw_p50, (Removed as column missing in DB)
                       ss_median: det_median, 
-                      hybrid_upside: hybrid_upside,
-                      hybrid_downside: hybrid_downside
+                      ss_upside: hybrid_upside,
+                      ss_downside: hybrid_downside,
+                      sim_return: netReturn,  // Restore legacy columns required by DB
+                      sim_risk: netRisk
                   });
 
                   // v1.312: Inflation Check Logic (Deflator Proof)
                   // We simulate Real Growth to prove Real = Nominal / Inflation
                   // Real Return = (1+Nom)/(1+Inf) - 1
                   const realReturn = ((1+netReturn)/(1+inflationRate)) - 1;
-                  const realBalance = det_median * Math.pow(1+inflationRate, -yIdx);
+                  const realVal = det_median * Math.pow(1+inflationRate, -yIdx);
                   
+                  // Restore real variance logic for DB
+                  let prevRealVal = realVal;
+                  // (Simplified Previous value lookup approximation for verification)
+                  if (yIdx > 0 && currentPortInflationData.length > 0) {
+                      prevRealVal = currentPortInflationData[yIdx - 1].real_value;
+                  }
+
+                  let real_upside = realVal;
+                  let real_downside = realVal;
+
+                  if (yIdx > 0) {
+                      const sigma = prevRealVal * netRisk;
+                      real_upside = realVal + sigma;
+                      real_downside = realVal - (2 * sigma);
+                  }
+
                   currentPortInflationData.push({
+                      real_value: realVal
+                  });
+
+                  inflationData.push({
                       run_id: runId,
-                      scenario_name: scenarioName || 'Unnamed',
                       portfolio_id: p.id,
-                      year: yIdx,
-                      nominal_val: det_median,
-                      deflator: Math.pow(1+inflationRate, yIdx), // (1+i)^n
-                      real_calc: realBalance,
-                      // We don't have a separate Real simulation here for comparison in this loop,
-                      // but this proves the arithmetic used in the chart.
-                      real_sim: 0 
+                      year: yIdx, 
+                      nominal: det_median, 
+                      real_value: realVal,
+                      real_upside: real_upside,
+                      real_downside: real_downside,
+                      real_risk: netRisk,
+                      inflation_rate: inflationRate
                   });
              });
           }
@@ -4902,9 +4923,9 @@ export default function RiskReturnOptimiser() {
                   <span className="text-xs font-medium text-gray-500">Display:</span>
                   <button
                      onClick={() => setShowBeforeTax(!showBeforeTax)}
-                     className={`px-3 py-1 rounded text-xs font-medium transition-colors ${showBeforeTax ? 'bg-fire-accent text-white' : 'bg-gray-200 text-gray-700'}`}
+                     className={`px-3 py-1 rounded text-xs font-medium transition-colors ${showBeforeTax ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-700'}`}
                   >
-                     {showBeforeTax ? 'Before Tax' : 'After Tax'}
+                     {showBeforeTax ? 'Before Tax ✓' : '+ Before Tax'}
                   </button>
                </div>
 
@@ -4939,20 +4960,44 @@ export default function RiskReturnOptimiser() {
                       const data = payload[0].payload;
                       return (
                         <div className="bg-white p-3 border border-gray-200 shadow-xl rounded text-sm z-50">
-                          <p className="font-bold mb-2 text-black">{label}</p>
-                          <div className="space-y-1">
-                            <div className="flex justify-between gap-4">
-                              <span className="text-black">Upside (1 SD):</span>
-                              <span className="font-mono font-medium text-black">{formatCurrency(data.p84)}</span>
+                          <p className="font-bold mb-2 text-black text-center border-b pb-1">Year {label}</p>
+                          <div className="space-y-2">
+                            <div>
+                              <div className="text-[10px] uppercase font-bold text-blue-600 mb-1">After Tax</div>
+                              <div className="space-y-1">
+                                <div className="flex justify-between gap-4">
+                                  <span className="text-black">Upside (1 SD):</span>
+                                  <span className="font-mono font-medium text-black">{formatCurrency(data.p84)}</span>
+                                </div>
+                                <div className="flex justify-between gap-4">
+                                  <span className="text-black">Median:</span>
+                                  <span className="font-mono font-bold text-black">{formatCurrency(data.p50)}</span>
+                                </div>
+                                <div className="flex justify-between gap-4">
+                                  <span className="text-black">Downside (2 SD):</span>
+                                  <span className="font-mono font-medium text-black">{formatCurrency(data.p02)}</span>
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex justify-between gap-4">
-                              <span className="text-black">Median:</span>
-                              <span className="font-mono font-bold text-black">{formatCurrency(data.p50)}</span>
-                            </div>
-                            <div className="flex justify-between gap-4">
-                              <span className="text-black">Downside (2 SD):</span>
-                              <span className="font-mono font-medium text-black">{formatCurrency(data.p02)}</span>
-                            </div>
+                            {data.p50_overlay !== undefined && (
+                              <div className="border-t pt-2">
+                                <div className="text-[10px] uppercase font-bold text-orange-500 mb-1">Before Tax</div>
+                                <div className="space-y-1">
+                                  <div className="flex justify-between gap-4">
+                                    <span className="text-gray-600">Upside:</span>
+                                    <span className="font-mono font-medium text-gray-700">{formatCurrency(data.p84_overlay)}</span>
+                                  </div>
+                                  <div className="flex justify-between gap-4">
+                                    <span className="text-gray-600">Median:</span>
+                                    <span className="font-mono font-bold text-gray-700">{formatCurrency(data.p50_overlay)}</span>
+                                  </div>
+                                  <div className="flex justify-between gap-4">
+                                    <span className="text-gray-600">Downside:</span>
+                                    <span className="font-mono font-medium text-gray-700">{formatCurrency(data.p02_overlay)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -4967,6 +5012,11 @@ export default function RiskReturnOptimiser() {
                 <Line type="monotone" dataKey="p50" stroke="#3B82F6" strokeWidth={3} dot={false} strokeDasharray="5 5" name="Median" isAnimationActive={!isExporting} />
                 <Line type="monotone" dataKey="p84" stroke="#93C5FD" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Upside" isAnimationActive={!isExporting} />
                 <Line type="monotone" dataKey="p02" stroke="#93C5FD" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Downside" isAnimationActive={!isExporting} />
+
+                {/* v1.358: Overlay Lines (Orange) - Before Tax comparison */}
+                <Line type="monotone" dataKey="p50_overlay" stroke="#f97316" strokeWidth={2} dot={false} strokeDasharray="3 3" name="Pre-Tax Median" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p84_overlay" stroke="#fdba74" strokeWidth={1} dot={false} strokeDasharray="3 3" name="Pre-Tax Upside" isAnimationActive={!isExporting} />
+                <Line type="monotone" dataKey="p02_overlay" stroke="#fdba74" strokeWidth={1} dot={false} strokeDasharray="3 3" name="Pre-Tax Downside" isAnimationActive={!isExporting} />
 
                 {/* One-Off Event Reference Lines - Rendered last to be on top */}
                 {oneOffEvents.map((event, idx) => (
@@ -5081,7 +5131,7 @@ export default function RiskReturnOptimiser() {
              </div>
              <div className="text-right">
                 {/* Deployment trigger: v1.352 */}
-                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.357</span>
+                <span className="bg-red-800 text-xs font-mono py-1 px-2 rounded text-red-100">v1.358</span>
              </div>
           </div>
         </div>
